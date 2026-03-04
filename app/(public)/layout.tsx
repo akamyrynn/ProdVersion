@@ -1,9 +1,14 @@
 import { Suspense } from "react"
+import type { Metadata } from "next"
 import { HtmlWrapper } from "@/components/shared/html-wrapper"
 import { AuthModal } from "@/components/auth/auth-modal"
 import { getSiteSettings } from "@/lib/actions/site-settings"
 import { AuthProvider } from "@/providers/auth-provider"
 import "@/components/landing/_shared/landing-globals.css"
+
+export const metadata: Metadata = {
+  title: "Оптовые поставки кофе по всей России - 10coffee",
+}
 
 export default async function PublicLayout({
   children,

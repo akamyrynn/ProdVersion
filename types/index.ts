@@ -5,9 +5,9 @@
 export type AdminRole = "ADMIN" | "MANAGER"
 
 export type OrderStatus =
-  | "waiting"
+  | "new"
   | "confirmed"
-  | "invoice_sent"
+  | "invoiced"
   | "paid"
   | "in_production"
   | "ready"
@@ -205,10 +205,12 @@ export interface CartItem {
 
 export interface Order {
   id: string
-  order_number: number
+  order_id: string
   client_id: string
-  company_id: string | null
+  company_name: string | null
+  company_inn: string | null
   status: OrderStatus
+  payment_status: string
   delivery_method: DeliveryMethod
   delivery_address: string | null
   subtotal: number
@@ -226,7 +228,6 @@ export interface Order {
 
   // Relations
   items?: OrderItem[]
-  company?: Company
   client?: ClientProfile
   promo_code?: PromoCode
 }

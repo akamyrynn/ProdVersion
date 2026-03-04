@@ -1,9 +1,9 @@
 import type { OrderStatus, DeliveryMethod, StickerType } from "@/types"
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  waiting: "Ожидает обработки",
+  new: "Ожидает обработки",
   confirmed: "Подтверждён",
-  invoice_sent: "Счёт отправлен",
+  invoiced: "Счёт выставлен",
   paid: "Оплачен",
   in_production: "В производстве",
   ready: "Готов",
@@ -13,9 +13,9 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 }
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
-  waiting: "bg-yellow-100 text-yellow-800",
+  new: "bg-yellow-100 text-yellow-800",
   confirmed: "bg-blue-100 text-blue-800",
-  invoice_sent: "bg-indigo-100 text-indigo-800",
+  invoiced: "bg-indigo-100 text-indigo-800",
   paid: "bg-green-100 text-green-800",
   in_production: "bg-orange-100 text-orange-800",
   ready: "bg-emerald-100 text-emerald-800",
@@ -27,7 +27,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
 export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   self_pickup: "Самовывоз",
   cdek: "СДЭК",
-  cap_2000: "CAP 2000",
+  cap_2000: "ЦАП 2000",
 }
 
 export const STICKER_LABELS: Record<StickerType, string> = {

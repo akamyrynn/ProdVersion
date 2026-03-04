@@ -132,7 +132,6 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
   const lenis = useLenis();
   const buttonWrapRef = useRef<HTMLDivElement>(null);
   const enterBtnRef = useRef<HTMLButtonElement>(null);
-  const storeBtnRef = useRef<HTMLButtonElement>(null);
 
   const [isVisible, setIsVisible] = useState(() => !hasSeenPreloader());
   const [isScrollLocked, setIsScrollLocked] = useState(
@@ -192,11 +191,9 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
     if (!hasFinishedLoading || !buttonWrapRef.current) return;
 
     const enterBtn = enterBtnRef.current;
-    const storeBtn = storeBtnRef.current;
 
     gsap.set(buttonWrapRef.current, { autoAlpha: 0, y: 20 });
     if (enterBtn) gsap.set(enterBtn, { scale: 0.9, autoAlpha: 0 });
-    if (storeBtn) gsap.set(storeBtn, { scale: 0.9, autoAlpha: 0 });
 
     const tl = gsap.timeline({ delay: 0.3 });
 
@@ -210,19 +207,6 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
     if (enterBtn) {
       tl.to(
         enterBtn,
-        {
-          scale: 1,
-          autoAlpha: 1,
-          duration: 0.5,
-          ease: "back.out(1.7)",
-        },
-        "-=0.3",
-      );
-    }
-
-    if (storeBtn) {
-      tl.to(
-        storeBtn,
         {
           scale: 1,
           autoAlpha: 1,
@@ -247,10 +231,6 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
       setIsVisible(false);
       if (onAnimationComplete) onAnimationComplete();
     }, EXIT_ANIMATION_MS);
-  };
-
-  const handleStoreClick = () => {
-    window.open("https://10cofshop.vercel.app/", "_blank");
   };
 
   if (!isVisible) return null;
@@ -282,16 +262,9 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
           <div className={styles.buttonWrap} ref={buttonWrapRef}>
             <CharButton
               text="Войти на сайт"
-              className={styles.enterBtn}
-              bgClassName={styles.enterBtnBg}
+              className={styles.storeBtn}
               onClick={handleEnterClick}
               btnRef={enterBtnRef}
-            />
-            <CharButton
-              text="Интернет-магазин"
-              className={styles.storeBtn}
-              onClick={handleStoreClick}
-              btnRef={storeBtnRef}
             />
           </div>
         </div>

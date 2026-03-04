@@ -2,7 +2,7 @@ import Link from "next/link"
 import { getClientCompanies } from "@/lib/actions/companies"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Building2, Plus } from "lucide-react"
+import { Building2, Pencil, Plus } from "lucide-react"
 
 export default async function CompaniesPage() {
   const companies = await getClientCompanies()
@@ -50,7 +50,11 @@ export default async function CompaniesPage() {
                       ИНН: {company.inn}
                     </p>
                   </div>
-                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <Button variant="ghost" size="icon" asChild className="h-8 w-8">
+                    <Link href={`/dashboard/companies/${company.id}`}>
+                      <Pencil className="h-4 w-4" />
+                    </Link>
+                  </Button>
                 </div>
                 {company.legal_address && (
                   <p className="text-sm text-muted-foreground">

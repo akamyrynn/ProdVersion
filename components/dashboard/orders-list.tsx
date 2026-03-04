@@ -193,7 +193,7 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                 <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center gap-3">
                     <span className="text-[14px] font-black text-neutral-900 tabular-nums">
-                      {formatOrderNumber(order.order_number)}
+                      {formatOrderNumber(order.order_id)}
                     </span>
                     <span
                       className={cn(

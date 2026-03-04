@@ -98,7 +98,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-5 shrink-0 z-30 relative">
           {/* Left: Logo */}
           <Link href="/dashboard" className="flex items-center gap-2.5">
-            <img src="/logo.svg" alt="10coffee" className="h-5 w-auto" />
+            <img src="/logo.svg" alt="10coffee" className="w-[120px] h-[55px] object-contain" />
           </Link>
 
           {/* Center: Tab Switcher */}

@@ -9,9 +9,9 @@ import { ArrowUpRight, Coffee } from "lucide-react"
 import type { News, OrderStatus } from "@/types"
 
 const STATUS_DOTS: Record<OrderStatus, string> = {
-  waiting: "bg-amber-400",
+  new: "bg-amber-400",
   confirmed: "bg-sky-400",
-  invoice_sent: "bg-indigo-400",
+  invoiced: "bg-indigo-400",
   paid: "bg-emerald-400",
   in_production: "bg-orange-400",
   ready: "bg-teal-400",
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2.5">
                         <span className="text-[14px] font-black text-neutral-900 tabular-nums">
-                          {formatOrderNumber(order.order_number)}
+                          {formatOrderNumber(order.order_id)}
                         </span>
                         <div className="flex items-center gap-1.5">
                           <div

@@ -123,7 +123,7 @@ export default function LandingFooter() {
           </Copy>
         </div>
 
-        <div className={styles.buttonContainer} ref={buttonContainerRef}>
+        <div className={styles.buttonContainer} ref={buttonContainerRef} style={{ ["--btn-bg" as string]: "#ffffff", ["--btn-fg" as string]: "#1d1d1b" }}>
           <AnimatedButton href="#price-list-form" ref={buttonRef}>
             Получить прайс-лист
           </AnimatedButton>

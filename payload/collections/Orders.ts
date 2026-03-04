@@ -123,6 +123,7 @@ export const Orders: CollectionConfig = {
                     { label: "Новый", value: "new" },
                     { label: "Подтверждён", value: "confirmed" },
                     { label: "Счёт выставлен", value: "invoiced" },
+                    { label: "Оплачен", value: "paid" },
                     { label: "В производстве", value: "in_production" },
                     { label: "Готов к отгрузке", value: "ready" },
                     { label: "Отгружен", value: "shipped" },
@@ -174,7 +175,7 @@ export const Orders: CollectionConfig = {
                       options: [
                         { label: "Самовывоз", value: "self_pickup" },
                         { label: "СДЭК", value: "cdek" },
-                        { label: "CAP 2000", value: "cap_2000" },
+                        { label: "ЦАП 2000", value: "cap_2000" },
                       ],
                       admin: { width: "40%" },
                     },

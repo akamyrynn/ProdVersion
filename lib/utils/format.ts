@@ -46,8 +46,8 @@ export function formatDateTime(dateStr: string): string {
 }
 
 /**
- * Format order number with leading zeros
+ * Format order ID for display
  */
-export function formatOrderNumber(num: number): string {
-  return `#${String(num).padStart(6, "0")}`
+export function formatOrderNumber(orderId: string): string {
+  return orderId || "—"
 }

@@ -1,5 +1,21 @@
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
+import { PDFDocument, rgb } from "pdf-lib"
+import fontkit from "@pdf-lib/fontkit"
 import QRCode from "qrcode"
+import { readFileSync } from "fs"
+import { join } from "path"
+
+// Cache font bytes at module level
+let fontRegularBytes: Buffer | null = null
+let fontMediumBytes: Buffer | null = null
+
+function loadFonts() {
+  if (!fontRegularBytes) {
+    const dir = join(process.cwd(), "public", "fonts")
+    fontRegularBytes = readFileSync(join(dir, "GoogleSans-Regular.ttf"))
+    fontMediumBytes = readFileSync(join(dir, "GoogleSans-Medium.ttf"))
+  }
+  return { regular: fontRegularBytes, medium: fontMediumBytes! }
+}
 
 interface InvoiceItem {
   name: string
@@ -29,10 +45,14 @@ export interface InvoiceData {
 }
 
 export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array> {
-  const doc = await PDFDocument.create()
-  const page = doc.addPage([595, 842]) // A4
-  const font = await doc.embedFont(StandardFonts.Helvetica)
-  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold)
+  const pdfDoc = await PDFDocument.create()
+  pdfDoc.registerFontkit(fontkit)
+
+  const fonts = loadFonts()
+  const font = await pdfDoc.embedFont(fonts.regular)
+  const fontBold = await pdfDoc.embedFont(fonts.medium)
+
+  const page = pdfDoc.addPage([595, 842]) // A4
   const { height } = page.getSize()
 
   const margin = 40
@@ -57,7 +77,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
     `BIC=${data.sellerBik}`,
     `CorrespAcc=${data.sellerCorrAccount}`,
     `PayeeINN=${data.sellerInn}`,
-    `Purpose=Oplata po schetu N${data.invoiceNumber} ot ${data.invoiceDate}, Zakaz N${String(data.invoiceNumber).padStart(6, "0")}`,
+    `Purpose=Оплата по счёту №${data.invoiceNumber} от ${data.invoiceDate}`,
     `Sum=${Math.round(data.total * 100)}`,
   ].join("|")
 
@@ -67,14 +87,14 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
       margin: 1,
       errorCorrectionLevel: "M",
     })
-    const qrImage = await doc.embedPng(qrPng)
+    const qrImage = await pdfDoc.embedPng(qrPng)
     page.drawImage(qrImage, { x: 480, y: y - 80, width: 80, height: 80 })
   } catch {
     // QR failed, continue
   }
 
   // --- Header ---
-  text("Predoplata 50%", margin, y - 10, 8, font, gray)
+  text("Предоплата 50%", margin, y - 10, 8, font, gray)
   y -= 30
 
   // --- Bank details ---
@@ -82,14 +102,14 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   const bw = 400
 
   line(bx, y, bx + bw, y)
-  text(`Bank: ${data.sellerBank}`, bx + 4, y - 10, 7)
-  text(`BIK: ${data.sellerBik}`, bx + 280, y - 10, 7)
+  text(`Банк: ${data.sellerBank}`, bx + 4, y - 10, 7)
+  text(`БИК: ${data.sellerBik}`, bx + 280, y - 10, 7)
   line(bx, y - 14, bx + bw, y - 14)
-  text(`Sch. N: ${data.sellerCorrAccount}`, bx + 280, y - 24, 7)
+  text(`Сч. №: ${data.sellerCorrAccount}`, bx + 280, y - 24, 7)
   line(bx, y - 28, bx + bw, y - 28)
 
-  text(`INN: ${data.sellerInn}`, bx + 4, y - 38, 7)
-  text(`Sch. N: ${data.sellerAccount}`, bx + 280, y - 38, 7)
+  text(`ИНН: ${data.sellerInn}`, bx + 4, y - 38, 7)
+  text(`Сч. №: ${data.sellerAccount}`, bx + 280, y - 38, 7)
   line(bx, y - 42, bx + bw, y - 42)
   text(data.sellerName, bx + 4, y - 52, 7)
   line(bx, y - 56, bx + bw, y - 56)
@@ -103,30 +123,30 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   y -= 68
 
   // --- Buyer ---
-  text("Pokupatel:", bx, y, 7, fontBold)
-  text(data.buyerName, bx + 55, y, 7)
+  text("Покупатель:", bx, y, 7, fontBold)
+  text(data.buyerName, bx + 60, y, 7)
   y -= 12
-  text(`INN ${data.buyerInn}, KPP ${data.buyerKpp}`, bx + 55, y, 7)
+  text(`ИНН ${data.buyerInn}, КПП ${data.buyerKpp}`, bx + 60, y, 7)
   y -= 12
-  text(data.buyerAddress, bx + 55, y, 7)
+  text(data.buyerAddress, bx + 60, y, 7)
   y -= 20
 
   // --- Invoice title ---
-  text(`Schet na oplatu N ${data.invoiceNumber} ot ${data.invoiceDate}`, bx, y, 14, fontBold)
+  text(`Счёт на оплату № ${data.invoiceNumber} от ${data.invoiceDate}`, bx, y, 14, fontBold)
   y -= 18
 
   // --- Supplier ---
-  text("Postavschik:", bx, y, 7, fontBold)
+  text("Поставщик:", bx, y, 7, fontBold)
   text(`${data.sellerName}, ${data.sellerAddress}`, bx + 60, y, 7)
   y -= 12
-  text("Pokupatel:", bx, y, 7, fontBold)
+  text("Покупатель:", bx, y, 7, fontBold)
   text(`${data.buyerName}, ${data.buyerAddress}`, bx + 60, y, 7)
   y -= 18
 
   // --- Items table ---
   const tw = 515
   const cols = [30, 230, 40, 35, 50, 60, 70]
-  const headers = ["N", "Tovary (raboty, uslugi)", "Kol-vo", "Ed.", "NDS", "Cena", "Summa"]
+  const headers = ["№", "Товары (работы, услуги)", "Кол-во", "Ед.", "НДС", "Цена", "Сумма"]
 
   // Header row
   page.drawRectangle({ x: bx, y: y - 14, width: tw, height: 14, color: rgb(0.95, 0.95, 0.95) })
@@ -167,20 +187,20 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   // --- Totals ---
   y -= 10
   const totalItems = data.items.reduce((s, i) => s + i.quantity, 0)
-  text(`Vsego naimenovanij ${totalItems}, na summu ${data.total.toFixed(2)} rub.`, bx, y, 8)
+  text(`Всего наименований ${totalItems}, на сумму ${data.total.toFixed(2)} руб.`, bx, y, 8)
   y -= 16
 
-  text("Itogo k oplate:", bx + 300, y, 12, fontBold)
+  text("Итого к оплате:", bx + 300, y, 12, fontBold)
   text(`${data.total.toFixed(2)}`, bx + 420, y, 12, fontBold)
   y -= 14
-  text(`${Math.floor(data.total)} rub. ${((data.total % 1) * 100).toFixed(0).padStart(2, "0")} kop.`, bx, y, 8)
+  text(`${Math.floor(data.total)} руб. ${((data.total % 1) * 100).toFixed(0).padStart(2, "0")} коп.`, bx, y, 8)
   y -= 30
 
   // --- Signature ---
-  text("Individualnyj predprinimatel", bx, y, 8)
-  line(bx + 150, y - 2, bx + 350, y - 2)
-  const sellerShort = data.sellerName.replace(/^IP\s*/i, "")
+  text("Индивидуальный предприниматель", bx, y, 8)
+  line(bx + 170, y - 2, bx + 350, y - 2)
+  const sellerShort = data.sellerName.replace(/^ИП\s*/i, "")
   text(sellerShort, bx + 360, y, 8)
 
-  return doc.save()
+  return pdfDoc.save()
 }

@@ -46,7 +46,7 @@ function transformVariantFromPayload(v: any, productId: string): ProductVariant 
     name: v.name || "",
     sku: v.sku || null,
     price: v.price || 0,
-    weight_grams: v.weightGrams || null,
+    weight_grams: v.weightGrams ?? null,
     is_available: v.isAvailable ?? true,
     sort_order: 0,
     grind_options: (v.grindOptions || []).map((g: string) => GRIND_MAP[g] || g),

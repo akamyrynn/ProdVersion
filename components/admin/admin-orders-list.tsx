@@ -92,7 +92,7 @@ export function AdminOrdersList({ initialOrders }: AdminOrdersListProps) {
               filtered.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">
-                    {formatOrderNumber(order.order_number)}
+                    {formatOrderNumber(order.order_id)}
                   </TableCell>
                   <TableCell>
                     {(order.client as any)?.full_name || "—"}

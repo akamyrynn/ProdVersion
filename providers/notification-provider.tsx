@@ -80,6 +80,32 @@ export function NotificationProvider({
           })
           setHasNewNotification(true)
           setTimeout(() => setHasNewNotification(false), 2000)
+
+          // Animate browser tab title
+          if (typeof document !== "undefined" && document.hidden) {
+            const originalTitle = document.title
+            let blink = true
+            const interval = setInterval(() => {
+              document.title = blink
+                ? `🔔 ${newNotification.title}`
+                : originalTitle
+              blink = !blink
+            }, 1500)
+
+            const restore = () => {
+              clearInterval(interval)
+              document.title = originalTitle
+              document.removeEventListener("visibilitychange", onVisible)
+            }
+
+            const onVisible = () => {
+              if (!document.hidden) restore()
+            }
+
+            document.addEventListener("visibilitychange", onVisible)
+            // Auto-stop after 30s
+            setTimeout(restore, 30000)
+          }
         }
       )
       .subscribe()

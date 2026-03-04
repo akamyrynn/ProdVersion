@@ -425,35 +425,6 @@ function ListCategorySection({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              {/* Table header */}
-              <div className="grid grid-cols-[1fr_auto] gap-0 items-end min-w-[700px]">
-                <div />
-                <div className="grid grid-cols-2 gap-0">
-                  <div className="text-center text-[10px] font-bold text-neutral-400 tracking-wider uppercase pb-1 px-2 border-b-2 border-neutral-200 min-w-[200px]">
-                    Упаковка 250 г
-                  </div>
-                  <div className="text-center text-[10px] font-bold text-neutral-400 tracking-wider uppercase pb-1 px-2 border-b-2 border-[#5b328a] min-w-[200px]">
-                    Упаковка 1 кг
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-[1fr_auto] gap-0 items-center min-w-[700px] text-[10px] font-medium text-neutral-400 uppercase tracking-wider border-b border-neutral-100 py-1.5">
-                <div className="px-1">Наименование</div>
-                <div className="grid grid-cols-2 gap-0">
-                  <div className="grid grid-cols-[60px_70px_70px] gap-0 text-center min-w-[200px]">
-                    <div>Цена</div>
-                    <div>В зёрнах</div>
-                    <div>Молотый</div>
-                  </div>
-                  <div className="grid grid-cols-[60px_70px_70px] gap-0 text-center min-w-[200px]">
-                    <div>Цена</div>
-                    <div>В зёрнах</div>
-                    <div>Молотый</div>
-                  </div>
-                </div>
-              </div>
-
               {/* Product rows */}
               {filteredAndSorted.map((product) => (
                 <ProductTableRow
@@ -473,18 +444,21 @@ function ListCategorySection({
 // ── Grid mode: product card ──
 function ProdCard({ product, idx }: { product: any; idx: number }) {
   const { addItem } = useCart()
-  const variant = product.variants?.[0]
+  const variants = product.variants ?? []
+  const [selectedIdx, setSelectedIdx] = useState(0)
   const [added, setAdded] = useState(false)
   const imageUrl = product.images?.[0] || null
 
+  const selectedVariant = variants[selectedIdx]
+
   async function handleAdd(e: React.MouseEvent) {
     e.preventDefault()
-    if (!variant) return
+    if (!selectedVariant) return
     await addItem({
       productId: String(product.id),
-      variantId: String(variant.id || idx),
+      variantId: String(selectedVariant.id || idx),
       quantity: 1,
-      grindOption: variant.grind_options?.[0] || undefined,
+      grindOption: selectedVariant.grind_options?.[0] || undefined,
     })
     setAdded(true)
     setTimeout(() => setAdded(false), 1200)
@@ -557,31 +531,58 @@ function ProdCard({ product, idx }: { product: any; idx: number }) {
           )}
         </Link>
 
-        {variant && (
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-neutral-100">
-            <div>
-              <span className="text-[15px] font-black text-neutral-900">
-                {formatPrice(variant.price)}
-              </span>
-              <span className="text-[10px] text-neutral-400 ml-1">
-                {variant.name}
-              </span>
-            </div>
-            <button
-              onClick={handleAdd}
-              className={cn(
-                "h-9 w-9 rounded-full flex items-center justify-center transition-all duration-300",
-                added
-                  ? "bg-[#5b328a] text-white scale-110 shadow-lg shadow-[#5b328a]/30"
-                  : "bg-[#5b328a] text-white hover:bg-[#4a2870] hover:shadow-md active:scale-90"
-              )}
-            >
-              {added ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-            </button>
+        {variants.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-neutral-100 space-y-2.5">
+            {/* Variant selector */}
+            {variants.length > 1 && (
+              <div className="flex gap-1 flex-wrap">
+                {variants.map((v: any, i: number) => (
+                  <button
+                    key={v.id}
+                    onClick={(e) => { e.preventDefault(); setSelectedIdx(i) }}
+                    className={cn(
+                      "text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all",
+                      selectedIdx === i
+                        ? "bg-neutral-900 text-white"
+                        : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
+                    )}
+                  >
+                    {v.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Price + add */}
+            {selectedVariant && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[15px] font-black text-neutral-900">
+                    {formatPrice(selectedVariant.price)}
+                  </span>
+                  {variants.length === 1 && (
+                    <span className="text-[10px] text-neutral-400 ml-1">
+                      {selectedVariant.name}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={handleAdd}
+                  className={cn(
+                    "h-9 w-9 rounded-full flex items-center justify-center transition-all duration-300",
+                    added
+                      ? "bg-[#5b328a] text-white scale-110 shadow-lg shadow-[#5b328a]/30"
+                      : "bg-[#5b328a] text-white hover:bg-[#4a2870] hover:shadow-md active:scale-90"
+                  )}
+                >
+                  {added ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

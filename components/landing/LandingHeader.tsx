@@ -17,43 +17,26 @@ export default function LandingHeader({
   const router = useRouter();
 
   return (
-    <>
-      {/* Left navbar — logo + links + burger */}
-      <nav className={styles.navBar}>
-        <div className={styles.navLeft}>
-          <a href="/" className={styles.navLogo}>
-            <img src="/logo.svg" alt="10coffee" className={styles.navLogoImg} />
-          </a>
-        </div>
+    <nav className={styles.navBar}>
+      <a href="/" className={styles.navLogo}>
+        <img src="/logo.svg" alt="10coffee" className={styles.navLogoImg} />
+      </a>
 
-        <div className={styles.navCenter}>
-          <button type="button" className={styles.navLink} title="Скоро" onClick={() => {}}>
-            Где попробовать
-          </button>
-          <a
-            href="https://10cofshop.vercel.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.navLink}
-          >
-            Интернет-магазин
-          </a>
-        </div>
-
-        <button
-          type="button"
-          className={`${styles.burger} ${isMenuOpen ? styles.burgerOpen : ""}`}
-          onClick={onToggleMenu}
-          aria-label={isMenuOpen ? "Закрыть меню" : "Открыть меню"}
-        >
-          <span className={styles.burgerLine} />
-          <span className={styles.burgerLine} />
-          <span className={styles.burgerLine} />
+      <div className={styles.navCenter}>
+        <button type="button" className={styles.navLink} title="Скоро" onClick={() => {}}>
+          Где попробовать
         </button>
-      </nav>
+        <a
+          href="https://10cofshop.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.navLink}
+        >
+          Интернет-магазин
+        </a>
+      </div>
 
-      {/* Right side — ЛК / profile */}
-      <div className={styles.navRight}>
+      <div className={styles.navActions}>
         {user ? (
           <a href="/dashboard" className={styles.navAvatar}>
             {user.user_metadata?.full_name?.[0]?.toUpperCase() ||
@@ -69,7 +52,18 @@ export default function LandingHeader({
             Личный кабинет
           </button>
         )}
+
+        <button
+          type="button"
+          className={`${styles.burger} ${isMenuOpen ? styles.burgerOpen : ""}`}
+          onClick={onToggleMenu}
+          aria-label={isMenuOpen ? "Закрыть меню" : "Открыть меню"}
+        >
+          <span className={styles.burgerLine} />
+          <span className={styles.burgerLine} />
+          <span className={styles.burgerLine} />
+        </button>
       </div>
-    </>
+    </nav>
   );
 }

@@ -21,6 +21,24 @@ export async function getClientCompanies() {
   return (data as Company[]) || []
 }
 
+export async function getCompanyById(companyId: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return null
+
+  const { data } = await supabase
+    .from("companies")
+    .select("*")
+    .eq("id", companyId)
+    .eq("client_id", user.id)
+    .single()
+
+  return data as Company | null
+}
+
 export async function createCompany(formData: {
   name: string
   inn: string

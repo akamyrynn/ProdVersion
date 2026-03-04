@@ -23,6 +23,9 @@ const googleSans = localFont({
 export function HtmlWrapper({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru">
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      </head>
       <body className={`${googleSans.variable} font-[family-name:var(--font-google-sans)] antialiased`}>
         <TooltipProvider>
           {children}
