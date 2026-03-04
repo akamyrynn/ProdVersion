@@ -123,6 +123,7 @@ export async function signUp(formData: {
   return {
     success: true,
     message: `Регистрация успешна! Пароль отправлен на ${formData.email}. Проверьте почту.`,
+    password,
   }
 }
 

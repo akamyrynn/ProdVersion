@@ -19,6 +19,7 @@ interface RegisterFormProps {
 export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const form = useForm<RegisterFormData>({
@@ -33,7 +34,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     try {
       const result = await signUp(data)
       if (result?.error) setError(result.error)
-      else if (result?.success) setSuccess(result.message || "Регистрация успешна!")
+      else if (result?.success) {
+        setSuccess(result.message || "Регистрация успешна!")
+        if (result.password) setGeneratedPassword(result.password)
+      }
     } catch {
       setError("Произошла ошибка при регистрации")
     } finally {
@@ -47,6 +51,15 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         <CheckCircle2 className="h-14 w-14 text-green-600 mx-auto" />
         <h2 className="text-[18px] font-black text-neutral-900">Регистрация завершена!</h2>
         <p className="text-[12px] text-neutral-500 max-w-sm mx-auto leading-relaxed">{success}</p>
+        {generatedPassword && (
+          <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-4 text-left space-y-2">
+            <p className="text-[11px] text-neutral-400 font-medium">Ваш пароль для входа:</p>
+            <p className="text-[18px] font-mono font-bold text-neutral-900 tracking-wider select-all">
+              {generatedPassword}
+            </p>
+            <p className="text-[11px] text-neutral-400">Сохраните его — он также отправлен на почту</p>
+          </div>
+        )}
         <Button onClick={onSwitchToLogin} className="rounded-xl font-bold">
           Перейти к входу
         </Button>
