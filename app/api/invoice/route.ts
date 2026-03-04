@@ -28,16 +28,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "orderId required" }, { status: 400 })
   }
 
-  // Fetch order with items + company
+  // Fetch order
   const { data: order } = await supabase
     .from("orders")
-    .select(
-      `
-      *,
-      items:order_items(*),
-      company:companies(*)
-    `
-    )
+    .select("*")
     .eq("id", orderId)
     .single()
 
@@ -46,12 +40,20 @@ export async function GET(req: NextRequest) {
   }
 
   // Verify ownership (client can only download their own)
-  if (order.client_id !== user.id) {
+  if (order.client_user_id !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const company = order.company || {}
-  const items = (order.items || []).map((item: any) => ({
+  // Fetch related data separately
+  const [orderItemsRes, companyRes] = await Promise.all([
+    supabase.from("order_items").select("*").eq("order_id", order.id),
+    order.company_id
+      ? supabase.from("companies").select("*").eq("id", order.company_id).single()
+      : Promise.resolve({ data: null }),
+  ])
+
+  const company = companyRes.data || {}
+  const items = (orderItemsRes.data || []).map((item: any) => ({
     name: `${item.product_name}${item.variant_name ? ` (${item.variant_name})` : ""}${item.grind_option ? `, ${item.grind_option}` : ""}`,
     quantity: item.quantity,
     unit: "sht",

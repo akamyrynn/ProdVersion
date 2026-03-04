@@ -19,15 +19,8 @@ export async function getClientOrders(filters?: {
 
   let query = supabase
     .from("orders")
-    .select(
-      `
-      *,
-      items:order_items(*),
-      company:companies(*),
-      promo_code:promo_codes(*)
-    `
-    )
-    .eq("client_id", user.id)
+    .select("*")
+    .eq("client_user_id", user.id)
     .order("created_at", { ascending: false })
 
   if (filters?.status) {
@@ -40,28 +33,50 @@ export async function getClientOrders(filters?: {
     query = query.lte("created_at", filters.dateTo)
   }
 
-  const { data } = await query
-  return (data as Order[]) || []
+  const { data, error } = await query
+  if (error) {
+    console.error("getClientOrders error:", error.message)
+    return []
+  }
+
+  // Fetch items for each order separately
+  const orders = (data || []) as Order[]
+  for (const order of orders) {
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("*")
+      .eq("order_id", order.id)
+    order.items = items || []
+  }
+
+  return orders
 }
 
 export async function getOrderById(orderId: string) {
   const supabase = await createClient()
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
-    .select(
-      `
-      *,
-      items:order_items(*),
-      company:companies(*),
-      client:client_profiles(*),
-      promo_code:promo_codes(*)
-    `
-    )
+    .select("*")
     .eq("id", orderId)
     .single()
 
-  return data as Order | null
+  if (error || !data) return null
+
+  const order = data as Order
+
+  // Fetch related data separately
+  const [itemsRes, companyRes] = await Promise.all([
+    supabase.from("order_items").select("*").eq("order_id", order.id),
+    order.company_id
+      ? supabase.from("companies").select("*").eq("id", order.company_id).single()
+      : Promise.resolve({ data: null }),
+  ])
+
+  order.items = itemsRes.data || []
+  if (companyRes.data) order.company = companyRes.data
+
+  return order
 }
 
 export async function createOrder(params: {
@@ -104,7 +119,7 @@ export async function createOrder(params: {
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
-      client_id: user.id,
+      client_user_id: user.id,
       company_id: params.companyId,
       delivery_method: params.deliveryMethod,
       delivery_address: params.deliveryAddress,
@@ -137,7 +152,10 @@ export async function createOrder(params: {
     weight_grams: item.variant?.weight_grams,
   }))
 
-  await supabase.from("order_items").insert(orderItems)
+  const { error: itemsError } = await supabase.from("order_items").insert(orderItems)
+  if (itemsError) {
+    console.error("order_items insert error:", itemsError.message)
+  }
 
   // Clear cart in Payload
   await clearPayloadCart()
@@ -147,7 +165,7 @@ export async function createOrder(params: {
     client_id: user.id,
     type: "order_update",
     title: "Заказ создан",
-    message: `Ваш заказ #${order.order_number} ожидает обработки`,
+    message: `Ваш заказ #${order.order_number || order.id} ожидает обработки`,
     data: { order_id: order.id },
   })
 
@@ -230,14 +248,14 @@ export async function setTrackingNumber(
 
   const { data: order } = await supabase
     .from("orders")
-    .select("client_id, order_number")
+    .select("client_user_id, order_number")
     .eq("id", orderId)
     .single()
 
-  if (order) {
+  if (order?.client_user_id) {
     const carrierName = carrier === "cdek" ? "СДЭК" : "ЦАП-2000"
     await supabase.from("notifications").insert({
-      client_id: order.client_id,
+      client_id: order.client_user_id,
       type: "order_update",
       title: "Трек-номер присвоен",
       message: `Заказ #${order.order_number} отправлен через ${carrierName}. Трек: ${trackingNumber}`,
@@ -259,14 +277,7 @@ export async function getAllOrders(filters?: {
 
   let query = supabase
     .from("orders")
-    .select(
-      `
-      *,
-      items:order_items(*),
-      company:companies(*),
-      client:client_profiles(*)
-    `
-    )
+    .select("*")
     .order("created_at", { ascending: false })
 
   if (filters?.status) {
@@ -279,8 +290,25 @@ export async function getAllOrders(filters?: {
     query = query.lte("created_at", filters.dateTo)
   }
 
-  const { data } = await query
-  return (data as Order[]) || []
+  const { data, error } = await query
+  if (error) {
+    console.error("getAllOrders error:", error.message)
+    return []
+  }
+
+  const orders = (data || []) as Order[]
+  for (const order of orders) {
+    const [itemsRes, clientRes] = await Promise.all([
+      supabase.from("order_items").select("*").eq("order_id", order.id),
+      order.client_user_id
+        ? supabase.from("client_profiles").select("*").eq("id", order.client_user_id).single()
+        : Promise.resolve({ data: null }),
+    ])
+    order.items = itemsRes.data || []
+    if (clientRes.data) order.client = clientRes.data
+  }
+
+  return orders
 }
 
 export async function updateOrderStatus(
@@ -298,7 +326,7 @@ export async function updateOrderStatus(
   // Get current status
   const { data: order } = await supabase
     .from("orders")
-    .select("status, client_id")
+    .select("status, client_user_id")
     .eq("id", orderId)
     .single()
 
@@ -333,8 +361,13 @@ export async function updateOrderStatus(
     cancelled: "отменён",
   }
 
+  if (!order.client_user_id) {
+    revalidatePath("/admin/orders")
+    return { success: true }
+  }
+
   await supabase.from("notifications").insert({
-    client_id: order.client_id,
+    client_id: order.client_user_id,
     type: "order_update",
     title: "Обновление заказа",
     message: `Статус вашего заказа изменён: ${statusLabels[newStatus] || newStatus}`,
