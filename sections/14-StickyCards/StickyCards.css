@@ -61,3 +61,18 @@
 .sticky-cards-mobile .sticky-card:nth-child(odd) {
   margin-left: 0;
 }
+
+@media (max-width: 640px) {
+  .sticky-card {
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+
+  .sticky-card-img {
+    width: 50%;
+  }
+
+  .sticky-card p {
+    max-width: 100%;
+  }
+}

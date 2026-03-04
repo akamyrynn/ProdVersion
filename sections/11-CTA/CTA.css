@@ -90,11 +90,40 @@
     flex-direction: column;
   }
 
+  .cta-content {
+    padding: 4rem 2rem;
+    gap: 2rem;
+  }
+
   .cta-content h5 {
     max-width: 100%;
   }
 
+  .cta-details {
+    gap: 3rem;
+  }
+
+  .cta-circle-button {
+    width: 220px;
+  }
+
   .cta-image {
     width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .cta-content {
+    padding: 3rem 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .cta-details {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .cta-circle-button {
+    width: 180px;
   }
 }

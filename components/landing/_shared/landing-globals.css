@@ -48,6 +48,7 @@
   font-family: var(--font-google-sans), sans-serif;
   font-weight: 500;
   line-height: 1.05;
+  overflow-wrap: break-word;
 }
 
 :where(.landing-scope) :where(h1) {
@@ -197,5 +198,12 @@ html.lenis::-webkit-scrollbar {
   :where(.landing-scope) :where(p.lg) {
     font-size: 1.5rem;
     letter-spacing: -0.045rem;
+  }
+}
+
+@media (max-width: 480px) {
+  :where(.landing-scope) :where(.container),
+  :where(.landing-scope) :where(.section-footer) {
+    padding: 1rem;
   }
 }

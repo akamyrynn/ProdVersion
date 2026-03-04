@@ -83,6 +83,10 @@
 }
 
 @media (max-width: 999px) {
+  .menu-list .container {
+    gap: 5rem;
+  }
+
   .menu-grid {
     width: 100%;
   }
@@ -90,5 +94,23 @@
   .menu-grid-card {
     width: 100%;
     min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .menu-list {
+    padding: 5rem 0;
+  }
+
+  .menu-list .container {
+    gap: 3rem;
+  }
+
+  .menu-category-header {
+    margin-bottom: 2rem;
+  }
+
+  .menu-grid-card {
+    padding: 1.5rem;
   }
 }

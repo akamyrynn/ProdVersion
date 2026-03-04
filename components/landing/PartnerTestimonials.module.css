@@ -18,7 +18,8 @@
 }
 
 .header h3 {
-  width: 30%;
+  width: 40%;
+  min-width: fit-content;
 }
 
 .nav {
@@ -175,7 +176,23 @@
     font-size: 1.2rem;
   }
 
+  .header h3 {
+    min-width: auto;
+  }
+
   .carousel {
     padding: 0 1rem 3rem 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .section {
+    padding: 5rem 0 3rem 0;
+  }
+
+  .card {
+    width: 90vw;
+    min-height: auto;
+    padding: 1.5rem;
   }
 }

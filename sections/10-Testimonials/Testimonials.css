@@ -13,7 +13,8 @@
 }
 
 .testimonials-header h3 {
-  width: 30%;
+  width: 40%;
+  min-width: fit-content;
 }
 
 .testimonials-nav {
@@ -156,7 +157,14 @@
   }
 
   .testimonials-nav-button {
+    width: 56px;
+    height: 56px;
+    font-size: 1.2rem;
     transform: none;
+  }
+
+  .testimonials-header h3 {
+    min-width: auto;
   }
 
   .testimonial-card {
@@ -165,5 +173,16 @@
 
   .testimonial-content {
     gap: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .testimonials {
+    padding: 5rem 0 3rem 0;
+  }
+
+  .testimonial-card {
+    min-height: auto;
+    padding: 2rem;
   }
 }

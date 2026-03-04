@@ -111,5 +111,6 @@
 
   .chefs-name h1 {
     font-size: 3rem;
+    white-space: normal;
   }
 }

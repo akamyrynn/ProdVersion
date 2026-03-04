@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import crypto from "crypto"
+import nodemailer from "nodemailer"
 
 function generatePassword(length = 12): string {
   const chars =
@@ -87,37 +88,36 @@ export async function signUp(formData: {
     console.error("Failed to sync client to Payload:", syncError)
   }
 
-  // Send password to email via Resend
-  if (process.env.RESEND_API_KEY) {
-    try {
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: process.env.RESEND_FROM_EMAIL || "10coffee <onboarding@resend.dev>",
-          to: formData.email,
-          subject: "Ваш пароль для входа в личный кабинет 10coffee",
-          html: `
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
-              <h2 style="margin:0 0 16px">Добро пожаловать в 10coffee!</h2>
-              <p style="color:#666;margin:0 0 24px">Вы успешно зарегистрированы. Используйте данные ниже для входа в личный кабинет.</p>
-              <div style="background:#f5f5f5;border-radius:12px;padding:20px;margin:0 0 24px">
-                <p style="margin:0 0 8px;color:#999;font-size:13px">Email</p>
-                <p style="margin:0 0 16px;font-weight:bold">${formData.email}</p>
-                <p style="margin:0 0 8px;color:#999;font-size:13px">Пароль</p>
-                <p style="margin:0;font-weight:bold;font-size:18px;letter-spacing:1px">${password}</p>
-              </div>
-              <p style="color:#999;font-size:12px;margin:0">Рекомендуем сохранить пароль в надёжном месте.</p>
-            </div>
-          `,
-        }),
-      })
-    } catch (emailError) {
-      console.error("Failed to send password email:", emailError)
-    }
+  // Send password to email via Nodemailer (Gmail SMTP)
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.SMTP_EMAIL,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    })
+
+    await transporter.sendMail({
+      from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+      to: formData.email,
+      subject: "Ваш пароль для входа в личный кабинет 10coffee",
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+          <h2 style="margin:0 0 16px">Добро пожаловать в 10coffee!</h2>
+          <p style="color:#666;margin:0 0 24px">Вы успешно зарегистрированы. Используйте данные ниже для входа в личный кабинет.</p>
+          <div style="background:#f5f5f5;border-radius:12px;padding:20px;margin:0 0 24px">
+            <p style="margin:0 0 8px;color:#999;font-size:13px">Email</p>
+            <p style="margin:0 0 16px;font-weight:bold">${formData.email}</p>
+            <p style="margin:0 0 8px;color:#999;font-size:13px">Пароль</p>
+            <p style="margin:0;font-weight:bold;font-size:18px;letter-spacing:1px">${password}</p>
+          </div>
+          <p style="color:#999;font-size:12px;margin:0">Рекомендуем сохранить пароль в надёжном месте.</p>
+        </div>
+      `,
+    })
+  } catch (emailError) {
+    console.error("Failed to send password email:", emailError)
   }
 
   return {

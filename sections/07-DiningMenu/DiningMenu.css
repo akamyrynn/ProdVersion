@@ -244,11 +244,33 @@
     width: 100%;
   }
 
+  .dining-nav-button {
+    width: 56px;
+    height: 56px;
+    font-size: 1.2rem;
+  }
+
+  .dining-preview-card {
+    height: auto;
+    min-height: 500px;
+    padding: 2.5rem 1.5rem;
+  }
+
   .dining-preview-item .dining-preview-item-row p:nth-child(1) {
     width: 75%;
   }
 
   .dining-preview-item-description {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .dining-menu .container {
+    gap: 3rem;
+  }
+
+  .dining-preview-card {
+    padding: 2rem 1.25rem;
   }
 }
