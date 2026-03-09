@@ -16,14 +16,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { ShoppingBag, RotateCcw, Calendar, X, FileText, Truck } from "lucide-react"
+import { ShoppingBag, RotateCcw, Calendar, X, FileText, Truck, Trash2 } from "lucide-react"
 import { formatPrice, formatDate, formatOrderNumber } from "@/lib/utils/format"
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
   DELIVERY_METHOD_LABELS,
 } from "@/lib/utils/constants"
-import { repeatOrder } from "@/lib/actions/orders"
+import { repeatOrder, deleteOrder } from "@/lib/actions/orders"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Order } from "@/types"
@@ -43,7 +43,7 @@ const dateRangeLabels: Record<DateRange, string> = {
 }
 
 export function OrdersList({ initialOrders }: OrdersListProps) {
-  const [orders] = useState(initialOrders)
+  const [orders, setOrders] = useState(initialOrders)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateRange, setDateRange] = useState<DateRange>("all")
   const [customFrom, setCustomFrom] = useState("")
@@ -89,6 +89,18 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
       toast.success("Товары добавлены в корзину")
     } else {
       toast.error(result.error || "Ошибка")
+    }
+  }
+
+  async function handleDeleteOrder(orderId: string) {
+    if (!confirm("Удалить заказ? Это действие необратимо.")) return
+    const result = await deleteOrder(orderId)
+    if (result.success) {
+      setOrders((prev) => prev.filter((o) => o.id !== orderId))
+      setSelectedOrder(null)
+      toast.success("Заказ удалён")
+    } else {
+      toast.error(result.error || "Ошибка при удалении")
     }
   }
 
@@ -404,6 +416,12 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     Повторить заказ
+                  </button>
+                  <button
+                    onClick={() => handleDeleteOrder(selectedOrder.id)}
+                    className="h-9 px-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>

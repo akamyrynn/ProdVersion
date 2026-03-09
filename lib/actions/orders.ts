@@ -346,6 +346,41 @@ export async function setTrackingNumber(
   return { success: true }
 }
 
+export async function deleteOrder(orderId: string): Promise<{ success?: boolean; error?: string }> {
+  const userId = await getCurrentUserId()
+  if (!userId) return { error: "Не авторизован" }
+
+  const clientDocId = await getClientDocId(userId)
+  if (!clientDocId) return { error: "Клиент не найден" }
+
+  const payload = await getPayloadClient()
+
+  try {
+    const doc = await payload.findByID({
+      collection: "orders",
+      id: Number(orderId),
+      depth: 0,
+    })
+
+    const docClient = typeof (doc as any).client === "object"
+      ? (doc as any).client?.id
+      : (doc as any).client
+    if (Number(docClient) !== clientDocId) {
+      return { error: "Нет доступа" }
+    }
+
+    await payload.delete({
+      collection: "orders",
+      id: Number(orderId),
+    })
+
+    revalidatePath("/dashboard/orders")
+    return { success: true }
+  } catch {
+    return { error: "Заказ не найден" }
+  }
+}
+
 // ============================================================
 // Admin actions
 // ============================================================

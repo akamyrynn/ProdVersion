@@ -7,7 +7,10 @@ import styles from "./MapModal.module.css";
 interface MapLocation {
   name: string;
   address: string;
+  phone?: string;
   yandexMapsUrl: string;
+  latitude: number;
+  longitude: number;
 }
 
 interface MapModalProps {
@@ -18,6 +21,7 @@ interface MapModalProps {
 export default function MapModal({ isOpen, onClose }: MapModalProps) {
   const lenis = useLenis();
   const [locations, setLocations] = useState<MapLocation[]>([]);
+  const [mapUrl, setMapUrl] = useState<string | null>(null);
 
   const lockScroll = useCallback(() => {
     if (lenis) lenis.stop();
@@ -59,13 +63,31 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
           (d: Record<string, unknown>) => ({
             name: d.name as string,
             address: d.address as string,
+            phone: (d.phone as string) || undefined,
             yandexMapsUrl: d.yandex_maps_url as string,
+            latitude: d.latitude as number,
+            longitude: d.longitude as number,
           })
         );
         setLocations(locs);
+
+        if (locs.length > 0) {
+          const centerLat =
+            locs.reduce((s, l) => s + l.latitude, 0) / locs.length;
+          const centerLon =
+            locs.reduce((s, l) => s + l.longitude, 0) / locs.length;
+          const pts = locs
+            .map((l) => `${l.longitude},${l.latitude},pm2rdm`)
+            .join("~");
+          setMapUrl(
+            `https://yandex.ru/map-widget/v1/?ll=${centerLon},${centerLat}&z=12&pt=${pts}`
+          );
+        }
       })
       .catch(() => {
-        // silent
+        setMapUrl(
+          "https://yandex.ru/map-widget/v1/?ll=39.723098,43.585472&z=13"
+        );
       });
   }, [isOpen]);
 
@@ -74,6 +96,7 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
       className={`${styles.overlay} ${isOpen ? styles.overlayOpen : ""}`}
       aria-hidden={!isOpen}
     >
+      {/* Header */}
       <div className={styles.header}>
         <span className={styles.title}>Где попробовать наш кофе</span>
         <button
@@ -89,28 +112,44 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
         </button>
       </div>
 
-      <div className={styles.content}>
-        {isOpen && locations.length === 0 && (
-          <p className={styles.empty}>Точки пока не добавлены</p>
-        )}
+      {/* Body: sidebar + map */}
+      <div className={styles.body}>
+        {/* Sidebar */}
+        <div className={styles.sidebar}>
+          {locations.length === 0 && isOpen && (
+            <p className={styles.empty}>Точки пока не добавлены</p>
+          )}
+          {locations.map((loc, i) => (
+            <a
+              key={i}
+              href={loc.yandexMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.card}
+            >
+              <strong className={styles.cardName}>{loc.name}</strong>
+              <span className={styles.cardAddress}>{loc.address}</span>
+              {loc.phone && (
+                <span className={styles.cardPhone}>{loc.phone}</span>
+              )}
+              <span className={styles.cardLink}>
+                Открыть на карте &rarr;
+              </span>
+            </a>
+          ))}
+        </div>
 
-        {isOpen && locations.length > 0 && (
-          <div className={styles.locationsList}>
-            {locations.map((loc, i) => (
-              <a
-                key={i}
-                href={loc.yandexMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.locationCard}
-              >
-                <strong>{loc.name}</strong>
-                <span>{loc.address}</span>
-                <span className={styles.mapLink}>Открыть на карте &rarr;</span>
-              </a>
-            ))}
-          </div>
-        )}
+        {/* Map */}
+        <div className={styles.mapWrap}>
+          {isOpen && mapUrl && (
+            <iframe
+              className={styles.mapFrame}
+              src={mapUrl}
+              title="Карта точек продаж 10coffee"
+              allowFullScreen
+            />
+          )}
+        </div>
       </div>
     </div>
   );
