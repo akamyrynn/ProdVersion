@@ -5,7 +5,7 @@ export const MapLocations: CollectionConfig = {
   admin: {
     useAsTitle: "name",
     group: "Контент",
-    description: "Точки на карте для лендинга",
+    description: "Точки на карте — вставьте ссылку на Яндекс.Карты",
     defaultColumns: ["name", "address", "isActive"],
   },
   labels: {
@@ -26,23 +26,13 @@ export const MapLocations: CollectionConfig = {
       required: true,
     },
     {
-      name: "latitude",
-      type: "number",
-      label: "Широта",
+      name: "yandexMapsUrl",
+      type: "text",
+      label: "Ссылка на Яндекс.Карты",
       required: true,
       admin: {
-        step: 0.000001,
-        description: "Например: 43.585472",
-      },
-    },
-    {
-      name: "longitude",
-      type: "number",
-      label: "Долгота",
-      required: true,
-      admin: {
-        step: 0.000001,
-        description: "Например: 39.723098",
+        description:
+          "Скопируйте ссылку из Яндекс.Карт, например: https://yandex.com/maps/-/CPulnF33",
       },
     },
     {

@@ -19,12 +19,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
+  padding: 1.5rem 2rem;
   flex-shrink: 0;
 }
 
 .title {
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 500;
   color: #ffffff;
 }
@@ -56,78 +56,74 @@
   fill: none;
 }
 
-.mapContainer {
+.content {
   flex: 1;
-  display: flex;
-  gap: 1rem;
-  padding: 0 1.5rem 1.5rem;
-  overflow: hidden;
-  min-height: 0;
+  padding: 0 2rem 2rem;
+  overflow-y: auto;
 }
 
-.mapFrame {
-  flex: 1;
-  border: 0;
-  border-radius: 12px;
-  min-height: 0;
+.empty {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 1rem;
+  padding-top: 4rem;
 }
 
 .locationsList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 280px;
-  flex-shrink: 0;
-  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .locationCard {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.75rem 1rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  gap: 0.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.locationCard:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .locationCard strong {
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #ffffff;
 }
 
 .locationCard span {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.5);
   line-height: 1.4;
 }
 
+.mapLink {
+  font-size: 0.85rem;
+  color: #e6610d !important;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
 @media (max-width: 768px) {
-  .mapContainer {
-    flex-direction: column;
-    padding: 0 0.75rem 0.75rem;
+  .header {
+    padding: 1rem;
+  }
+
+  .content {
+    padding: 0 1rem 1rem;
   }
 
   .locationsList {
-    width: 100%;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    gap: 0.5rem;
-  }
-
-  .locationCard {
-    min-width: 200px;
-    flex-shrink: 0;
-  }
-
-  .header {
-    padding: 0.75rem;
-  }
-
-  .mapFrame {
-    border-radius: 8px;
-    min-height: 300px;
+    grid-template-columns: 1fr;
   }
 }

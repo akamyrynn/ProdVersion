@@ -7,8 +7,7 @@ import styles from "./MapModal.module.css";
 interface MapLocation {
   name: string;
   address: string;
-  latitude: number;
-  longitude: number;
+  yandexMapsUrl: string;
 }
 
 interface MapModalProps {
@@ -19,7 +18,6 @@ interface MapModalProps {
 export default function MapModal({ isOpen, onClose }: MapModalProps) {
   const lenis = useLenis();
   const [locations, setLocations] = useState<MapLocation[]>([]);
-  const [mapUrl, setMapUrl] = useState<string | null>(null);
 
   const lockScroll = useCallback(() => {
     if (lenis) lenis.stop();
@@ -61,27 +59,13 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
           (d: Record<string, unknown>) => ({
             name: d.name as string,
             address: d.address as string,
-            latitude: d.latitude as number,
-            longitude: d.longitude as number,
+            yandexMapsUrl: d.yandex_maps_url as string,
           })
         );
         setLocations(locs);
-
-        if (locs.length > 0) {
-          // Build Yandex Maps embed URL with placemarks
-          const centerLat = locs.reduce((s, l) => s + l.latitude, 0) / locs.length;
-          const centerLon = locs.reduce((s, l) => s + l.longitude, 0) / locs.length;
-
-          const pts = locs.map((l) => `${l.longitude},${l.latitude},pm2rdm`).join("~");
-          const url = `https://yandex.ru/map-widget/v1/?ll=${centerLon},${centerLat}&z=13&pt=${pts}`;
-          setMapUrl(url);
-        }
       })
       .catch(() => {
-        // Fallback: default Sochi location
-        setMapUrl(
-          "https://yandex.ru/map-widget/v1/?ll=39.723098,43.585472&z=13&pt=39.723098,43.585472,pm2rdm"
-        );
+        // silent
       });
   }, [isOpen]);
 
@@ -105,23 +89,25 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
         </button>
       </div>
 
-      <div className={styles.mapContainer}>
-        {isOpen && mapUrl && (
-          <iframe
-            className={styles.mapFrame}
-            src={mapUrl}
-            title="Карта точек продаж 10coffee"
-            allowFullScreen
-          />
+      <div className={styles.content}>
+        {isOpen && locations.length === 0 && (
+          <p className={styles.empty}>Точки пока не добавлены</p>
         )}
 
         {isOpen && locations.length > 0 && (
           <div className={styles.locationsList}>
-            {locations.map((loc) => (
-              <div key={`${loc.latitude}-${loc.longitude}`} className={styles.locationCard}>
+            {locations.map((loc, i) => (
+              <a
+                key={i}
+                href={loc.yandexMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.locationCard}
+              >
                 <strong>{loc.name}</strong>
                 <span>{loc.address}</span>
-              </div>
+                <span className={styles.mapLink}>Открыть на карте &rarr;</span>
+              </a>
             ))}
           </div>
         )}
