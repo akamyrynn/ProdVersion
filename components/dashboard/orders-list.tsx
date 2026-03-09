@@ -9,6 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Separator } from "@/components/ui/separator"
 import { ShoppingBag, RotateCcw, Calendar, X, FileText, Truck } from "lucide-react"
 import { formatPrice, formatDate, formatOrderNumber } from "@/lib/utils/format"
 import {
@@ -41,6 +48,7 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
   const [dateRange, setDateRange] = useState<DateRange>("all")
   const [customFrom, setCustomFrom] = useState("")
   const [customTo, setCustomTo] = useState("")
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
   const filteredOrders = useMemo(() => {
     let result = [...orders]
@@ -187,7 +195,8 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
           {filteredOrders.map((order) => (
             <div
               key={order.id}
-              className="bg-white rounded-xl border border-black/[0.04] px-4 sm:px-5 py-3 sm:py-4 hover:shadow-sm transition-all"
+              onClick={() => setSelectedOrder(order)}
+              className="bg-white rounded-xl border border-black/[0.04] px-4 sm:px-5 py-3 sm:py-4 hover:shadow-sm transition-all cursor-pointer"
             >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                 <div className="space-y-1.5 flex-1 min-w-0">
@@ -247,13 +256,17 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                       href={`/api/invoice?orderId=${order.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="h-8 px-2.5 sm:px-3 flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 bg-neutral-100 rounded-lg hover:bg-neutral-200 hover:text-neutral-900 transition-colors"
                     >
                       <FileText className="h-3 w-3" />
                       <span className="hidden sm:inline">Счёт</span>
                     </a>
                     <button
-                      onClick={() => handleRepeatOrder(order.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRepeatOrder(order.id)
+                      }}
                       className="h-8 px-2.5 sm:px-3 flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 bg-neutral-100 rounded-lg hover:bg-neutral-200 hover:text-neutral-900 transition-colors"
                     >
                       <RotateCcw className="h-3 w-3" />
@@ -266,6 +279,138 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
           ))}
         </div>
       )}
+
+      {/* Order Detail Modal */}
+      <Dialog open={!!selectedOrder} onOpenChange={(open) => { if (!open) setSelectedOrder(null) }}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          {selectedOrder && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3">
+                  <span>{formatOrderNumber(selectedOrder.order_id)}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                      ORDER_STATUS_COLORS[selectedOrder.status]
+                    )}
+                  >
+                    {ORDER_STATUS_LABELS[selectedOrder.status]}
+                  </span>
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 mt-2">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Дата</span>
+                    <p className="font-medium">{formatDate(selectedOrder.created_at)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Доставка</span>
+                    <p className="font-medium">{DELIVERY_METHOD_LABELS[selectedOrder.delivery_method]}</p>
+                  </div>
+                  {selectedOrder.delivery_address && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Адрес</span>
+                      <p className="font-medium">{selectedOrder.delivery_address}</p>
+                    </div>
+                  )}
+                  {selectedOrder.company_name && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Компания</span>
+                      <p className="font-medium">{selectedOrder.company_name} {selectedOrder.company_inn ? `(ИНН: ${selectedOrder.company_inn})` : ""}</p>
+                    </div>
+                  )}
+                  {(selectedOrder.cdek_tracking_number || selectedOrder.cap_2000_tracking_number) && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Трек-номер</span>
+                      <p className="font-medium text-[#5b328a]">
+                        {selectedOrder.cdek_tracking_number || selectedOrder.cap_2000_tracking_number}
+                      </p>
+                    </div>
+                  )}
+                  {selectedOrder.comment && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Комментарий</span>
+                      <p className="font-medium">{selectedOrder.comment}</p>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Позиции</h4>
+                  <div className="space-y-2">
+                    {selectedOrder.items?.map((item, i) => (
+                      <div key={i} className="flex items-start justify-between gap-2 text-sm">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{item.product_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.variant_name}
+                            {item.grind_option ? ` · ${item.grind_option}` : ""}
+                            {" · "}x{item.quantity}
+                          </p>
+                        </div>
+                        <span className="font-semibold tabular-nums shrink-0">
+                          {formatPrice(item.total_price)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Товары</span>
+                    <span>{formatPrice(selectedOrder.subtotal)}</span>
+                  </div>
+                  {selectedOrder.discount_amount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Скидка</span>
+                      <span>-{formatPrice(selectedOrder.discount_amount)}</span>
+                    </div>
+                  )}
+                  {selectedOrder.delivery_cost > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Доставка</span>
+                      <span>{formatPrice(selectedOrder.delivery_cost)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-base font-bold pt-1">
+                    <span>Итого</span>
+                    <span>{formatPrice(selectedOrder.total)}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <a
+                    href={`/api/invoice?orderId=${selectedOrder.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 h-9 flex items-center justify-center gap-1.5 text-xs font-semibold bg-[#5b328a] text-white rounded-lg hover:bg-[#4a2870] transition-colors"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Скачать счёт
+                  </a>
+                  <button
+                    onClick={() => {
+                      handleRepeatOrder(selectedOrder.id)
+                      setSelectedOrder(null)
+                    }}
+                    className="flex-1 h-9 flex items-center justify-center gap-1.5 text-xs font-semibold bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 transition-colors"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Повторить заказ
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

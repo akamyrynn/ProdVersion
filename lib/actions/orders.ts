@@ -227,7 +227,7 @@ export async function createOrder(params: {
     data: orderData,
   })
 
-  // Clear cart
+  // Clear cart (now uses direct Supabase queries, no Payload transaction issues)
   await clearPayloadCart()
 
   // Create notification via Supabase

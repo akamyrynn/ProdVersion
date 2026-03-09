@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import LandingHeader from "./LandingHeader";
 import BurgerMenu from "./BurgerMenu";
+import MapModal from "./MapModal";
 import Preloader from "./Preloader";
 import VideoHero from "./VideoHero";
 import PartnerTestimonials from "./PartnerTestimonials";
@@ -14,13 +15,12 @@ import FAQ from "./FAQ";
 import Mission from "./Mission";
 import Production from "./Production";
 import Team from "./Team";
-import LetsConnect from "./LetsConnect";
-import SocialLinks from "./SocialLinks";
 import LandingFooter from "./LandingFooter";
 
 export default function LandingPage() {
   const pageRef = useRef<HTMLDivElement>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
   const closeMenu = () => setIsMenuOpen(false);
@@ -28,8 +28,9 @@ export default function LandingPage() {
   return (
     <>
       <Preloader />
-      <LandingHeader onToggleMenu={toggleMenu} isMenuOpen={isMenuOpen} />
+      <LandingHeader onToggleMenu={toggleMenu} isMenuOpen={isMenuOpen} onOpenMap={() => setIsMapOpen(true)} />
       <BurgerMenu isOpen={isMenuOpen} onClose={closeMenu} pageRef={pageRef} />
+      <MapModal isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} />
 
       <div ref={pageRef} style={{ position: "relative", width: "100%", height: "100%" }}>
         <VideoHero />
@@ -45,8 +46,6 @@ export default function LandingPage() {
         <Mission />
         <Production />
         <Team />
-        <LetsConnect />
-        <SocialLinks />
         <LandingFooter />
       </div>
     </>

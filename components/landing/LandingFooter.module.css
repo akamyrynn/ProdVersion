@@ -1,4 +1,157 @@
+/* ===== Unified Footer ===== */
 .footer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: #1d1d1b;
+}
+
+/* ===== Contact Section (ex-LetsConnect) ===== */
+.contactSection {
+  position: relative;
+  width: 100%;
+  background-color: var(--base-500);
+}
+
+.contactContainer {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 2000px;
+  min-height: 80svh;
+  padding: 4rem 2.5rem;
+  margin: 0 auto;
+  gap: 4rem;
+}
+
+.contactContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2.5rem;
+}
+
+.contactContent h6 {
+  font-size: clamp(1.25rem, 1.5vw, 3rem);
+}
+
+.contactContent h5 {
+  max-width: 700px;
+}
+
+.contactDetails {
+  display: flex;
+  gap: 4rem;
+}
+
+.contactDetails p {
+  line-height: 1.6;
+}
+
+.circleButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 300px;
+  flex-shrink: 0;
+  aspect-ratio: 1;
+}
+
+.circleLink {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  text-decoration: none;
+}
+
+.circleSvg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  color: var(--base-400);
+  pointer-events: none;
+}
+
+.circleLink span {
+  font-size: 1.25rem;
+  color: var(--base-100);
+}
+
+/* ===== Social Section (ex-SocialLinks) ===== */
+.socialSection {
+  width: 100%;
+  padding: 5rem 0;
+  background-color: var(--base-500);
+}
+
+.socialContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+  width: 100%;
+  max-width: 2000px;
+  padding: 0 2.5rem;
+  margin: 0 auto;
+}
+
+.socialHeading {
+  color: var(--base-100);
+  text-align: center;
+}
+
+.socialLinks {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.socialLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 2.5rem;
+  border-radius: 1rem;
+  background-color: var(--accent-cream);
+  text-decoration: none;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.socialLink:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(91, 50, 138, 0.12);
+}
+
+.socialIcon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-purple);
+  color: #ffffff;
+  font-size: 1.5rem;
+}
+
+.socialLabel {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--base-100);
+}
+
+/* ===== CTA Section (ex-main LandingFooter) ===== */
+.ctaSection {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -10,7 +163,7 @@
   background-color: #1d1d1b;
 }
 
-.content {
+.ctaContent {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -26,7 +179,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
   width: 100%;
   text-align: center;
 }
@@ -60,10 +212,9 @@
   will-change: transform;
 }
 
+/* ===== Bottom Bar ===== */
 .bar {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
+  position: relative;
   z-index: 4;
   display: flex;
   justify-content: space-between;
@@ -71,7 +222,7 @@
   width: 100%;
   max-width: 2000px;
   padding: 2.5rem;
-  transform: translateX(-50%);
+  margin: 0 auto;
 }
 
 .barLeft {
@@ -81,8 +232,6 @@
 
 .bar p {
   color: rgba(255, 255, 255, 0.4);
-  text-decoration: none;
-  transition: color 0.3s ease;
 }
 
 .barLinks {
@@ -101,28 +250,80 @@
   color: #ffffff;
 }
 
+/* ===== Responsive ===== */
 @media (max-width: 999px) {
-  .footer {
-    height: auto;
-    min-height: 80svh;
-    padding: 4rem 0;
+  /* Contact */
+  .contactContainer {
+    flex-direction: column;
+    min-height: auto;
+    padding: 4rem 1.5rem;
+    gap: 3rem;
   }
 
-  .heading h2 {
+  .contactContent {
+    align-items: center;
+    text-align: center;
+    gap: 2rem;
+  }
+
+  .contactDetails {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.5rem;
+  }
+
+  .circleButton {
+    width: 200px;
+  }
+
+  /* Social */
+  .socialSection {
+    padding: 3rem 0;
+  }
+
+  .socialContainer {
+    gap: 2rem;
+    padding: 0 1.5rem;
+  }
+
+  .socialLinks {
+    gap: 1rem;
     width: 100%;
+  }
+
+  .socialLink {
+    flex: 1;
+    padding: 1.25rem 1rem;
+  }
+
+  .socialIcon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+  }
+
+  .socialLabel {
+    font-size: 0.8rem;
+  }
+
+  /* CTA */
+  .ctaSection {
+    height: auto;
+    min-height: 70svh;
+    padding: 4rem 0;
   }
 
   .postcards {
     display: none;
   }
 
+  /* Bar */
   .bar {
-    position: relative;
     flex-direction: column;
     gap: 1.5rem;
     padding: 1.5rem;
     text-align: center;
-    margin-top: 3rem;
   }
 
   .barLinks {

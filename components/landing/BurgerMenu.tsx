@@ -9,10 +9,10 @@ import styles from "./BurgerMenu.module.css";
 
 const NAV_LINKS = [
   { label: "О нас", href: "#mission" },
-  { label: "Блог", href: "#" },
-  { label: "Обучение", href: "https://www.10coffee.ru/obuchenie", external: true },
+  { label: "Блог", href: "/blog" },
+  { label: "Обучение", href: "/obuchenie" },
+  { label: "Сервис", href: "/b2b-servis" },
   { label: "Контакты", href: "#lets-connect" },
-  { label: "Сервис", href: "#" },
   { label: "Опт", href: "/?auth=login" },
 ];
 
@@ -212,7 +212,7 @@ export default function BurgerMenu({ isOpen, onClose, pageRef }: BurgerMenuProps
                     href={link.href}
                     onClick={(e) => {
                       e.preventDefault();
-                      handleLinkClick(link.href, link.external);
+                      handleLinkClick(link.href);
                     }}
                   >
                     {link.label}

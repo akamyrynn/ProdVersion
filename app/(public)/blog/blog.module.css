@@ -1,0 +1,230 @@
+/* ===== Hero ===== */
+.hero {
+  display: flex;
+  align-items: flex-end;
+  min-height: 50vh;
+  padding: 8rem 2.5rem 4rem;
+  background: linear-gradient(135deg, #1d1d1b 0%, #2d1b11 100%);
+}
+
+.heroContent {
+  width: 100%;
+  max-width: 2000px;
+  margin: 0 auto;
+}
+
+.heroLabel {
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 1rem;
+}
+
+.heroTitle {
+  font-size: clamp(3rem, 8vw, 10rem);
+  font-weight: 500;
+  color: #ffffff;
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+
+.heroSubtitle {
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+}
+
+/* ===== Posts Grid ===== */
+.posts {
+  padding: 4rem 2.5rem 6rem;
+  max-width: 2000px;
+  margin: 0 auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(29, 29, 27, 0.06);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 60px rgba(29, 29, 27, 0.1);
+}
+
+.cardImage {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #f5f0eb;
+}
+
+.cardImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover .cardImage img {
+  transform: scale(1.05);
+}
+
+.cardPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #faead5 0%, #f5e6d8 100%);
+  font-size: 3rem;
+  font-weight: 700;
+  color: rgba(29, 29, 27, 0.1);
+}
+
+.cardBody {
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardDate {
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5b328a;
+  margin-bottom: 0.75rem;
+}
+
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1d1d1b;
+  line-height: 1.3;
+  margin-bottom: 0.75rem;
+}
+
+.cardExcerpt {
+  font-size: 0.95rem;
+  color: rgba(29, 29, 27, 0.55);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ===== Empty ===== */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 2rem;
+  text-align: center;
+}
+
+.empty p {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1d1d1b;
+}
+
+.emptyHint {
+  font-size: 1rem !important;
+  font-weight: 400 !important;
+  color: rgba(29, 29, 27, 0.4) !important;
+  margin-top: 0.5rem;
+}
+
+/* ===== Pagination ===== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 4rem;
+}
+
+.pageBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1d1d1b;
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid rgba(29, 29, 27, 0.1);
+  transition: all 0.2s ease;
+}
+
+.pageBtn:hover {
+  background: rgba(29, 29, 27, 0.05);
+  border-color: rgba(29, 29, 27, 0.2);
+}
+
+.pageBtnActive {
+  background: #1d1d1b;
+  color: #ffffff;
+  border-color: #1d1d1b;
+}
+
+.pageBtnActive:hover {
+  background: #1d1d1b;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1000px) {
+  .hero {
+    min-height: 40vh;
+    padding: 6rem 1.5rem 3rem;
+  }
+
+  .posts {
+    padding: 3rem 1.5rem 4rem;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero {
+    min-height: 35vh;
+    padding: 5rem 1rem 2.5rem;
+  }
+
+  .posts {
+    padding: 2rem 1rem 3rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .cardBody {
+    padding: 1.25rem;
+  }
+}

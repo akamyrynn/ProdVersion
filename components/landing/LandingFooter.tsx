@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { FaTelegram, FaInstagram, FaVk } from "react-icons/fa";
 import Copy from "./_shared/Copy";
 import AnimatedButton from "./_shared/AnimatedButton";
 import styles from "./LandingFooter.module.css";
@@ -20,17 +21,26 @@ const POSTCARDS = [
 ];
 
 const FOOTER_LINKS = [
-  { label: "Кофе для бизнеса", href: "#" },
-  { label: "Обучение бариста", href: "https://www.10coffee.ru/obuchenie" },
-  { label: "Сервис", href: "#" },
-  { label: "Блог", href: "#" },
+  { label: "Обучение бариста", href: "/obuchenie" },
+  { label: "Сервис", href: "/b2b-servis" },
+  { label: "Блог", href: "/blog" },
+  { label: "Оптовые поставки", href: "/?auth=login" },
+];
+
+const SOCIALS = [
+  { label: "Telegram", href: "#", icon: FaTelegram },
+  { label: "Instagram", href: "#", icon: FaInstagram },
+  { label: "ВКонтакте", href: "#", icon: FaVk },
 ];
 
 export default function LandingFooter() {
   const sectionRef = useRef<HTMLElement>(null);
   const buttonRef = useRef<HTMLAnchorElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
+  const circleButtonRef = useRef<HTMLDivElement>(null);
+  const circlePathRef = useRef<SVGPathElement>(null);
 
+  // CTA button entrance
   useEffect(() => {
     const heading = sectionRef.current?.querySelector(`.${styles.heading}`);
     const buttonContainer = buttonContainerRef.current;
@@ -38,20 +48,19 @@ export default function LandingFooter() {
 
     gsap.set(buttonContainer, { autoAlpha: 0, y: 40 });
 
-    const scrollTrigger = ScrollTrigger.create({
+    const st = ScrollTrigger.create({
       trigger: heading,
       start: "top 50%",
       once: true,
       onEnter: () => {
-        gsap.to(buttonContainer, {
-          autoAlpha: 1, y: 0, duration: 0.9, ease: "power3.out",
-        });
+        gsap.to(buttonContainer, { autoAlpha: 1, y: 0, duration: 0.9, ease: "power3.out" });
       },
     });
 
-    return () => scrollTrigger.kill();
+    return () => st.kill();
   }, []);
 
+  // Postcard hover
   useEffect(() => {
     const section = sectionRef.current;
     const button = buttonRef.current;
@@ -61,83 +70,153 @@ export default function LandingFooter() {
     const postcardsContainer = section.querySelector(`.${styles.postcards}`) as HTMLElement;
     if (!cards.length || !postcardsContainer) return;
 
-    const postcardTimeline = gsap.timeline({ paused: true });
-
-    cards.forEach((card, index) => {
-      const cardData = POSTCARDS[index];
-      postcardTimeline.fromTo(
-        card,
+    const tl = gsap.timeline({ paused: true });
+    cards.forEach((card, i) => {
+      const d = POSTCARDS[i];
+      tl.fromTo(card,
         { yPercent: 250, xPercent: 0, rotation: 0 },
-        {
-          yPercent: 55,
-          xPercent: parseFloat(cardData.x),
-          rotation: cardData.rotation,
-          duration: 0.8,
-          ease: "power3.out",
-        },
-        index * 0.07,
+        { yPercent: 55, xPercent: parseFloat(d.x), rotation: d.rotation, duration: 0.8, ease: "power3.out" },
+        i * 0.07,
       );
     });
 
-    const handleMouseEnter = () => postcardTimeline.play();
-    const handleMouseLeave = () => postcardTimeline.reverse();
+    const enter = () => tl.play();
+    const leave = () => tl.reverse();
+    let active = false;
 
-    let isHoverActive = false;
+    const enable = () => { if (active) return; button.addEventListener("mouseenter", enter); button.addEventListener("mouseleave", leave); postcardsContainer.style.display = ""; active = true; };
+    const disable = () => { if (!active) return; button.removeEventListener("mouseenter", enter); button.removeEventListener("mouseleave", leave); tl.pause(0); postcardsContainer.style.display = "none"; active = false; };
+    const resize = () => { window.innerWidth < MOBILE_BREAKPOINT ? disable() : enable(); };
 
-    const enableHover = () => {
-      if (isHoverActive) return;
-      button.addEventListener("mouseenter", handleMouseEnter);
-      button.addEventListener("mouseleave", handleMouseLeave);
-      postcardsContainer.style.display = "";
-      isHoverActive = true;
+    resize();
+    window.addEventListener("resize", resize);
+    return () => { disable(); window.removeEventListener("resize", resize); };
+  }, []);
+
+  // Circle button scroll + hover
+  useEffect(() => {
+    const path = circlePathRef.current;
+    const contactEl = document.getElementById("lets-connect");
+    if (!path || !contactEl) return;
+
+    const len = path.getTotalLength();
+    gsap.set(path, { strokeDasharray: len, strokeDashoffset: len, rotation: -90, transformOrigin: "center center" });
+
+    const st = ScrollTrigger.create({
+      trigger: contactEl,
+      start: "top 75%",
+      once: true,
+      onEnter: () => { gsap.to(path, { strokeDashoffset: 0, duration: 1.2, delay: 0.6, ease: "power2.inOut" }); },
+    });
+
+    return () => st.kill();
+  }, []);
+
+  useEffect(() => {
+    const btn = circleButtonRef.current;
+    const path = circlePathRef.current;
+    if (!btn || !path) return;
+
+    const len = path.getTotalLength();
+    let tl: gsap.core.Timeline | null = null;
+
+    const enter = () => {
+      if (tl) tl.kill();
+      tl = gsap.timeline();
+      tl.set(path, { strokeDashoffset: 0, strokeDasharray: len, scale: 1 })
+        .to(path, { strokeDashoffset: -len, duration: 0.75, ease: "power2.inOut" })
+        .set(path, { strokeDashoffset: len })
+        .to(path, { strokeDashoffset: 0, duration: 0.75, ease: "power2.inOut" });
     };
 
-    const disableHover = () => {
-      if (!isHoverActive) return;
-      button.removeEventListener("mouseenter", handleMouseEnter);
-      button.removeEventListener("mouseleave", handleMouseLeave);
-      postcardTimeline.pause(0);
-      postcardsContainer.style.display = "none";
-      isHoverActive = false;
-    };
-
-    const handleResize = () => {
-      window.innerWidth < MOBILE_BREAKPOINT ? disableHover() : enableHover();
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      disableHover();
-      window.removeEventListener("resize", handleResize);
-    };
+    btn.addEventListener("mouseenter", enter);
+    return () => { btn.removeEventListener("mouseenter", enter); if (tl) tl.kill(); };
   }, []);
 
   return (
     <footer className={styles.footer} ref={sectionRef}>
-      <div className={styles.content}>
-        <div className={styles.heading}>
-          <Copy type="lines" animateOnScroll>
-            <h2>Начнём сотрудничество</h2>
-          </Copy>
-        </div>
-
-        <div className={styles.buttonContainer} ref={buttonContainerRef} style={{ ["--btn-bg" as string]: "#ffffff", ["--btn-fg" as string]: "#1d1d1b" }}>
-          <AnimatedButton href="#price-list-form" ref={buttonRef}>
-            Получить прайс-лист
-          </AnimatedButton>
-        </div>
-      </div>
-
-      <div className={styles.postcards}>
-        {POSTCARDS.map((card, index) => (
-          <div className={styles.postcard} key={index}>
-            <img src={card.image} alt="10coffee" />
+      {/* Contact */}
+      <section className={styles.contactSection} id="lets-connect">
+        <div className={styles.contactContainer}>
+          <div className={styles.contactContent}>
+            <Copy type="lines" animateOnScroll start="top 80%">
+              <h6>Давайте знакомиться</h6>
+            </Copy>
+            <Copy type="lines" animateOnScroll start="top 80%">
+              <h5>
+                Мы всегда рады новым партнёрам. Расскажем о продукции, подберём
+                оптимальное решение для вашего бизнеса.
+              </h5>
+            </Copy>
+            <div className={styles.contactDetails}>
+              <div>
+                <Copy type="lines" animateOnScroll start="top 80%" delay={0.3}>
+                  <p className="mono">info@10coffee.ru</p>
+                  <p className="mono">+7 (999) 123-45-67</p>
+                </Copy>
+              </div>
+              <div>
+                <Copy type="lines" animateOnScroll start="top 80%" delay={0.3}>
+                  <p className="mono">ПН--ПТ 09:00--18:00</p>
+                  <p className="mono">СБ 10:00--15:00</p>
+                </Copy>
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+          <div className={styles.circleButton} ref={circleButtonRef}>
+            <a href="mailto:info@10coffee.ru" className={styles.circleLink}>
+              <svg className={styles.circleSvg} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                <path ref={circlePathRef} d="M50,10 A40,40 0 1,1 49.9999,10" stroke="currentColor" strokeWidth="0.75" fill="none" />
+              </svg>
+              <Copy type="lines" animateOnScroll start="top 80%" delay={0.5}>
+                <span>Написать нам</span>
+              </Copy>
+            </a>
+          </div>
+        </div>
+      </section>
 
+      {/* Social */}
+      <section className={styles.socialSection}>
+        <div className={styles.socialContainer}>
+          <Copy type="words" animateOnScroll>
+            <h5 className={styles.socialHeading}>Мы в соцсетях</h5>
+          </Copy>
+          <div className={styles.socialLinks}>
+            {SOCIALS.map((s) => (
+              <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className={styles.socialLink}>
+                <span className={styles.socialIcon}><s.icon /></span>
+                <span className={styles.socialLabel}>{s.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className={styles.ctaSection}>
+        <div className={styles.ctaContent}>
+          <div className={styles.heading}>
+            <Copy type="lines" animateOnScroll>
+              <h2>Начнём сотрудничество</h2>
+            </Copy>
+          </div>
+          <div className={styles.buttonContainer} ref={buttonContainerRef} style={{ ["--btn-bg" as string]: "#ffffff", ["--btn-fg" as string]: "#1d1d1b" }}>
+            <AnimatedButton href="#price-list-form" ref={buttonRef}>
+              Получить прайс-лист
+            </AnimatedButton>
+          </div>
+        </div>
+        <div className={styles.postcards}>
+          {POSTCARDS.map((card, i) => (
+            <div className={styles.postcard} key={i}>
+              <img src={card.image} alt="10coffee" />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Bottom bar */}
       <div className={styles.bar}>
         <div className={styles.barLeft}>
           <Copy type="lines" animateOnScroll>
@@ -146,14 +225,7 @@ export default function LandingFooter() {
         </div>
         <div className={styles.barLinks}>
           {FOOTER_LINKS.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              target={link.href.startsWith("http") ? "_blank" : undefined}
-              rel={link.href.startsWith("http") ? "noopener noreferrer" : undefined}
-            >
-              {link.label}
-            </a>
+            <a key={link.label} href={link.href}>{link.label}</a>
           ))}
         </div>
       </div>

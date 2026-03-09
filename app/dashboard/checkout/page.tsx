@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -28,12 +28,36 @@ import {
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { ArrowLeft, CheckCircle2, FileText, Loader2, MapPin, Package, Truck } from "lucide-react"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { DELIVERY_METHOD_LABELS, SELF_PICKUP_ADDRESS } from "@/lib/utils/constants"
 import { toast } from "sonner"
 import Link from "next/link"
 import type { Company, DeliveryMethod } from "@/types"
+
+type CdekDeliveryType = "courier" | "pickup"
+
+interface CdekTariffInfo {
+  price: number
+  minDays: number
+  maxDays: number
+  name: string
+}
+
+interface CdekOffice {
+  code: string
+  name: string
+  address_full: string
+  work_time: string
+}
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -46,6 +70,24 @@ export default function CheckoutPage() {
   const finalPrice = Math.max(0, totalPrice - currentDiscount)
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(false)
+  const [orderResult, setOrderResult] = useState<{ orderId: string } | null>(null)
+
+  // CDEK state
+  const [cityQuery, setCityQuery] = useState("")
+  const [citySuggestions, setCitySuggestions] = useState<{ code: number; city: string; region: string }[]>([])
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false)
+  const [citySearching, setCitySearching] = useState(false)
+  const [selectedCity, setSelectedCity] = useState<{ code: number; city: string } | null>(null)
+  const [cdekDeliveryType, setCdekDeliveryType] = useState<CdekDeliveryType>("pickup")
+  const [courierTariff, setCourierTariff] = useState<CdekTariffInfo | null>(null)
+  const [pickupTariff, setPickupTariff] = useState<CdekTariffInfo | null>(null)
+  const [cdekLoading, setCdekLoading] = useState(false)
+  const [offices, setOffices] = useState<CdekOffice[]>([])
+  const [officesLoading, setOfficesLoading] = useState(false)
+  const [selectedOffice, setSelectedOffice] = useState<CdekOffice | null>(null)
+  const [officeFilter, setOfficeFilter] = useState("")
+  const citySearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cityDropdownRef = useRef<HTMLDivElement>(null)
 
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
@@ -76,20 +118,156 @@ export default function CheckoutPage() {
     loadCompanies()
   }, [])
 
+  // Reset CDEK state when delivery method changes
+  useEffect(() => {
+    if (deliveryMethod !== "cdek") {
+      setSelectedCity(null)
+      setCourierTariff(null)
+      setPickupTariff(null)
+      setCityQuery("")
+      setCitySuggestions([])
+      setOffices([])
+      setSelectedOffice(null)
+    }
+  }, [deliveryMethod])
+
+  // City search with debounce
+  const searchCities = useCallback((query: string) => {
+    if (citySearchTimeout.current) clearTimeout(citySearchTimeout.current)
+    if (query.length < 2) {
+      setCitySuggestions([])
+      setShowCitySuggestions(false)
+      setCitySearching(false)
+      return
+    }
+    setCitySearching(true)
+    citySearchTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/cdek/cities?q=${encodeURIComponent(query)}`)
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          setCitySuggestions(data)
+          setShowCitySuggestions(true)
+        }
+      } catch {
+        setCitySuggestions([])
+      } finally {
+        setCitySearching(false)
+      }
+    }, 200)
+  }, [])
+
+  // Calculate tariffs when city selected
+  useEffect(() => {
+    if (!selectedCity || totalWeight === 0) return
+    setCdekLoading(true)
+    setCourierTariff(null)
+    setPickupTariff(null)
+
+    fetch("/api/cdek/calculate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cityCode: selectedCity.code, weightGrams: totalWeight }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.courier?.length) {
+          const t = data.courier[0]
+          setCourierTariff({ price: t.price, minDays: t.minDays, maxDays: t.maxDays, name: t.name })
+        }
+        if (data.pickup?.length) {
+          const t = data.pickup[0]
+          setPickupTariff({ price: t.price, minDays: t.minDays, maxDays: t.maxDays, name: t.name })
+        }
+      })
+      .catch(() => {
+        setCourierTariff(null)
+        setPickupTariff(null)
+      })
+      .finally(() => setCdekLoading(false))
+  }, [selectedCity, totalWeight])
+
+  // Load offices when city selected and pickup type chosen
+  useEffect(() => {
+    if (!selectedCity || cdekDeliveryType !== "pickup") {
+      setOffices([])
+      setSelectedOffice(null)
+      return
+    }
+    setOfficesLoading(true)
+    setSelectedOffice(null)
+
+    fetch(`/api/cdek/offices?cityCode=${selectedCity.code}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setOffices(data)
+        }
+      })
+      .catch(() => setOffices([]))
+      .finally(() => setOfficesLoading(false))
+  }, [selectedCity, cdekDeliveryType])
+
+  // Close city dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target as Node)) {
+        setShowCitySuggestions(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  const activeTariff = cdekDeliveryType === "courier" ? courierTariff : pickupTariff
+  const deliveryCost = deliveryMethod === "cdek" && activeTariff ? activeTariff.price : 0
+
   async function onSubmit(data: CheckoutFormData) {
     if (items.length === 0) {
       toast.error("Корзина пуста")
       return
     }
 
+    // Validate CDEK fields
+    if (data.delivery_method === "cdek") {
+      if (!selectedCity) {
+        toast.error("Выберите город доставки")
+        return
+      }
+      if (cdekDeliveryType === "pickup" && !selectedOffice) {
+        toast.error("Выберите пункт выдачи")
+        return
+      }
+      if (cdekDeliveryType === "courier" && !data.delivery_address?.trim()) {
+        toast.error("Введите адрес доставки")
+        return
+      }
+    }
+
+    if (data.delivery_method === "cap_2000" && !data.delivery_address?.trim()) {
+      toast.error("Введите адрес доставки")
+      return
+    }
+
+    // Build delivery address for CDEK
+    let address = data.delivery_address || ""
+    if (deliveryMethod === "cdek") {
+      if (cdekDeliveryType === "pickup" && selectedOffice) {
+        address = `ПВЗ СДЭК: ${selectedOffice.name} — ${selectedOffice.address_full}`
+      } else if (selectedCity) {
+        address = `${selectedCity.city}, ${data.delivery_address || ""}`
+      }
+    }
+
     setLoading(true)
     const result = await createOrder({
       companyId: data.company_id,
       deliveryMethod: data.delivery_method as DeliveryMethod,
-      deliveryAddress: data.delivery_address,
+      deliveryAddress: address,
       comment: data.comment,
       promoCodeId: appliedPromo?.promoCodeId,
       discountAmount: currentDiscount || undefined,
+      deliveryCost: deliveryCost || undefined,
     })
 
     if (result.error) {
@@ -97,12 +275,12 @@ export default function CheckoutPage() {
       setLoading(false)
     } else {
       await clearCart()
-      toast.success("Заказ оформлен! Мы свяжемся с вами для подтверждения.")
-      router.push("/dashboard")
+      setOrderResult({ orderId: result.orderId! })
+      setLoading(false)
     }
   }
 
-  if (items.length === 0 && !loading) {
+  if (items.length === 0 && !loading && !orderResult) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <h2 className="text-xl font-bold">Корзина пуста</h2>
@@ -135,7 +313,15 @@ export default function CheckoutPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+              e.preventDefault()
+            }
+          }}
+          className="space-y-6"
+        >
           {/* Company */}
           <Card>
             <CardHeader>
@@ -227,7 +413,221 @@ export default function CheckoutPage() {
                 </p>
               )}
 
-              {(deliveryMethod === "cdek" || deliveryMethod === "cap_2000") && (
+              {deliveryMethod === "cdek" && (
+                <>
+                  {/* City search */}
+                  <div className="relative" ref={cityDropdownRef}>
+                    <FormLabel className="mb-2 block">Город доставки</FormLabel>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Введите название города..."
+                        className="pl-9 pr-9"
+                        value={cityQuery}
+                        onChange={(e) => {
+                          setCityQuery(e.target.value)
+                          setSelectedCity(null)
+                          setCourierTariff(null)
+                          setPickupTariff(null)
+                          setOffices([])
+                          setSelectedOffice(null)
+                          setOfficeFilter("")
+                          searchCities(e.target.value)
+                        }}
+                        onFocus={() => {
+                          if (citySuggestions.length > 0) setShowCitySuggestions(true)
+                        }}
+                      />
+                      {citySearching && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {showCitySuggestions && citySuggestions.length > 0 && (
+                      <div className="absolute z-50 mt-1 w-full rounded-lg border bg-white shadow-lg max-h-48 overflow-y-auto">
+                        {citySuggestions.map((c) => (
+                          <button
+                            key={c.code}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition-colors"
+                            onClick={() => {
+                              setSelectedCity({ code: c.code, city: c.city })
+                              setCityQuery(`${c.city}, ${c.region}`)
+                              setShowCitySuggestions(false)
+                            }}
+                          >
+                            <span className="font-medium">{c.city}</span>
+                            <span className="text-muted-foreground ml-1">({c.region})</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Delivery type toggle: courier vs pickup */}
+                  {selectedCity && (
+                    <div>
+                      <FormLabel className="mb-2 block">Тип доставки</FormLabel>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCdekDeliveryType("pickup")}
+                          className={`flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
+                            cdekDeliveryType === "pickup"
+                              ? "border-primary bg-primary/5 text-primary font-medium"
+                              : "border-neutral-200 hover:border-neutral-300"
+                          }`}
+                        >
+                          <Package className="h-4 w-4 flex-shrink-0" />
+                          <div className="text-left">
+                            <div>В пункт выдачи</div>
+                            {pickupTariff && (
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                от {formatPrice(pickupTariff.price)}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCdekDeliveryType("courier")}
+                          className={`flex items-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
+                            cdekDeliveryType === "courier"
+                              ? "border-primary bg-primary/5 text-primary font-medium"
+                              : "border-neutral-200 hover:border-neutral-300"
+                          }`}
+                        >
+                          <Truck className="h-4 w-4 flex-shrink-0" />
+                          <div className="text-left">
+                            <div>Курьером</div>
+                            {courierTariff && (
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                от {formatPrice(courierTariff.price)}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loading tariffs */}
+                  {cdekLoading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Рассчитываем стоимость доставки...
+                    </div>
+                  )}
+
+                  {/* Tariff result */}
+                  {activeTariff && !cdekLoading && (
+                    <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-green-800">
+                        {cdekDeliveryType === "courier" ? (
+                          <Truck className="h-4 w-4" />
+                        ) : (
+                          <Package className="h-4 w-4" />
+                        )}
+                        {activeTariff.name}
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-sm">
+                        <span className="text-green-700">
+                          {activeTariff.minDays}–{activeTariff.maxDays} дней
+                        </span>
+                        <span className="font-bold text-green-800">
+                          {formatPrice(activeTariff.price)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PVZ selection for pickup */}
+                  {cdekDeliveryType === "pickup" && selectedCity && (
+                    <div>
+                      <FormLabel className="mb-2 block">
+                        Пункт выдачи
+                        {offices.length > 0 && (
+                          <span className="text-muted-foreground font-normal ml-1">
+                            ({offices.length})
+                          </span>
+                        )}
+                      </FormLabel>
+                      {officesLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Загружаем пункты выдачи...
+                        </div>
+                      ) : offices.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          Нет доступных пунктов выдачи в этом городе
+                        </p>
+                      ) : (
+                        <>
+                          {offices.length > 5 && (
+                            <Input
+                              placeholder="Поиск по адресу..."
+                              className="mb-2"
+                              value={officeFilter}
+                              onChange={(e) => setOfficeFilter(e.target.value)}
+                            />
+                          )}
+                          <div className="space-y-1 max-h-60 overflow-y-auto rounded-lg border p-1">
+                            {offices
+                              .filter((o) => {
+                                if (!officeFilter) return true
+                                const q = officeFilter.toLowerCase()
+                                return (
+                                  o.address_full.toLowerCase().includes(q) ||
+                                  o.name.toLowerCase().includes(q)
+                                )
+                              })
+                              .map((office) => (
+                                <button
+                                  key={office.code}
+                                  type="button"
+                                  onClick={() => setSelectedOffice(office)}
+                                  className={`w-full text-left rounded-md p-2.5 text-sm transition-colors ${
+                                    selectedOffice?.code === office.code
+                                      ? "bg-primary/10 border border-primary/30"
+                                      : "hover:bg-neutral-50 border border-transparent"
+                                  }`}
+                                >
+                                  <div className="font-medium">{office.name}</div>
+                                  <div className="text-muted-foreground text-xs mt-0.5">
+                                    {office.address_full}
+                                  </div>
+                                  {office.work_time && (
+                                    <div className="text-muted-foreground text-xs mt-0.5">
+                                      {office.work_time}
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Delivery address for courier */}
+                  {cdekDeliveryType === "courier" && selectedCity && (
+                    <FormField
+                      control={form.control}
+                      name="delivery_address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Адрес доставки</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Улица, дом, квартира" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </>
+              )}
+
+              {deliveryMethod === "cap_2000" && (
                 <FormField
                   control={form.control}
                   name="delivery_address"
@@ -235,10 +635,7 @@ export default function CheckoutPage() {
                     <FormItem>
                       <FormLabel>Адрес доставки</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Город, улица, дом"
-                          {...field}
-                        />
+                        <Input placeholder="Город, улица, дом" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -290,10 +687,16 @@ export default function CheckoutPage() {
                   </span>
                 </div>
               )}
+              {deliveryCost > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Доставка СДЭК</span>
+                  <span>{formatPrice(deliveryCost)}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between text-lg font-bold">
                 <span>Итого</span>
-                <span className="text-primary">{formatPrice(finalPrice)}</span>
+                <span className="text-primary">{formatPrice(finalPrice + deliveryCost)}</span>
               </div>
             </CardContent>
           </Card>
@@ -309,6 +712,44 @@ export default function CheckoutPage() {
           </Button>
         </form>
       </Form>
+
+      <Dialog
+        open={!!orderResult}
+        onOpenChange={(open) => {
+          if (!open) router.push("/dashboard")
+        }}
+      >
+        <DialogContent showCloseButton={false} className="sm:max-w-md">
+          <DialogHeader className="items-center text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-2">
+              <CheckCircle2 className="h-8 w-8 text-green-600" />
+            </div>
+            <DialogTitle className="text-xl">Заказ оформлен!</DialogTitle>
+            <DialogDescription>
+              Мы свяжемся с вами для подтверждения заказа
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button asChild className="w-full">
+              <a
+                href={`/api/invoice?orderId=${orderResult?.orderId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Скачать счёт
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => router.push("/dashboard")}
+            >
+              К заказам
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

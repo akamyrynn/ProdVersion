@@ -15,6 +15,7 @@ import { Clients } from "./payload/collections/Clients"
 import { Media } from "./payload/collections/Media"
 import { CartItems } from "./payload/collections/CartItems"
 import { Favorites } from "./payload/collections/Favorites"
+import { MapLocations } from "./payload/collections/MapLocations"
 import { SiteSettings } from "./payload/globals/SiteSettings"
 
 export default buildConfig({
@@ -36,6 +37,7 @@ export default buildConfig({
     Products,
     Categories,
     News,
+    MapLocations,
     Media,
     Admins,
   ],
@@ -54,7 +56,7 @@ export default buildConfig({
     pool: {
       connectionString: process.env.DATABASE_URL || "",
     },
-    push: true,
+    push: false,
   }),
 
   sharp,

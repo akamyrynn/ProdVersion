@@ -3,6 +3,7 @@
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import type { CartItem, Product, ProductVariant } from "@/types"
 
 async function getPayloadClient() {
@@ -114,7 +115,7 @@ function transformCartItem(doc: any): CartItem {
 }
 
 // ============================================================
-// Cart CRUD
+// Cart CRUD — reads via Payload (needs JOINs), mutations via Supabase
 // ============================================================
 
 export async function getCartItems(): Promise<CartItem[]> {
@@ -142,42 +143,33 @@ export async function addToCart(params: {
   const clientId = await getCurrentUserId()
   if (!clientId) return { success: false }
 
-  const payload = await getPayloadClient()
+  const db = createAdminClient()
   const numericProductId = Number(params.productId)
+  const grindOption = params.grindOption || ""
 
   // Check if same item already in cart
-  const { docs } = await payload.find({
-    collection: "cart-items",
-    where: {
-      and: [
-        { clientId: { equals: clientId } },
-        { product: { equals: numericProductId } },
-        { variantId: { equals: params.variantId } },
-        { grindOption: { equals: params.grindOption || "" } },
-      ],
-    },
-    limit: 1,
-  })
+  const { data: existing } = await db
+    .from("cart_items")
+    .select("id, quantity")
+    .eq("client_id", clientId)
+    .eq("product_id", numericProductId)
+    .eq("variant_id", params.variantId)
+    .eq("grind_option", grindOption)
+    .limit(1)
+    .single()
 
-  if (docs.length > 0) {
-    // Update quantity
-    const existing = docs[0] as any
-    await payload.update({
-      collection: "cart-items",
-      id: existing.id,
-      data: { quantity: existing.quantity + params.quantity },
-    })
+  if (existing) {
+    await db
+      .from("cart_items")
+      .update({ quantity: existing.quantity + params.quantity })
+      .eq("id", existing.id)
   } else {
-    // Create new
-    await payload.create({
-      collection: "cart-items",
-      data: {
-        clientId,
-        product: numericProductId,
-        variantId: params.variantId,
-        quantity: params.quantity,
-        grindOption: params.grindOption || "",
-      },
+    await db.from("cart_items").insert({
+      client_id: clientId,
+      product_id: numericProductId,
+      variant_id: params.variantId,
+      quantity: params.quantity,
+      grind_option: grindOption,
     })
   }
 
@@ -190,22 +182,22 @@ export async function updateCartQuantity(
 ): Promise<{ success: boolean }> {
   if (quantity < 1) return { success: false }
 
-  const payload = await getPayloadClient()
-  await payload.update({
-    collection: "cart-items",
-    id: Number(cartItemId),
-    data: { quantity },
-  })
+  const db = createAdminClient()
+  await db
+    .from("cart_items")
+    .update({ quantity })
+    .eq("id", Number(cartItemId))
 
   return { success: true }
 }
 
 export async function removeCartItem(cartItemId: string): Promise<{ success: boolean }> {
-  const payload = await getPayloadClient()
-  await payload.delete({
-    collection: "cart-items",
-    id: Number(cartItemId),
-  })
+  const db = createAdminClient()
+  await db
+    .from("cart_items")
+    .delete()
+    .eq("id", Number(cartItemId))
+
   return { success: true }
 }
 
@@ -213,10 +205,11 @@ export async function clearCart(): Promise<{ success: boolean }> {
   const clientId = await getCurrentUserId()
   if (!clientId) return { success: false }
 
-  const payload = await getPayloadClient()
-  await payload.delete({
-    collection: "cart-items",
-    where: { clientId: { equals: clientId } },
-  })
+  const db = createAdminClient()
+  await db
+    .from("cart_items")
+    .delete()
+    .eq("client_id", clientId)
+
   return { success: true }
 }

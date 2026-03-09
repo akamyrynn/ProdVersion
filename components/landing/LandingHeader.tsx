@@ -7,11 +7,13 @@ import styles from "./LandingHeader.module.css";
 interface LandingHeaderProps {
   onToggleMenu: () => void;
   isMenuOpen: boolean;
+  onOpenMap: () => void;
 }
 
 export default function LandingHeader({
   onToggleMenu,
   isMenuOpen,
+  onOpenMap,
 }: LandingHeaderProps) {
   const { user } = useAuth();
   const router = useRouter();
@@ -23,7 +25,7 @@ export default function LandingHeader({
       </a>
 
       <div className={styles.navCenter}>
-        <button type="button" className={styles.navLink} title="Скоро" onClick={() => {}}>
+        <button type="button" className={styles.navLink} onClick={onOpenMap}>
           Где попробовать
         </button>
         <a
