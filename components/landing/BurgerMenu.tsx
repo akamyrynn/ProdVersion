@@ -17,9 +17,9 @@ const NAV_LINKS = [
 ];
 
 const SOCIAL_LINKS = [
-  { label: "Telegram", href: "#", icon: FaTelegram },
-  { label: "Instagram", href: "#", icon: FaInstagram },
-  { label: "VK", href: "#", icon: FaVk },
+  { label: "Telegram", href: "https://t.me/local10coffee", icon: FaTelegram },
+  { label: "Instagram", href: "https://www.instagram.com/10coffee.ru?igsh=NmMzbDN2OW5xaXVp", icon: FaInstagram },
+  { label: "VK", href: "https://vk.com/10coffee", icon: FaVk },
 ];
 
 interface BurgerMenuProps {

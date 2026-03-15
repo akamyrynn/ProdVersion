@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/providers/auth-provider"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -8,36 +8,87 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Plus, X, Loader2 } from "lucide-react"
+import { Plus, X, Loader2, Camera } from "lucide-react"
 import { toast } from "sonner"
+import { saveQuickComments, getQuickComments } from "@/lib/actions/client-settings"
+
+function resizeImage(file: File, maxSize: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement("canvas")
+      canvas.width = maxSize
+      canvas.height = maxSize
+      const ctx = canvas.getContext("2d")!
+      const min = Math.min(img.width, img.height)
+      const sx = (img.width - min) / 2
+      const sy = (img.height - min) / 2
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, maxSize, maxSize)
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("Canvas toBlob failed"))),
+        "image/jpeg",
+        0.85
+      )
+    }
+    img.onerror = reject
+    img.src = URL.createObjectURL(file)
+  })
+}
 
 export default function SettingsPage() {
   const { user } = useAuth()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
   const [fullName, setFullName] = useState("")
   const [phone, setPhone] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [quickComments, setQuickComments] = useState<string[]>([])
   const [newComment, setNewComment] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (user) {
       setFullName(user.user_metadata?.full_name || "")
       setPhone(user.user_metadata?.phone || "")
+      setAvatarUrl(user.user_metadata?.avatar_url || null)
 
-      // Load settings
-      supabase
-        .from("client_settings")
-        .select("*")
-        .eq("client_id", user.id)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setQuickComments(data.quick_comments || [])
-          }
-        })
+      // Load settings via server action (bypasses RLS)
+      getQuickComments().then((comments) => {
+        setQuickComments(comments)
+      })
     }
   }, [user, supabase])
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setAvatarLoading(true)
+
+    try {
+      const resized = await resizeImage(file, 200)
+      const filePath = `${user.id}.jpg`
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, resized, { upsert: true, contentType: "image/jpeg" })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath)
+      const url = `${urlData.publicUrl}?t=${Date.now()}`
+
+      await supabase.auth.updateUser({ data: { avatar_url: url } })
+      setAvatarUrl(url)
+      toast.success("Аватар обновлён")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Ошибка загрузки"
+      toast.error(message)
+    } finally {
+      setAvatarLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
 
   async function handleSaveProfile() {
     if (!user) return
@@ -63,10 +114,11 @@ export default function SettingsPage() {
     setQuickComments(updated)
     setNewComment("")
 
-    await supabase
-      .from("client_settings")
-      .update({ quick_comments: updated })
-      .eq("client_id", user.id)
+    const result = await saveQuickComments(updated)
+    if (!result.success) {
+      toast.error("Ошибка сохранения комментария")
+      setQuickComments(quickComments) // revert
+    }
   }
 
   async function handleRemoveComment(index: number) {
@@ -75,10 +127,11 @@ export default function SettingsPage() {
     const updated = quickComments.filter((_, i) => i !== index)
     setQuickComments(updated)
 
-    await supabase
-      .from("client_settings")
-      .update({ quick_comments: updated })
-      .eq("client_id", user.id)
+    const result = await saveQuickComments(updated)
+    if (!result.success) {
+      toast.error("Ошибка сохранения")
+      setQuickComments(quickComments) // revert
+    }
   }
 
   return (
@@ -96,6 +149,42 @@ export default function SettingsPage() {
           <CardTitle className="text-base">Профиль</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Avatar */}
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="relative h-16 w-16 rounded-full bg-[#e6610d] flex items-center justify-center text-white text-lg font-bold overflow-hidden group shrink-0"
+              disabled={avatarLoading}
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Аватар" className="h-full w-full object-cover" />
+              ) : (
+                (fullName || user?.email || "U").charAt(0).toUpperCase()
+              )}
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {avatarLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-white" />
+                ) : (
+                  <Camera className="h-5 w-5 text-white" />
+                )}
+              </div>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+            <div>
+              <p className="text-sm font-medium">Фото профиля</p>
+              <p className="text-xs text-muted-foreground">Нажмите для загрузки</p>
+            </div>
+          </div>
+
+          <Separator />
+
           <div>
             <Label>Email</Label>
             <Input value={user?.email || ""} disabled className="mt-1.5" />

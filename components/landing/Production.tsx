@@ -8,7 +8,7 @@ import styles from "./Production.module.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const IMAGE_COUNT = 6;
+const IMAGE_COUNT = 5;
 
 export default function Production() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -82,7 +82,7 @@ export default function Production() {
           {Array.from({ length: IMAGE_COUNT }, (_, index) => (
             <div key={index + 1} className={styles.aboutImg}>
               <img
-                src={`/landing/production/production-${index + 1}.jpg`}
+                src={`/landing/production/production-${index + 1}.png`}
                 alt=""
               />
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Copy from "./_shared/Copy";
 import { submitPriceListRequest, type PriceListState } from "@/lib/actions/price-list";
 import styles from "./PriceListForm.module.css";
@@ -12,6 +12,7 @@ export default function PriceListForm() {
     submitPriceListRequest,
     initialState,
   );
+  const [agreed, setAgreed] = useState(false);
 
   return (
     <section className={styles.section} id="price-list-form">
@@ -60,10 +61,28 @@ export default function PriceListForm() {
               className={styles.input}
             />
             {state.error && <p className={styles.error}>{state.error}</p>}
+            <label className={styles.privacy}>
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className={styles.privacyCheck}
+              />
+              <span className={styles.privacyText}>
+                Принимаю{" "}
+                <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer">
+                  политику конфиденциальности
+                </a>{" "}
+                и{" "}
+                <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer">
+                  правила обработки персональных данных
+                </a>
+              </span>
+            </label>
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={isPending}
+              disabled={isPending || !agreed}
             >
               {isPending ? "Отправка..." : "Отправить"}
             </button>

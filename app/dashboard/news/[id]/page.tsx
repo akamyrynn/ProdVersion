@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { getNewsById } from "@/lib/actions/news"
 import { notFound } from "next/navigation"
 import { formatDate } from "@/lib/utils/format"
 import { ArrowLeft } from "lucide-react"
@@ -9,48 +9,106 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-function renderContent(content: string) {
-  // Try parsing as Lexical JSON
-  try {
-    const parsed = JSON.parse(content)
-    if (parsed?.root?.children) {
+interface LexicalNode {
+  type: string
+  children?: LexicalNode[]
+  text?: string
+  format?: number
+  tag?: string
+  listType?: string
+  url?: string
+  src?: string
+  altText?: string
+}
+
+function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
+  if (node.text !== undefined) {
+    let el: React.ReactNode = node.text
+    if (node.format && node.format & 1) el = <strong key={i}>{el}</strong>
+    if (node.format && node.format & 2) el = <em key={i}>{el}</em>
+    return el
+  }
+
+  const children = node.children?.map((child, ci) => renderLexicalNode(child, ci))
+
+  switch (node.type) {
+    case "paragraph":
+      return <p key={i}>{children}</p>
+    case "heading": {
+      const tag = node.tag || "h3"
+      if (tag === "h1") return <h1 key={i} className="text-xl font-bold">{children}</h1>
+      if (tag === "h2") return <h2 key={i} className="text-lg font-bold">{children}</h2>
+      return <h3 key={i} className="text-lg font-bold">{children}</h3>
+    }
+    case "list":
+      return node.listType === "number" ? (
+        <ol key={i} className="list-decimal pl-5 space-y-1">{children}</ol>
+      ) : (
+        <ul key={i} className="list-disc pl-5 space-y-1">{children}</ul>
+      )
+    case "listitem":
+      return <li key={i}>{children}</li>
+    case "link":
+      return (
+        <a key={i} href={node.url} target="_blank" rel="noopener noreferrer" className="text-[#5b328a] underline">
+          {children}
+        </a>
+      )
+    case "upload":
+      return node.src ? (
+        <figure key={i} className="my-4">
+          <img src={node.src} alt={node.altText || ""} className="rounded-lg max-w-full" />
+        </figure>
+      ) : null
+    case "quote":
+      return <blockquote key={i} className="border-l-2 border-neutral-300 pl-4 italic text-neutral-500">{children}</blockquote>
+    default:
+      return children ? <div key={i}>{children}</div> : null
+  }
+}
+
+function renderContent(content: unknown) {
+  if (!content) return null
+
+  // Lexical JSON object (Supabase returns JSONB as parsed object)
+  if (typeof content === "object" && content !== null) {
+    const root = (content as { root?: LexicalNode }).root
+    if (root?.children) {
       return (
         <div className="space-y-4">
-          {parsed.root.children.map((node: { type: string; children?: { text?: string; format?: number }[] }, i: number) => {
-            if (node.type === "paragraph" && node.children) {
-              const text = node.children.map((c) => c.text || "").join("")
-              if (!text.trim()) return <br key={i} />
-              return <p key={i}>{text}</p>
-            }
-            if (node.type === "heading" && node.children) {
-              const text = node.children.map((c) => c.text || "").join("")
-              return <h3 key={i} className="text-lg font-bold">{text}</h3>
-            }
-            return null
-          })}
+          {root.children.map((node, i) => renderLexicalNode(node, i))}
         </div>
       )
     }
-  } catch {
-    // Not JSON — render as plain text
   }
-  return <p className="whitespace-pre-wrap">{content}</p>
+
+  // String content (legacy or plain text)
+  if (typeof content === "string") {
+    try {
+      const parsed = JSON.parse(content)
+      if (parsed?.root?.children) {
+        return (
+          <div className="space-y-4">
+            {parsed.root.children.map((node: LexicalNode, i: number) =>
+              renderLexicalNode(node, i)
+            )}
+          </div>
+        )
+      }
+    } catch {
+      // Plain text
+    }
+    return <p className="whitespace-pre-wrap">{content}</p>
+  }
+
+  return null
 }
 
 export default async function NewsDetailPage({ params }: Props) {
   const { id } = await params
-  const supabase = await createClient()
+  const news = await getNewsById(id) as News | null
 
-  const { data: item } = await supabase
-    .from("news")
-    .select("*")
-    .eq("id", id)
-    .eq("is_published", true)
-    .single()
-
-  if (!item) notFound()
-
-  const news = item as News
+  if (!news) notFound()
 
   return (
     <div className="max-w-3xl space-y-6">

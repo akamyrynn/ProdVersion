@@ -6,6 +6,7 @@ import { getProductsByCategory } from "@/lib/actions/products"
 import {
   Heart,
   Plus,
+  Minus,
   ArrowLeft,
   Coffee,
   Leaf,
@@ -230,7 +231,7 @@ export function CatalogBento({ categories, favoriteIds, activeType }: Props) {
               <p className="text-neutral-400 text-sm">Товары скоро появятся</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {products.map((p: any, i: number) => (
                 <ProdCard key={p.id} product={p} idx={i} />
               ))}
@@ -239,7 +240,7 @@ export function CatalogBento({ categories, favoriteIds, activeType }: Props) {
         </div>
       ) : viewMode === "grid" ? (
         /* ── GRID MODE: category cards ── */
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {allCats.length === 0 ? (
             <div className="col-span-full flex flex-col items-center py-20">
               <Coffee className="h-10 w-10 text-neutral-200 mb-3" />
@@ -443,25 +444,49 @@ function ListCategorySection({
 
 // ── Grid mode: product card ──
 function ProdCard({ product, idx }: { product: any; idx: number }) {
-  const { addItem } = useCart()
+  const { items, addItem, updateQuantity, removeItem } = useCart()
   const variants = product.variants ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [added, setAdded] = useState(false)
   const imageUrl = product.images?.[0] || null
 
   const selectedVariant = variants[selectedIdx]
+  const grindOption = selectedVariant?.grind_options?.[0] || ""
+
+  // Find matching cart item
+  const cartItem = items.find(
+    (i) =>
+      i.product_id === String(product.id) &&
+      i.variant_id === String(selectedVariant?.id || "") &&
+      (i.grind_option || "") === grindOption
+  )
+  const cartQty = cartItem?.quantity ?? 0
 
   async function handleAdd(e: React.MouseEvent) {
     e.preventDefault()
     if (!selectedVariant) return
-    await addItem({
-      productId: String(product.id),
-      variantId: String(selectedVariant.id || idx),
-      quantity: 1,
-      grindOption: selectedVariant.grind_options?.[0] || undefined,
-    })
+    if (cartItem) {
+      await updateQuantity(cartItem.id, cartItem.quantity + 1)
+    } else {
+      await addItem({
+        productId: String(product.id),
+        variantId: String(selectedVariant.id || idx),
+        quantity: 1,
+        grindOption: grindOption || undefined,
+      })
+    }
     setAdded(true)
     setTimeout(() => setAdded(false), 1200)
+  }
+
+  async function handleDecrement(e: React.MouseEvent) {
+    e.preventDefault()
+    if (!cartItem) return
+    if (cartItem.quantity <= 1) {
+      await removeItem(cartItem.id)
+    } else {
+      await updateQuantity(cartItem.id, cartItem.quantity - 1)
+    }
   }
 
   return (
@@ -521,11 +546,11 @@ function ProdCard({ product, idx }: { product: any; idx: number }) {
           href={`/dashboard/product/${product.id}`}
           className="flex-1 min-w-0"
         >
-          <h4 className="text-[13px] font-bold text-neutral-900 leading-tight group-hover:text-[#5b328a] transition-colors">
+          <h4 className="text-[13px] font-bold text-neutral-900 leading-tight group-hover:text-[#5b328a] transition-colors line-clamp-2 text-left">
             {product.name}
           </h4>
           {product.region && (
-            <p className="text-[11px] text-neutral-400 mt-0.5 truncate">
+            <p className="text-[11px] text-neutral-400 mt-0.5 truncate text-left">
               {product.region}
             </p>
           )}
@@ -553,7 +578,7 @@ function ProdCard({ product, idx }: { product: any; idx: number }) {
               </div>
             )}
 
-            {/* Price + add */}
+            {/* Price + cart controls */}
             {selectedVariant && (
               <div className="flex items-center justify-between">
                 <div>
@@ -566,21 +591,42 @@ function ProdCard({ product, idx }: { product: any; idx: number }) {
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={handleAdd}
-                  className={cn(
-                    "h-9 w-9 rounded-full flex items-center justify-center transition-all duration-300",
-                    added
-                      ? "bg-[#5b328a] text-white scale-110 shadow-lg shadow-[#5b328a]/30"
-                      : "bg-[#5b328a] text-white hover:bg-[#4a2870] hover:shadow-md active:scale-90"
-                  )}
-                >
-                  {added ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                </button>
+
+                {cartQty > 0 ? (
+                  <div className="flex items-center bg-[#5b328a]/10 rounded-full">
+                    <button
+                      onClick={handleDecrement}
+                      className="h-8 w-8 flex items-center justify-center text-[#5b328a] hover:bg-[#5b328a]/20 rounded-full transition-colors"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className="w-5 text-center text-[12px] font-bold text-[#5b328a]">
+                      {cartQty}
+                    </span>
+                    <button
+                      onClick={handleAdd}
+                      className="h-8 w-8 flex items-center justify-center text-[#5b328a] hover:bg-[#5b328a]/20 rounded-full transition-colors"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleAdd}
+                    className={cn(
+                      "h-9 w-9 rounded-full flex items-center justify-center transition-all duration-300",
+                      added
+                        ? "bg-[#5b328a] text-white scale-110 shadow-lg shadow-[#5b328a]/30"
+                        : "bg-[#5b328a] text-white hover:bg-[#4a2870] hover:shadow-md active:scale-90"
+                    )}
+                  >
+                    {added ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -1,66 +1,77 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ArrowUp, ArrowDown } from "lucide-react";
-import { productMenu } from "./data/product-menu-data";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Copy from "./_shared/Copy";
 import AnimatedButton from "./_shared/AnimatedButton";
 import styles from "./ProductImages.module.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
+const PRODUCTS = [
+  { name: "Гондурас", image: "/Ассортимент/Мокап Гондурас.png", thumb: "/Ассортимент/Мокап Гондурас.png" },
+  { name: "Колумбия 036", image: "/Ассортимент/Мокап Колумбия 036.png", thumb: "/Ассортимент/Мокап Колумбия 036.png" },
+  { name: "Колумбия Декаф", image: "/Ассортимент/Мокап Колумбия Декаф.png", thumb: "/Ассортимент/Мокап Колумбия Декаф.png" },
+];
+
 export default function ProductImages() {
   const sectionRef = useRef<HTMLElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const isFirst = activeIndex === 0;
-  const isLast = activeIndex === productMenu.length - 1;
-  const active = productMenu[activeIndex];
+  const active = PRODUCTS[activeIndex];
+
+  const animateTransition = useCallback((newIndex: number) => {
+    const img = imageRef.current;
+    if (!img) {
+      setActiveIndex(newIndex);
+      return;
+    }
+    gsap.to(img, {
+      opacity: 0,
+      scale: 0.95,
+      duration: 0.2,
+      onComplete: () => {
+        setActiveIndex(newIndex);
+        gsap.fromTo(
+          img,
+          { opacity: 0, scale: 0.95 },
+          { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" }
+        );
+      },
+    });
+  }, []);
 
   const handlePrev = () => {
-    if (!isFirst) setActiveIndex((prev) => prev - 1);
+    const idx = activeIndex === 0 ? PRODUCTS.length - 1 : activeIndex - 1;
+    animateTransition(idx);
   };
+
   const handleNext = () => {
-    if (!isLast) setActiveIndex((prev) => prev + 1);
+    const idx = activeIndex === PRODUCTS.length - 1 ? 0 : activeIndex + 1;
+    animateTransition(idx);
   };
 
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
 
-    const navButtons = section.querySelectorAll(`.${styles.navBtnWrap}`);
-    const previewCard = section.querySelector(`.${styles.previewCard}`);
-    const minimapItems = section.querySelectorAll(`.${styles.minimapItem}`);
-
-    gsap.set(navButtons, { scale: 0 });
-    gsap.set(previewCard, { autoAlpha: 0, y: 50 });
-    gsap.set(minimapItems, { autoAlpha: 0, y: 30 });
+    const fadeElements = section.querySelectorAll(`.${styles.fadeIn}`);
+    gsap.set(fadeElements, { autoAlpha: 0, y: 40 });
 
     const st = ScrollTrigger.create({
       trigger: section,
-      start: "top 30%",
+      start: "top 50%",
       once: true,
       onEnter: () => {
-        gsap.to(navButtons, {
-          scale: 1,
-          duration: 1,
-          ease: "power3.out",
-          stagger: 0.1,
-        });
-        gsap.to(previewCard, {
+        gsap.to(fadeElements, {
           autoAlpha: 1,
           y: 0,
-          duration: 1,
+          duration: 0.8,
           ease: "power3.out",
-        });
-        gsap.to(minimapItems, {
-          autoAlpha: 1,
-          y: 0,
-          duration: 1,
-          ease: "power3.out",
-          stagger: 0.1,
+          stagger: 0.12,
         });
       },
     });
@@ -70,110 +81,57 @@ export default function ProductImages() {
 
   return (
     <div className={styles.wrapper}>
-    <section className={styles.section} ref={sectionRef}>
-      <div className="container">
+      <section className={styles.section} ref={sectionRef}>
         <div className={styles.header}>
           <Copy type="words" animateOnScroll>
             <h3>Ассортимент</h3>
           </Copy>
         </div>
 
-        <div className={styles.content}>
-          {/* Navigation arrows */}
-          <div className={styles.nav}>
-            <div className={styles.navBtnWrap}>
-              <button
-                className={`${styles.navBtn} ${isFirst ? styles.disabled : ""}`}
-                disabled={isFirst}
-                onClick={handlePrev}
-              >
-                <ArrowUp className={styles.navIcon} />
-              </button>
-            </div>
-            <div className={styles.navBtnWrap}>
-              <button
-                className={`${styles.navBtn} ${isLast ? styles.disabled : ""}`}
-                disabled={isLast}
-                onClick={handleNext}
-              >
-                <ArrowDown className={styles.navIcon} />
-              </button>
-            </div>
+        <div className={`${styles.slider} ${styles.fadeIn}`}>
+          <button
+            className={`${styles.arrowBtn} ${styles.arrowPrev}`}
+            onClick={handlePrev}
+            aria-label="Предыдущий"
+          >
+            <ArrowLeft className={styles.arrowIcon} />
+          </button>
+
+          <div className={styles.mainImage}>
+            <img ref={imageRef} src={active.image} alt={active.name} />
           </div>
 
-          {/* Central preview card */}
-          <div className={styles.preview}>
-            <div className={styles.previewCard}>
-              <h6>{active.category}</h6>
-
-              {active.items?.map((item, i) => (
-                <div key={i} className={styles.previewItem}>
-                  <div className={styles.previewRow}>
-                    <p>
-                      {item.name}{" "}
-                      {item.weight && (
-                        <span className={styles.weight}>{item.weight}</span>
-                      )}
-                    </p>
-                    <p>{item.price}</p>
-                  </div>
-                  {item.description && (
-                    <p className={styles.itemDesc}>{item.description}</p>
-                  )}
-                </div>
-              ))}
-
-              {active.groups?.map((group, gi) => (
-                <div key={gi} className={styles.previewGroup}>
-                  <div className={styles.groupHeader}>
-                    <span />
-                    <p className="mono">{group.title}</p>
-                    <span />
-                  </div>
-                  {group.items.map((item, ii) => (
-                    <div key={ii} className={styles.previewRow}>
-                      <p>
-                        {item.name}{" "}
-                        {item.weight && (
-                          <span className={styles.weight}>{item.weight}</span>
-                        )}
-                      </p>
-                      <p>{item.price}</p>
-                    </div>
-                  ))}
-                </div>
-              ))}
-
-              <div className={styles.previewFooter}>
-                <p>10coffee</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Minimap */}
-          <div className={styles.minimap}>
-            {productMenu.map((menu, i) => (
-              <div
-                key={i}
-                className={`${styles.minimapItem} ${i === activeIndex ? styles.active : ""}`}
-                onClick={() => setActiveIndex(i)}
-              >
-                <div className={styles.minimapImg}>
-                  <img src={menu.image} alt={menu.category} />
-                </div>
-                <p>{menu.category}</p>
-              </div>
-            ))}
-          </div>
+          <button
+            className={`${styles.arrowBtn} ${styles.arrowNext}`}
+            onClick={handleNext}
+            aria-label="Следующий"
+          >
+            <ArrowRight className={styles.arrowIcon} />
+          </button>
         </div>
 
-        <div className={styles.cta}>
+        <div className={`${styles.thumbnails} ${styles.fadeIn}`}>
+          {PRODUCTS.map((product, i) => (
+            <button
+              key={i}
+              className={`${styles.thumb} ${i === activeIndex ? styles.thumbActive : ""}`}
+              onClick={() => {
+                if (i !== activeIndex) animateTransition(i);
+              }}
+            >
+              <img src={product.thumb} alt={product.name} />
+            </button>
+          ))}
+        </div>
+
+        <p className={`${styles.productName} ${styles.fadeIn}`}>{active.name}</p>
+
+        <div className={`${styles.cta} ${styles.fadeIn}`}>
           <AnimatedButton href="#price-list-form">
             Получить прайс-лист
           </AnimatedButton>
         </div>
-      </div>
-    </section>
+      </section>
     </div>
   );
 }

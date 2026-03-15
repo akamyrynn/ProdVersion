@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { getClientOrders } from "@/lib/actions/orders"
 import { getClientCompanies } from "@/lib/actions/companies"
-import { createClient } from "@/lib/supabase/server"
+import { getNewsPaginated } from "@/lib/actions/news"
 import { ORDER_STATUS_LABELS } from "@/lib/utils/constants"
 import { formatPrice, formatDate, formatOrderNumber } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
@@ -21,21 +21,14 @@ const STATUS_DOTS: Record<OrderStatus, string> = {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-
   const [orders, companies, newsResult] = await Promise.all([
     getClientOrders(),
     getClientCompanies(),
-    supabase
-      .from("news")
-      .select("*")
-      .eq("is_published", true)
-      .order("published_at", { ascending: false })
-      .limit(3),
+    getNewsPaginated(0, 3),
   ])
 
   const recentOrders = orders.slice(0, 6)
-  const news = (newsResult.data as News[]) || []
+  const news = (newsResult.items as News[]) || []
   const activeOrders = orders.filter(
     (o) => !["delivered", "cancelled"].includes(o.status)
   ).length
@@ -172,46 +165,6 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      {/* ── Companies ── */}
-      {companies.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">
-              Компании
-            </h2>
-            <Link
-              href="/dashboard/companies"
-              className="text-[11px] font-semibold text-neutral-400 hover:text-neutral-900 transition-colors flex items-center gap-1"
-            >
-              Управление
-              <ArrowUpRight className="h-3 w-3" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {companies.slice(0, 4).map((company) => (
-              <div
-                key={company.id}
-                className="bg-white rounded-xl border border-black/[0.04] px-4 py-3.5 flex items-center gap-3"
-              >
-                <div className="h-9 w-9 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0">
-                  <span className="text-[12px] font-black text-neutral-400">
-                    {company.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-neutral-900 truncate">
-                    {company.name}
-                  </p>
-                  <p className="text-[10px] text-neutral-400 tabular-nums">
-                    ИНН {company.inn}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* ── News ── */}
       {news.length > 0 && (
         <section>
@@ -259,6 +212,46 @@ export default async function DashboardPage() {
                   )}
                 </div>
               </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Companies ── */}
+      {companies.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[10px] font-bold text-neutral-400 tracking-[0.2em] uppercase">
+              Компании
+            </h2>
+            <Link
+              href="/dashboard/companies"
+              className="text-[11px] font-semibold text-neutral-400 hover:text-neutral-900 transition-colors flex items-center gap-1"
+            >
+              Управление
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {companies.slice(0, 4).map((company) => (
+              <div
+                key={company.id}
+                className="bg-white rounded-xl border border-black/[0.04] px-4 py-3.5 flex items-center gap-3"
+              >
+                <div className="h-9 w-9 rounded-lg bg-neutral-100 flex items-center justify-center shrink-0">
+                  <span className="text-[12px] font-black text-neutral-400">
+                    {company.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-neutral-900 truncate">
+                    {company.name}
+                  </p>
+                  <p className="text-[10px] text-neutral-400 tabular-nums">
+                    ИНН {company.inn}
+                  </p>
+                </div>
+              </div>
             ))}
           </div>
         </section>

@@ -2,171 +2,57 @@
 
 import { useRef, useEffect } from "react";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { TEAM_MEMBERS } from "./data/team-data";
 import styles from "./Team.module.css";
 
-const MOBILE_BREAKPOINT = 1000;
-
-function SplitChars({ text }: { text: string }) {
-  return (
-    <h1>
-      {text.split("").map((char, index) => (
-        <span className={styles.letter} key={index}>
-          {char === " " ? "\u00A0" : char}
-        </span>
-      ))}
-    </h1>
-  );
-}
+gsap.registerPlugin(ScrollTrigger);
 
 export default function Team() {
   const sectionRef = useRef<HTMLElement>(null);
-  const avatarContainerRef = useRef<HTMLDivElement>(null);
-  const avatarRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const nameRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const defaultHeadingRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const avatarContainer = avatarContainerRef.current;
-    const avatars = avatarRefs.current.filter(Boolean) as HTMLDivElement[];
-    const memberNames = nameRefs.current.filter(Boolean) as HTMLDivElement[];
-    const defaultHeading = defaultHeadingRef.current;
+    const section = sectionRef.current;
+    const cards = cardsRef.current;
+    if (!section || !cards) return;
 
-    if (!avatarContainer || !defaultHeading || !avatars.length) return;
+    const cardElements = cards.querySelectorAll(`.${styles.card}`);
 
-    const defaultLetters = defaultHeading.querySelectorAll(`.${styles.letter}`);
-    gsap.set(defaultLetters, { y: "0%" });
+    gsap.set(cardElements, { autoAlpha: 0, y: 40 });
 
-    type Handler = { element: HTMLDivElement; onEnter: () => void; onLeave: () => void };
-    let avatarHandlers: Handler[] = [];
-    let handleContainerEnter: (() => void) | null = null;
-    let handleContainerLeave: (() => void) | null = null;
-
-    const enableHoverInteractions = () => {
-      avatars.forEach((avatar, index) => {
-        const nameElement = memberNames[index];
-        if (!nameElement) return;
-
-        const nameLetters = nameElement.querySelectorAll(`.${styles.letter}`);
-
-        const handleAvatarEnter = () => {
-          gsap.to(avatar, { width: 120, height: 120, duration: 0.5, ease: "power4.out" });
-          gsap.to(defaultLetters, {
-            y: "-110%", duration: 0.75, ease: "power4.out",
-            stagger: { each: 0.025, from: "center" },
-          });
-          gsap.to(nameLetters, {
-            y: "0%", duration: 0.75, ease: "power4.out",
-            stagger: { each: 0.025, from: "center" },
-          });
-        };
-
-        const handleAvatarLeave = () => {
-          gsap.to(avatar, { width: 70, height: 70, duration: 0.5, ease: "power4.out" });
-          gsap.to(nameLetters, {
-            y: "110%", duration: 0.75, ease: "power4.out",
-            stagger: { each: 0.025, from: "center" },
-          });
-        };
-
-        avatar.addEventListener("mouseenter", handleAvatarEnter);
-        avatar.addEventListener("mouseleave", handleAvatarLeave);
-        avatarHandlers.push({ element: avatar, onEnter: handleAvatarEnter, onLeave: handleAvatarLeave });
-      });
-
-      handleContainerEnter = () => {
-        gsap.to(defaultLetters, {
-          y: "-110%", duration: 0.75, ease: "power4.out",
-          stagger: { each: 0.025, from: "center" },
+    const st = ScrollTrigger.create({
+      trigger: section,
+      start: "top 60%",
+      once: true,
+      onEnter: () => {
+        gsap.to(cardElements, {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power3.out",
+          stagger: 0.08,
         });
-      };
+      },
+    });
 
-      handleContainerLeave = () => {
-        memberNames.forEach((name) => {
-          const letters = name.querySelectorAll(`.${styles.letter}`);
-          gsap.to(letters, {
-            y: "110%", duration: 0.75, ease: "power4.out",
-            stagger: { each: 0.025, from: "center" },
-          });
-        });
-        gsap.to(defaultLetters, {
-          y: "0%", duration: 0.75, ease: "power4.out",
-          stagger: { each: 0.025, from: "center" },
-        });
-      };
-
-      avatarContainer.addEventListener("mouseenter", handleContainerEnter);
-      avatarContainer.addEventListener("mouseleave", handleContainerLeave);
-    };
-
-    const disableHoverInteractions = () => {
-      avatarHandlers.forEach(({ element, onEnter, onLeave }) => {
-        element.removeEventListener("mouseenter", onEnter);
-        element.removeEventListener("mouseleave", onLeave);
-      });
-      avatarHandlers = [];
-
-      if (handleContainerEnter) {
-        avatarContainer.removeEventListener("mouseenter", handleContainerEnter);
-        handleContainerEnter = null;
-      }
-      if (handleContainerLeave) {
-        avatarContainer.removeEventListener("mouseleave", handleContainerLeave);
-        handleContainerLeave = null;
-      }
-
-      gsap.set(defaultLetters, { y: "0%" });
-      memberNames.forEach((name) => {
-        const letters = name.querySelectorAll(`.${styles.letter}`);
-        gsap.set(letters, { y: "110%" });
-      });
-      avatars.forEach((avatar) => gsap.set(avatar, { clearProps: "width,height" }));
-    };
-
-    let wasDesktop = window.innerWidth >= MOBILE_BREAKPOINT;
-
-    const handleResize = () => {
-      const isDesktop = window.innerWidth >= MOBILE_BREAKPOINT;
-      if (isDesktop !== wasDesktop) {
-        wasDesktop = isDesktop;
-        isDesktop ? enableHoverInteractions() : disableHoverInteractions();
-      }
-    };
-
-    if (wasDesktop) enableHoverInteractions();
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      disableHoverInteractions();
-    };
+    return () => st.kill();
   }, []);
 
   return (
     <section className={styles.section} ref={sectionRef}>
-      <div className={styles.avatars} ref={avatarContainerRef}>
-        {TEAM_MEMBERS.map((member, index) => (
-          <div
-            className={styles.avatar}
-            key={index}
-            ref={(el) => { avatarRefs.current[index] = el; }}
-          >
-            <img src={member.image} alt={member.name} />
-          </div>
-        ))}
+      <div className={styles.heading}>
+        <h3>Команда</h3>
       </div>
 
-      <div className={styles.names}>
-        <div className={`${styles.name} ${styles.nameDefault}`} ref={defaultHeadingRef}>
-          <SplitChars text="Команда" />
-        </div>
+      <div className={styles.grid} ref={cardsRef}>
         {TEAM_MEMBERS.map((member, index) => (
-          <div
-            className={styles.name}
-            key={index}
-            ref={(el) => { nameRefs.current[index] = el; }}
-          >
-            <SplitChars text={member.name} />
+          <div className={styles.card} key={index}>
+            <div className={styles.photoWrap}>
+              <img src={member.image} alt={member.name} />
+            </div>
+            <p className={styles.memberName}>{member.name}</p>
+            <p className={styles.memberRole}>{member.role}</p>
           </div>
         ))}
       </div>

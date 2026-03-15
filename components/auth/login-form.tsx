@@ -20,6 +20,7 @@ interface LoginFormProps {
 export function LoginForm({ onSwitchToRegister, onSwitchToForgot }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [agreed, setAgreed] = useState(false)
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -74,7 +75,26 @@ export function LoginForm({ onSwitchToRegister, onSwitchToForgot }: LoginFormPro
             </FormItem>
           )} />
 
-          <Button type="submit" className="w-full h-11 rounded-xl font-bold" disabled={loading}>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-0.5 accent-[#5b328a] w-4 h-4 shrink-0"
+            />
+            <span className="text-xs text-muted-foreground leading-relaxed">
+              Принимаю{" "}
+              <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+                политику конфиденциальности
+              </a>{" "}
+              и{" "}
+              <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+                правила обработки персональных данных
+              </a>
+            </span>
+          </label>
+
+          <Button type="submit" className="w-full h-11 rounded-xl font-bold" disabled={loading || !agreed}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Войти
           </Button>

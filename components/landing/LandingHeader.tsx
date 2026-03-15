@@ -21,21 +21,13 @@ export default function LandingHeader({
   return (
     <nav className={styles.navBar}>
       <a href="/" className={styles.navLogo}>
-        <img src="/logo.svg" alt="10coffee" className={styles.navLogoImg} />
+        <img src="/Основной (упрощенный).svg" alt="10coffee" className={styles.navLogoImg} />
       </a>
 
       <div className={styles.navCenter}>
         <button type="button" className={styles.navLink} onClick={onOpenMap}>
           Где попробовать
         </button>
-        <a
-          href="https://10cofshop.vercel.app/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.navLink}
-        >
-          Интернет-магазин
-        </a>
       </div>
 
       <div className={styles.navActions}>

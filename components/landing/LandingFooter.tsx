@@ -28,9 +28,9 @@ const FOOTER_LINKS = [
 ];
 
 const SOCIALS = [
-  { label: "Telegram", href: "#", icon: FaTelegram },
-  { label: "Instagram", href: "#", icon: FaInstagram },
-  { label: "ВКонтакте", href: "#", icon: FaVk },
+  { label: "Telegram", href: "https://t.me/local10coffee", icon: FaTelegram },
+  { label: "Instagram", href: "https://www.instagram.com/10coffee.ru?igsh=NmMzbDN2OW5xaXVp", icon: FaInstagram },
+  { label: "ВКонтакте", href: "https://vk.com/10coffee", icon: FaVk },
 ];
 
 export default function LandingFooter() {
@@ -227,6 +227,8 @@ export default function LandingFooter() {
           {FOOTER_LINKS.map((link) => (
             <a key={link.label} href={link.href}>{link.label}</a>
           ))}
+          <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer">Конфиденциальность</a>
+          <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer">Обработка данных</a>
         </div>
       </div>
     </footer>

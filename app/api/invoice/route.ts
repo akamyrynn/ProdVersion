@@ -62,6 +62,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Compute VAT label
+    let vatLabel = "без НДС"
+    if (doc.vatRate && doc.vatRate !== "none") {
+      vatLabel = doc.vatRate === "custom" ? `${doc.vatCustomRate || 0}%` : `${doc.vatRate}%`
+    }
+
     // Build items — support both Payload embedded items and old order_items table
     let items: any[] = []
 
@@ -72,7 +78,7 @@ export async function GET(req: NextRequest) {
         quantity: Number(item.quantity) || 0,
         unit: "шт",
         price: Number(item.unitPrice) || 0,
-        vat: "без НДС",
+        vat: vatLabel,
         total: Number(item.totalPrice) || 0,
       }))
     } else {
@@ -87,7 +93,7 @@ export async function GET(req: NextRequest) {
         quantity: Number(item.quantity) || 0,
         unit: "шт",
         price: Number(item.unit_price) || 0,
-        vat: "без НДС",
+        vat: vatLabel,
         total: Number(item.total_price) || 0,
       }))
     }
@@ -143,6 +149,12 @@ export async function GET(req: NextRequest) {
       buyerKpp,
       buyerAddress,
       items,
+      subtotal: Number(doc.subtotal) || 0,
+      discountPercent: Number(doc.discountPercent) || 0,
+      discountAmount: Number(doc.discountAmount) || 0,
+      deliveryCost: Number(doc.deliveryCost) || 0,
+      vatLabel,
+      vatAmount: Number(doc.vatAmount) || 0,
       total: Number(doc.total) || 0,
     })
 

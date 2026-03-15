@@ -144,7 +144,6 @@ export async function addToCart(params: {
   if (!clientId) return { success: false }
 
   const db = createAdminClient()
-  const numericProductId = Number(params.productId)
   const grindOption = params.grindOption || ""
 
   // Check if same item already in cart
@@ -152,25 +151,33 @@ export async function addToCart(params: {
     .from("cart_items")
     .select("id, quantity")
     .eq("client_id", clientId)
-    .eq("product_id", numericProductId)
+    .eq("product_id", params.productId)
     .eq("variant_id", params.variantId)
     .eq("grind_option", grindOption)
     .limit(1)
     .single()
 
   if (existing) {
-    await db
+    const { error } = await db
       .from("cart_items")
       .update({ quantity: existing.quantity + params.quantity })
       .eq("id", existing.id)
+    if (error) {
+      console.error("addToCart update error:", error.message)
+      return { success: false }
+    }
   } else {
-    await db.from("cart_items").insert({
+    const { error } = await db.from("cart_items").insert({
       client_id: clientId,
-      product_id: numericProductId,
+      product_id: params.productId,
       variant_id: params.variantId,
       quantity: params.quantity,
       grind_option: grindOption,
     })
+    if (error) {
+      console.error("addToCart insert error:", error.message)
+      return { success: false }
+    }
   }
 
   return { success: true }
@@ -183,20 +190,30 @@ export async function updateCartQuantity(
   if (quantity < 1) return { success: false }
 
   const db = createAdminClient()
-  await db
+  const { error } = await db
     .from("cart_items")
     .update({ quantity })
-    .eq("id", Number(cartItemId))
+    .eq("id", cartItemId)
+
+  if (error) {
+    console.error("updateCartQuantity error:", error.message)
+    throw new Error(error.message)
+  }
 
   return { success: true }
 }
 
 export async function removeCartItem(cartItemId: string): Promise<{ success: boolean }> {
   const db = createAdminClient()
-  await db
+  const { error } = await db
     .from("cart_items")
     .delete()
-    .eq("id", Number(cartItemId))
+    .eq("id", cartItemId)
+
+  if (error) {
+    console.error("removeCartItem error:", error.message)
+    throw new Error(error.message)
+  }
 
   return { success: true }
 }

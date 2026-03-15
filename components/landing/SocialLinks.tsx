@@ -5,9 +5,9 @@ import Copy from "./_shared/Copy";
 import styles from "./SocialLinks.module.css";
 
 const SOCIALS = [
-  { label: "Telegram", href: "#", icon: FaTelegram },
-  { label: "Instagram", href: "#", icon: FaInstagram },
-  { label: "ВКонтакте", href: "#", icon: FaVk },
+  { label: "Telegram", href: "https://t.me/local10coffee", icon: FaTelegram },
+  { label: "Instagram", href: "https://www.instagram.com/10coffee.ru?igsh=NmMzbDN2OW5xaXVp", icon: FaInstagram },
+  { label: "ВКонтакте", href: "https://vk.com/10coffee", icon: FaVk },
 ];
 
 export default function SocialLinks() {

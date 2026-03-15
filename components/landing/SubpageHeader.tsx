@@ -18,7 +18,7 @@ export default function SubpageHeader() {
   return (
     <nav className={styles.nav}>
       <a href="/" className={styles.logo}>
-        <img src="/logo.svg" alt="10coffee" className={styles.logoImg} />
+        <img src="/Основной (упрощенный).svg" alt="10coffee" className={styles.logoImg} />
       </a>
 
       <div className={styles.links}>

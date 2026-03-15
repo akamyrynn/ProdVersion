@@ -24,6 +24,7 @@ import {
   DELIVERY_METHOD_LABELS,
 } from "@/lib/utils/constants"
 import { repeatOrder, deleteOrder } from "@/lib/actions/orders"
+import { useCart } from "@/providers/cart-provider"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { Order } from "@/types"
@@ -43,6 +44,7 @@ const dateRangeLabels: Record<DateRange, string> = {
 }
 
 export function OrdersList({ initialOrders }: OrdersListProps) {
+  const { reloadCart } = useCart()
   const [orders, setOrders] = useState(initialOrders)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateRange, setDateRange] = useState<DateRange>("all")
@@ -86,6 +88,7 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
   async function handleRepeatOrder(orderId: string) {
     const result = await repeatOrder(orderId)
     if (result.success) {
+      await reloadCart()
       toast.success("Товары добавлены в корзину")
     } else {
       toast.error(result.error || "Ошибка")

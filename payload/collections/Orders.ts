@@ -29,6 +29,30 @@ export const Orders: CollectionConfig = {
           const random = Math.random().toString(36).substring(2, 5).toUpperCase()
           data.orderId = `10C-${timestamp}-${random}`
         }
+
+        // Auto-calculate discount, VAT, and total
+        if (data) {
+          const subtotal = Number(data.subtotal) || 0
+          const discountPercent = Number(data.discountPercent) || 0
+          data.discountAmount = Math.round(subtotal * discountPercent) / 100
+
+          let vatPercent = 0
+          if (data.vatRate === "custom") {
+            vatPercent = Number(data.vatCustomRate) || 0
+          } else if (data.vatRate && data.vatRate !== "none") {
+            vatPercent = Number(data.vatRate)
+          }
+
+          const afterDiscount = subtotal - data.discountAmount
+          const totalBeforeVat = afterDiscount + (Number(data.deliveryCost) || 0)
+          data.vatAmount =
+            vatPercent > 0
+              ? Math.round((totalBeforeVat * vatPercent) / (100 + vatPercent) * 100) / 100
+              : 0
+
+          data.total = totalBeforeVat
+        }
+
         return data
       },
     ],
@@ -65,11 +89,20 @@ export const Orders: CollectionConfig = {
       admin: { position: "sidebar" },
     },
     {
+      name: "discountPercent",
+      type: "number",
+      label: "Скидка (%)",
+      defaultValue: 0,
+      min: 0,
+      max: 100,
+      admin: { position: "sidebar", description: "Процент скидки от суммы товаров" },
+    },
+    {
       name: "discountAmount",
       type: "number",
-      label: "Скидка",
+      label: "Сумма скидки",
       defaultValue: 0,
-      admin: { position: "sidebar" },
+      admin: { position: "sidebar", readOnly: true, description: "Рассчитывается автоматически" },
     },
     {
       name: "deliveryCost",
@@ -79,11 +112,46 @@ export const Orders: CollectionConfig = {
       admin: { position: "sidebar" },
     },
     {
+      name: "vatRate",
+      type: "select",
+      label: "Ставка НДС",
+      defaultValue: "none",
+      options: [
+        { label: "Без НДС", value: "none" },
+        { label: "0%", value: "0" },
+        { label: "5%", value: "5" },
+        { label: "10%", value: "10" },
+        { label: "20%", value: "20" },
+        { label: "22%", value: "22" },
+        { label: "Своё значение", value: "custom" },
+      ],
+      admin: { position: "sidebar" },
+    },
+    {
+      name: "vatCustomRate",
+      type: "number",
+      label: "НДС (%)",
+      min: 0,
+      max: 100,
+      admin: {
+        position: "sidebar",
+        condition: (data) => data?.vatRate === "custom",
+        description: "Укажите свою ставку НДС",
+      },
+    },
+    {
+      name: "vatAmount",
+      type: "number",
+      label: "Сумма НДС",
+      defaultValue: 0,
+      admin: { position: "sidebar", readOnly: true, description: "Рассчитывается автоматически" },
+    },
+    {
       name: "total",
       type: "number",
       label: "ИТОГО",
       required: true,
-      admin: { position: "sidebar" },
+      admin: { position: "sidebar", readOnly: true, description: "Рассчитывается автоматически" },
     },
     {
       name: "totalWeightGrams",

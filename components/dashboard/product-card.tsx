@@ -25,7 +25,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, isFavorite: initialFav, index = 0 }: ProductCardProps) {
-  const { addItem } = useCart()
+  const { items, addItem, updateQuantity, removeItem } = useCart()
   const [isFavorite, setIsFavorite] = useState(initialFav)
   const [isPending, startTransition] = useTransition()
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
@@ -36,6 +36,15 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
     selectedVariant?.grind_options?.[0] || ""
   )
   const [addedToCart, setAddedToCart] = useState(false)
+
+  // Find matching cart item for current variant+grind
+  const cartItem = items.find(
+    (i) =>
+      i.product_id === product.id &&
+      i.variant_id === selectedVariant?.id &&
+      (i.grind_option || "") === (grind || "")
+  )
+  const inCart = !!cartItem
 
   function handleFavorite(e: React.MouseEvent) {
     e.preventDefault()
@@ -73,7 +82,7 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
 
   return (
     <div
-      className="group relative flex flex-col rounded-[20px] overflow-hidden transition-all duration-500 hover:-translate-y-1.5 animate-fade-in-up bg-white border border-black/[0.04] hover:shadow-2xl hover:shadow-[#5b328a]/10"
+      className="group relative flex flex-col h-full text-left rounded-[20px] overflow-hidden transition-all duration-500 hover:-translate-y-1.5 animate-fade-in-up bg-white border border-black/[0.04] hover:shadow-2xl hover:shadow-[#5b328a]/10"
       style={{ animationDelay: `${index * 80}ms`, animationFillMode: "backwards" }}
     >
       {/* Image area - large and prominent */}
@@ -214,48 +223,82 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
               </span>
 
               <div className="flex items-center gap-1.5">
-                {/* Quantity controls */}
-                <div className="flex items-center bg-neutral-100 rounded-full">
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setQuantity(Math.max(1, quantity - 1))
-                    }}
-                    className="h-8 w-8 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors rounded-full hover:bg-neutral-200"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className="w-5 text-center text-[12px] font-bold text-neutral-900">
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setQuantity(quantity + 1)
-                    }}
-                    className="h-8 w-8 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors rounded-full hover:bg-neutral-200"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
+                {inCart ? (
+                  /* Cart quantity controls — item already in cart */
+                  <div className="flex items-center bg-[#5b328a]/10 rounded-full">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (cartItem.quantity <= 1) {
+                          removeItem(cartItem.id)
+                        } else {
+                          updateQuantity(cartItem.id, cartItem.quantity - 1)
+                        }
+                      }}
+                      className="h-8 w-8 flex items-center justify-center text-[#5b328a] hover:text-[#4a2870] transition-colors rounded-full hover:bg-[#5b328a]/20"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className="w-5 text-center text-[12px] font-bold text-[#5b328a]">
+                      {cartItem.quantity}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        updateQuantity(cartItem.id, cartItem.quantity + 1)
+                      }}
+                      className="h-8 w-8 flex items-center justify-center text-[#5b328a] hover:text-[#4a2870] transition-colors rounded-full hover:bg-[#5b328a]/20"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  /* Not in cart — local quantity + add button */
+                  <>
+                    <div className="flex items-center bg-neutral-100 rounded-full">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setQuantity(Math.max(1, quantity - 1))
+                        }}
+                        className="h-8 w-8 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors rounded-full hover:bg-neutral-200"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="w-5 text-center text-[12px] font-bold text-neutral-900">
+                        {quantity}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setQuantity(quantity + 1)
+                        }}
+                        className="h-8 w-8 flex items-center justify-center text-neutral-400 hover:text-neutral-900 transition-colors rounded-full hover:bg-neutral-200"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
 
-                {/* Add to cart button */}
-                <button
-                  onClick={handleAddToCart}
-                  disabled={!selectedVariant}
-                  className={cn(
-                    "h-9 w-9 flex items-center justify-center rounded-full transition-colors duration-300",
-                    addedToCart
-                      ? "bg-[#5b328a] text-white"
-                      : "bg-[#5b328a] text-white hover:bg-[#4a2870] active:scale-95"
-                  )}
-                >
-                  {addedToCart ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                  )}
-                </button>
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={!selectedVariant}
+                      className={cn(
+                        "h-9 w-9 flex items-center justify-center rounded-full transition-colors duration-300",
+                        addedToCart
+                          ? "bg-[#5b328a] text-white"
+                          : "bg-[#5b328a] text-white hover:bg-[#4a2870] active:scale-95"
+                      )}
+                    >
+                      {addedToCart ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

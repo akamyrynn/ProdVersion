@@ -155,7 +155,14 @@ export default function ServicePage() {
               Отправить
             </button>
             <p className={styles.contactDisclaimer}>
-              Нажимая на кнопку, вы соглашаетесь с пользовательским соглашением
+              Нажимая на кнопку, вы принимаете{" "}
+              <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer">
+                политику конфиденциальности
+              </a>{" "}
+              и{" "}
+              <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer">
+                правила обработки персональных данных
+              </a>
             </p>
           </form>
         </div>

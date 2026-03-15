@@ -4,6 +4,69 @@ import QRCode from "qrcode"
 import { readFileSync } from "fs"
 import { join } from "path"
 
+// Russian number-to-words for invoices
+const ONES_F = ["", "одна", "две", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять"]
+const ONES_M = ["", "один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять"]
+const TEENS = ["десять", "одиннадцать", "двенадцать", "тринадцать", "четырнадцать", "пятнадцать", "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать"]
+const TENS = ["", "", "двадцать", "тридцать", "сорок", "пятьдесят", "шестьдесят", "семьдесят", "восемьдесят", "девяносто"]
+const HUNDREDS = ["", "сто", "двести", "триста", "четыреста", "пятьсот", "шестьсот", "семьсот", "восемьсот", "девятьсот"]
+
+function numForm(n: number, one: string, two: string, five: string) {
+  const m = Math.abs(n) % 100
+  if (m >= 11 && m <= 19) return five
+  const d = m % 10
+  if (d === 1) return one
+  if (d >= 2 && d <= 4) return two
+  return five
+}
+
+function tripletToWords(n: number, feminine: boolean): string {
+  const parts: string[] = []
+  const h = Math.floor(n / 100)
+  if (h > 0) parts.push(HUNDREDS[h])
+  const remainder = n % 100
+  if (remainder >= 10 && remainder <= 19) {
+    parts.push(TEENS[remainder - 10])
+  } else {
+    const t = Math.floor(remainder / 10)
+    const o = remainder % 10
+    if (t > 0) parts.push(TENS[t])
+    if (o > 0) parts.push(feminine ? ONES_F[o] : ONES_M[o])
+  }
+  return parts.join(" ")
+}
+
+function amountInWords(amount: number): string {
+  const rubles = Math.floor(amount)
+  const kopecks = Math.round((amount - rubles) * 100)
+
+  if (rubles === 0) {
+    return `Ноль рублей ${String(kopecks).padStart(2, "0")} коп.`
+  }
+
+  const parts: string[] = []
+  const millions = Math.floor(rubles / 1000000)
+  const thousands = Math.floor((rubles % 1000000) / 1000)
+  const ones = rubles % 1000
+
+  if (millions > 0) {
+    parts.push(tripletToWords(millions, false))
+    parts.push(numForm(millions, "миллион", "миллиона", "миллионов"))
+  }
+  if (thousands > 0) {
+    parts.push(tripletToWords(thousands, true))
+    parts.push(numForm(thousands, "тысяча", "тысячи", "тысяч"))
+  }
+  if (ones > 0) {
+    parts.push(tripletToWords(ones, false))
+  }
+
+  const rubWord = numForm(rubles, "рубль", "рубля", "рублей")
+  let result = parts.join(" ") + " " + rubWord
+  result = result.charAt(0).toUpperCase() + result.slice(1)
+  return `${result} ${String(kopecks).padStart(2, "0")} коп.`
+}
+
 // Cache font bytes at module level
 let fontRegularBytes: Buffer | null = null
 let fontMediumBytes: Buffer | null = null
@@ -41,6 +104,12 @@ export interface InvoiceData {
   buyerKpp: string
   buyerAddress: string
   items: InvoiceItem[]
+  subtotal: number
+  discountPercent?: number
+  discountAmount?: number
+  deliveryCost?: number
+  vatLabel?: string
+  vatAmount?: number
   total: number
 }
 
@@ -187,13 +256,36 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   // --- Totals ---
   y -= 10
   const totalItems = data.items.reduce((s, i) => s + i.quantity, 0)
-  text(`Всего наименований ${totalItems}, на сумму ${data.total.toFixed(2)} руб.`, bx, y, 8)
-  y -= 16
+  const itemsTotal = data.subtotal || data.items.reduce((s, i) => s + i.total, 0)
+  text(`Всего наименований ${totalItems}, на сумму ${itemsTotal.toFixed(2)} руб.`, bx, y, 8)
+  y -= 14
 
+  if (data.discountAmount && data.discountAmount > 0) {
+    text(`Скидка ${data.discountPercent || 0}%:`, bx, y, 8)
+    text(`-${data.discountAmount.toFixed(2)}`, bx + 420, y, 8)
+    y -= 12
+  }
+
+  if (data.deliveryCost && data.deliveryCost > 0) {
+    text("Доставка:", bx, y, 8)
+    text(`${data.deliveryCost.toFixed(2)}`, bx + 420, y, 8)
+    y -= 12
+  }
+
+  if (data.vatAmount && data.vatAmount > 0) {
+    text(`В т.ч. НДС ${data.vatLabel || ""}:`, bx, y, 8)
+    text(`${data.vatAmount.toFixed(2)}`, bx + 420, y, 8)
+    y -= 12
+  } else if (!data.vatLabel || data.vatLabel === "без НДС") {
+    text("Без НДС", bx, y, 8)
+    y -= 12
+  }
+
+  y -= 4
   text("Итого к оплате:", bx + 300, y, 12, fontBold)
   text(`${data.total.toFixed(2)}`, bx + 420, y, 12, fontBold)
   y -= 14
-  text(`${Math.floor(data.total)} руб. ${((data.total % 1) * 100).toFixed(0).padStart(2, "0")} коп.`, bx, y, 8)
+  text(amountInWords(data.total), bx, y, 8)
   y -= 30
 
   // --- Signature ---

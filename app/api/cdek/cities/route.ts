@@ -8,6 +8,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    if (!process.env.CDEK_CLIENT_ID || !process.env.CDEK_CLIENT_SECRET) {
+      console.error("CDEK env vars missing: CDEK_CLIENT_ID or CDEK_CLIENT_SECRET not set")
+      return NextResponse.json({ error: "СДЭК не настроен" }, { status: 500 })
+    }
     const cities = await searchCities(q)
     return NextResponse.json(cities)
   } catch (e) {

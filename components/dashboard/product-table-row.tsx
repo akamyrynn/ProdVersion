@@ -196,24 +196,39 @@ function AddButton({
     grindOption?: string
   }) => Promise<void>
 }) {
-  const [qty, setQty] = useState(0)
+  const { items, updateQuantity, removeItem } = useCart()
+
+  const cartItem = items.find(
+    (i) =>
+      i.product_id === productId &&
+      i.variant_id === variant.id &&
+      (i.grind_option || "") === (grindOption || "")
+  )
+  const cartQty = cartItem?.quantity ?? 0
 
   async function increment() {
-    const newQty = qty + 1
-    setQty(newQty)
-    await onAdd({
-      productId,
-      variantId: variant.id,
-      quantity: 1,
-      grindOption,
-    })
+    if (cartItem) {
+      await updateQuantity(cartItem.id, cartItem.quantity + 1)
+    } else {
+      await onAdd({
+        productId,
+        variantId: variant.id,
+        quantity: 1,
+        grindOption,
+      })
+    }
   }
 
-  function decrement() {
-    if (qty > 0) setQty(qty - 1)
+  async function decrement() {
+    if (!cartItem) return
+    if (cartItem.quantity <= 1) {
+      await removeItem(cartItem.id)
+    } else {
+      await updateQuantity(cartItem.id, cartItem.quantity - 1)
+    }
   }
 
-  if (qty === 0) {
+  if (cartQty === 0) {
     return (
       <button
         onClick={increment}
@@ -230,16 +245,16 @@ function AddButton({
     <div className="flex items-center gap-0.5">
       <button
         onClick={decrement}
-        className="flex h-6 w-6 items-center justify-center rounded-full border border-neutral-300 text-neutral-500 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+        className="flex h-6 w-6 items-center justify-center rounded-full border border-[#5b328a]/30 text-[#5b328a] hover:bg-[#5b328a]/10 transition-colors"
       >
         <Minus className="h-2.5 w-2.5" />
       </button>
-      <span className="w-5 text-center text-[11px] font-bold text-neutral-900 tabular-nums">
-        {qty}
+      <span className="w-5 text-center text-[11px] font-bold text-[#5b328a] tabular-nums">
+        {cartQty}
       </span>
       <button
         onClick={increment}
-        className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-white hover:bg-neutral-700 transition-colors"
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-[#5b328a] text-white hover:bg-[#4a2870] transition-colors"
       >
         <Plus className="h-2.5 w-2.5" />
       </button>

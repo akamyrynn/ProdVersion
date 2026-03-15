@@ -147,7 +147,7 @@ export function CartSidebar({
                       <div className="flex items-center justify-between mt-2.5">
                         <div className="flex items-center bg-neutral-100 rounded-lg overflow-hidden">
                           <button
-                            onClick={() => onUpdateQuantity?.(item.id, Math.max(1, item.quantity - 1))}
+                            onClick={() => item.quantity <= 1 ? onRemoveItem?.(item.id) : onUpdateQuantity?.(item.id, item.quantity - 1)}
                             className="h-7 w-8 flex items-center justify-center text-neutral-400 hover:text-neutral-900 hover:bg-neutral-200 transition-colors"
                           >
                             <Minus className="h-3 w-3" />
@@ -256,7 +256,8 @@ export function CartSidebar({
           {/* Separate blocks */}
           <div className="space-y-2 pt-1">
             <a
-              href="#"
+              href="/Прайс 10coffee_ Март 2026г. (1).pdf"
+              download
               className="flex items-center gap-3 p-3.5 rounded-xl bg-[#faead5]/80 hover:bg-[#faead5] transition-colors"
             >
               <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm">
@@ -269,7 +270,7 @@ export function CartSidebar({
             </a>
 
             <a
-              href="https://t.me/"
+              href="https://t.me/Ten120886"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-3.5 rounded-xl bg-[#e8f4fd]/80 hover:bg-[#d4ecfa] transition-colors"

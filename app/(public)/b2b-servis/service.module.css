@@ -214,6 +214,14 @@
   line-height: 1.4;
 }
 
+.contactDisclaimer a {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: underline;
+}
+.contactDisclaimer a:hover {
+  color: #ffffff;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1000px) {
   .hero {

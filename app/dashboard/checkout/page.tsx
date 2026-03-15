@@ -8,6 +8,7 @@ import { useCart } from "@/providers/cart-provider"
 import { createOrder } from "@/lib/actions/orders"
 import { checkoutSchema, type CheckoutFormData } from "@/lib/utils/validators"
 import { createClient } from "@/lib/supabase/client"
+import { getQuickComments } from "@/lib/actions/client-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -70,6 +71,7 @@ export default function CheckoutPage() {
   const finalPrice = Math.max(0, totalPrice - currentDiscount)
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(false)
+  const [privacyAgreed, setPrivacyAgreed] = useState(false)
   const [orderResult, setOrderResult] = useState<{ orderId: string } | null>(null)
 
   // CDEK state
@@ -86,6 +88,7 @@ export default function CheckoutPage() {
   const [officesLoading, setOfficesLoading] = useState(false)
   const [selectedOffice, setSelectedOffice] = useState<CdekOffice | null>(null)
   const [officeFilter, setOfficeFilter] = useState("")
+  const [quickComments, setQuickComments] = useState<string[]>([])
   const citySearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cityDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -102,20 +105,21 @@ export default function CheckoutPage() {
   const deliveryMethod = form.watch("delivery_method")
 
   useEffect(() => {
-    async function loadCompanies() {
+    async function loadData() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("client_id", user.id)
+      const [companiesResult, comments] = await Promise.all([
+        supabase.from("companies").select("*").eq("client_id", user.id),
+        getQuickComments(),
+      ])
 
-      if (data) setCompanies(data as Company[])
+      if (companiesResult.data) setCompanies(companiesResult.data as Company[])
+      if (comments.length > 0) setQuickComments(comments)
     }
 
-    loadCompanies()
+    loadData()
   }, [])
 
   // Reset CDEK state when delivery method changes
@@ -650,7 +654,35 @@ export default function CheckoutPage() {
             <CardHeader>
               <CardTitle className="text-base">Комментарий</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              {quickComments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {quickComments.map((qc, i) => {
+                    const currentComment = form.getValues("comment") || ""
+                    const isActive = currentComment.includes(qc)
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          if (isActive) {
+                            form.setValue("comment", currentComment.replace(qc, "").replace(/\s{2,}/g, " ").trim())
+                          } else {
+                            form.setValue("comment", currentComment ? `${currentComment}\n${qc}` : qc)
+                          }
+                        }}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                          isActive
+                            ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                            : "bg-muted border-transparent text-muted-foreground hover:border-neutral-300"
+                        }`}
+                      >
+                        {qc}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="comment"
@@ -701,11 +733,30 @@ export default function CheckoutPage() {
             </CardContent>
           </Card>
 
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={privacyAgreed}
+              onChange={(e) => setPrivacyAgreed(e.target.checked)}
+              className="mt-0.5 accent-[#5b328a] w-4 h-4 shrink-0"
+            />
+            <span className="text-xs text-muted-foreground leading-relaxed">
+              Принимаю{" "}
+              <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+                политику конфиденциальности
+              </a>{" "}
+              и{" "}
+              <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+                правила обработки персональных данных
+              </a>
+            </span>
+          </label>
+
           <Button
             type="submit"
             size="lg"
             className="w-full"
-            disabled={loading || companies.length === 0}
+            disabled={loading || companies.length === 0 || !privacyAgreed}
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Оформить заказ

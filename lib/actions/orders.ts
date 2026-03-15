@@ -3,6 +3,7 @@
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getCartItems, clearCart as clearPayloadCart, addToCart } from "@/lib/actions/cart"
 import { revalidatePath } from "next/cache"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
@@ -230,8 +231,9 @@ export async function createOrder(params: {
   // Clear cart (now uses direct Supabase queries, no Payload transaction issues)
   await clearPayloadCart()
 
-  // Create notification via Supabase
-  await supabase.from("notifications").insert({
+  // Create notification via admin client (RLS requires admin for INSERT)
+  const adminDb = createAdminClient()
+  await adminDb.from("notifications").insert({
     client_id: user.id,
     type: "order_update",
     title: "Заказ создан",
@@ -258,6 +260,7 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
   if (!userId) return { error: "Не авторизован" }
 
   const payload = await getPayloadClient()
+  const db = createAdminClient()
 
   try {
     const doc = await payload.findByID({
@@ -269,7 +272,8 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
     const items = (doc as any).items as any[] || []
     if (items.length === 0) return { error: "В заказе нет позиций" }
 
-    // Search for products by name and add them to cart
+    let addedCount = 0
+
     for (const item of items) {
       const { docs: products } = await payload.find({
         collection: "products",
@@ -278,19 +282,46 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
         depth: 1,
       })
 
-      if (products[0]) {
-        const product = products[0] as any
-        const variant = (product.variants || []).find((v: any) => v.name === item.variantName)
-        if (variant) {
-          await addToCart({
-            productId: String(product.id),
-            variantId: variant.id,
-            quantity: item.quantity || 1,
-            grindOption: item.grindOption || undefined,
-          })
-        }
+      if (!products[0]) continue
+
+      const product = products[0] as any
+      const variant = (product.variants || []).find((v: any) => v.name === item.variantName)
+      if (!variant) continue
+
+      const grindOption = item.grindOption || ""
+      const productId = String(product.id)
+      const qty = item.quantity || 1
+
+      // Check if same item already in cart
+      const { data: existing } = await db
+        .from("cart_items")
+        .select("id, quantity")
+        .eq("client_id", userId)
+        .eq("product_id", productId)
+        .eq("variant_id", variant.id)
+        .eq("grind_option", grindOption)
+        .limit(1)
+        .single()
+
+      if (existing) {
+        const { error } = await db
+          .from("cart_items")
+          .update({ quantity: existing.quantity + qty })
+          .eq("id", existing.id)
+        if (!error) addedCount++
+      } else {
+        const { error } = await db.from("cart_items").insert({
+          client_id: userId,
+          product_id: productId,
+          variant_id: variant.id,
+          quantity: qty,
+          grind_option: grindOption,
+        })
+        if (!error) addedCount++
       }
     }
+
+    if (addedCount === 0) return { error: "Товары из заказа не найдены в каталоге" }
 
     revalidatePath("/dashboard")
     return { success: true }
@@ -328,9 +359,9 @@ export async function setTrackingNumber(
     const supabaseId = typeof clientRef === "object" ? clientRef?.supabaseId : null
 
     if (supabaseId) {
-      const supabase = await createClient()
+      const adminDb = createAdminClient()
       const carrierName = carrier === "cdek" ? "СДЭК" : "ЦАП-2000"
-      await supabase.from("notifications").insert({
+      await adminDb.from("notifications").insert({
         client_id: supabaseId,
         type: "order_update",
         title: "Трек-номер присвоен",
@@ -450,7 +481,8 @@ export async function updateOrderStatus(
   const supabaseId = typeof clientRef === "object" ? clientRef?.supabaseId : null
 
   if (supabaseId) {
-    await supabase.from("notifications").insert({
+    const adminDb = createAdminClient()
+    await adminDb.from("notifications").insert({
       client_id: supabaseId,
       type: "order_update",
       title: "Обновление заказа",

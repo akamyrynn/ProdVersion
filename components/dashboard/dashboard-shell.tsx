@@ -24,7 +24,6 @@ import {
   Send,
   GraduationCap,
   Globe,
-  Store,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -70,6 +69,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [favsLoading, setFavsLoading] = useState(false)
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || ""
+  const avatarUrl: string | null = user?.user_metadata?.avatar_url || null
 
   const isCatalog = pathname.startsWith("/dashboard/catalog") || pathname.startsWith("/dashboard/product") || pathname === "/dashboard/favorites"
   const isDashboard = !isCatalog
@@ -172,8 +172,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-full hover:bg-black/[0.04] pl-2 pr-1 py-1 transition-colors">
                   <span className="text-[13px] font-medium text-neutral-600 hidden sm:block">{displayName}</span>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e6610d] text-white text-[11px] font-bold">
-                    {displayName.charAt(0).toUpperCase()}
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e6610d] text-white text-[11px] font-bold overflow-hidden">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      displayName.charAt(0).toUpperCase()
+                    )}
                   </div>
                 </button>
               </DropdownMenuTrigger>
@@ -248,14 +252,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   Обучение
                 </a>
                 <a
-                  href="#"
+                  href="/Прайс 10coffee_ Март 2026г. (1).pdf"
+                  download
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
                 >
                   <FileText className="h-4 w-4 text-neutral-300 shrink-0" />
                   Прайс-лист
                 </a>
                 <a
-                  href="https://t.me/"
+                  href="https://t.me/Ten120886"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
@@ -275,15 +280,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   <Globe className="h-4 w-4 text-neutral-300 shrink-0" />
                   Оптовый сайт
                 </Link>
-                <a
-                  href="https://10cofshop.vercel.app/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
-                >
-                  <Store className="h-4 w-4 text-neutral-300 shrink-0" />
-                  Интернет-магазин
-                </a>
               </div>
             </aside>
           )}
