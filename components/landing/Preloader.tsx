@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLenis } from "lenis/react";
-import gsap from "gsap";
 import styles from "./Preloader.module.css";
 
 const clamp = (value: number, min: number, max: number) =>
@@ -31,107 +30,8 @@ interface PreloaderProps {
   onAnimationComplete?: () => void;
 }
 
-/** Button with per-character hover animation */
-function CharButton({
-  text,
-  className,
-  bgClassName,
-  onClick,
-  btnRef,
-}: {
-  text: string;
-  className: string;
-  bgClassName?: string;
-  onClick?: () => void;
-  btnRef?: React.Ref<HTMLButtonElement>;
-}) {
-  const internalRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const button = internalRef.current;
-    if (!button || window.innerWidth < 1000) return;
-
-    const defaultChars = button.querySelectorAll(`.${styles.charDefault}`);
-    const hoverChars = button.querySelectorAll(`.${styles.charHover}`);
-
-    gsap.set(defaultChars, { yPercent: 0 });
-    gsap.set(hoverChars, { yPercent: -100 });
-
-    const handleMouseEnter = () => {
-      gsap.to(defaultChars, {
-        yPercent: 100,
-        duration: 0.3,
-        ease: "power3.out",
-        stagger: 0.015,
-      });
-      gsap.to(hoverChars, {
-        yPercent: 0,
-        duration: 0.3,
-        ease: "power3.out",
-        stagger: 0.015,
-        delay: 0.08,
-      });
-    };
-
-    const handleMouseLeave = () => {
-      gsap.to(hoverChars, {
-        yPercent: -100,
-        duration: 0.4,
-        ease: "power3.inOut",
-        stagger: 0.015,
-      });
-      gsap.to(defaultChars, {
-        yPercent: 0,
-        duration: 0.4,
-        ease: "power3.inOut",
-        stagger: 0.015,
-        delay: 0.1,
-      });
-    };
-
-    button.addEventListener("mouseenter", handleMouseEnter);
-    button.addEventListener("mouseleave", handleMouseLeave);
-
-    return () => {
-      button.removeEventListener("mouseenter", handleMouseEnter);
-      button.removeEventListener("mouseleave", handleMouseLeave);
-    };
-  }, []);
-
-  const mergeRef = (node: HTMLButtonElement | null) => {
-    (internalRef as React.MutableRefObject<HTMLButtonElement | null>).current =
-      node;
-    if (typeof btnRef === "function") btnRef(node);
-    else if (btnRef && typeof btnRef === "object")
-      (btnRef as React.MutableRefObject<HTMLButtonElement | null>).current =
-        node;
-  };
-
-  const chars = text.split("");
-
-  return (
-    <button type="button" className={className} ref={mergeRef} onClick={onClick}>
-      {bgClassName && <span className={bgClassName} />}
-      <span className={styles.btnText}>
-        {chars.map((char, i) => (
-          <span key={i} className={styles.char}>
-            <span className={styles.charDefault}>
-              {char === " " ? "\u00A0" : char}
-            </span>
-            <span className={styles.charHover}>
-              {char === " " ? "\u00A0" : char}
-            </span>
-          </span>
-        ))}
-      </span>
-    </button>
-  );
-}
-
 export default function Preloader({ onAnimationComplete }: PreloaderProps) {
   const lenis = useLenis();
-  const buttonWrapRef = useRef<HTMLDivElement>(null);
-  const enterBtnRef = useRef<HTMLButtonElement>(null);
 
   const [isVisible, setIsVisible] = useState(() => !hasSeenPreloader());
   const [isScrollLocked, setIsScrollLocked] = useState(
@@ -186,52 +86,25 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
     };
   }, [isVisible]);
 
-  // Animate buttons in when loading completes
+  // Auto-exit after loading completes
   useEffect(() => {
-    if (!hasFinishedLoading || !buttonWrapRef.current) return;
-
-    const enterBtn = enterBtnRef.current;
-
-    gsap.set(buttonWrapRef.current, { autoAlpha: 0, y: 20 });
-    if (enterBtn) gsap.set(enterBtn, { scale: 0.9, autoAlpha: 0 });
-
-    const tl = gsap.timeline({ delay: 0.3 });
-
-    tl.to(buttonWrapRef.current, {
-      autoAlpha: 1,
-      y: 0,
-      duration: 0.6,
-      ease: "power3.out",
-    });
-
-    if (enterBtn) {
-      tl.to(
-        enterBtn,
-        {
-          scale: 1,
-          autoAlpha: 1,
-          duration: 0.5,
-          ease: "back.out(1.7)",
-        },
-        "-=0.3",
-      );
-    }
-  }, [hasFinishedLoading]);
-
-  const loadingText = useMemo(() => `${progress}%`, [progress]);
-
-  const handleEnterClick = () => {
     if (!hasFinishedLoading || isExiting) return;
 
-    setIsExiting(true);
-    setIsScrollLocked(false);
-    markPreloaderSeen();
+    const timeout = window.setTimeout(() => {
+      setIsExiting(true);
+      setIsScrollLocked(false);
+      markPreloaderSeen();
 
-    window.setTimeout(() => {
-      setIsVisible(false);
-      if (onAnimationComplete) onAnimationComplete();
-    }, EXIT_ANIMATION_MS);
-  };
+      window.setTimeout(() => {
+        setIsVisible(false);
+        if (onAnimationComplete) onAnimationComplete();
+      }, EXIT_ANIMATION_MS);
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [hasFinishedLoading, isExiting, onAnimationComplete]);
+
+  const loadingText = useMemo(() => `${progress}%`, [progress]);
 
   if (!isVisible) return null;
 
@@ -258,15 +131,6 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
           >
             {loadingText}
           </p>
-
-          <div className={styles.buttonWrap} ref={buttonWrapRef}>
-            <CharButton
-              text="Войти на сайт"
-              className={styles.storeBtn}
-              onClick={handleEnterClick}
-              btnRef={enterBtnRef}
-            />
-          </div>
         </div>
       </div>
     </section>

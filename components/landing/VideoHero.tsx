@@ -24,7 +24,7 @@ export default function VideoHero() {
           <h2>Мы не делаем шаблонов</h2>
         </Copy>
         <Copy type="words" animateOnScroll={false} delay={1.1}>
-          <p className={styles.heroSub}>Мы делаем уникальный продукт</p>
+          <p className={styles.heroSub}>Мы создаем уникальный продукт</p>
         </Copy>
       </div>
     </section>

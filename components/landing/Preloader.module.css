@@ -79,124 +79,17 @@
   pointer-events: none;
 }
 
-.buttonWrap {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: flex;
-  gap: 1rem;
-  white-space: nowrap;
-  visibility: hidden;
-  opacity: 0;
-  transform: translate(-50%, -50%);
-  pointer-events: auto;
-}
-
-/* ===== Enter button with character hover ===== */
-.enterBtn {
-  position: relative;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  padding: 1rem 2.25rem;
-  border-radius: 0.25rem;
-  text-decoration: none;
-  color: #ffffff;
-  background: none;
-  cursor: pointer;
-  border: none;
-  overflow: hidden;
-}
-
-.enterBtnBg {
-  position: absolute;
-  inset: 0;
-  background-color: #5b328a;
-  border-radius: 0.25rem;
-  transition: transform 0.35s ease;
-}
-
-.enterBtn:hover .enterBtnBg {
-  transform: scale(0.92);
-}
-
-.btnText {
-  position: relative;
-  display: inline-flex;
-  font-size: 0.95rem;
-  font-weight: 500;
-}
-
-.char {
-  position: relative;
-  display: inline-block;
-  overflow: hidden;
-}
-
-.charDefault,
-.charHover {
-  display: inline-block;
-  will-change: transform;
-}
-
-.charHover {
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-/* ===== Store button ===== */
-.storeBtn {
-  position: relative;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  padding: 1rem 2.25rem;
-  border-radius: 0.25rem;
-  text-decoration: none;
-  color: #ffffff;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  overflow: hidden;
-  transition: border-color 0.35s ease, background-color 0.35s ease;
-}
-
-.storeBtn:hover {
-  border-color: rgba(255, 255, 255, 0.6);
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
 @media (max-width: 1000px) {
   .preloader {
     padding: 1.5rem;
   }
 
   .preloaderInner {
-    gap: 2.5rem;
-  }
-
-  .title {
-    white-space: normal;
-    word-break: break-word;
+    gap: 2rem;
   }
 
   .actionSlot {
     min-width: auto;
     width: 100%;
-  }
-
-  .buttonWrap {
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-  }
-
-  .enterBtn,
-  .storeBtn {
-    padding: 0.85rem 1.75rem;
-    font-size: 0.9rem;
-    width: 100%;
-    max-width: 280px;
   }
 }
