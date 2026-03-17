@@ -23,7 +23,7 @@ export const Orders: CollectionConfig = {
   },
   hooks: {
     beforeChange: [
-      async ({ data, operation }) => {
+      async ({ data, operation, req }) => {
         if (operation === "create" && data && !data.orderId) {
           const timestamp = Date.now().toString(36).toUpperCase()
           const random = Math.random().toString(36).substring(2, 5).toUpperCase()
@@ -35,8 +35,6 @@ export const Orders: CollectionConfig = {
           const subtotal = Number(data.subtotal) || 0
           const discountPercent = Number(data.discountPercent) || 0
 
-          // Only overwrite discountAmount if admin set discountPercent > 0
-          // Otherwise keep the value from promo code
           if (discountPercent > 0) {
             data.discountAmount = Math.round(subtotal * discountPercent) / 100
           }
@@ -45,6 +43,34 @@ export const Orders: CollectionConfig = {
           const afterDiscount = subtotal - discountAmount
           const deliveryCost = Number(data.deliveryCost) || 0
           data.total = afterDiscount + deliveryCost
+
+          // Auto-populate VAT from global settings if not manually set
+          if (operation === "create" || !data.vatRate || data.vatRate === "none") {
+            try {
+              const settings = await req.payload.findGlobal({ slug: "site-settings" })
+              const globalRate = (settings as any).vatRate || "none"
+              const globalCustom = (settings as any).vatCustomRate
+              if (globalRate !== "none") {
+                data.vatRate = globalRate
+                if (globalRate === "custom") {
+                  data.vatCustomRate = globalCustom
+                }
+              }
+            } catch {
+              // Settings not available yet
+            }
+          }
+
+          // Calculate VAT amount
+          const rateStr = data.vatRate || "none"
+          if (rateStr !== "none") {
+            const vatPercent = rateStr === "custom"
+              ? (Number(data.vatCustomRate) || 0)
+              : Number(rateStr)
+            data.vatAmount = Math.round(data.total * vatPercent / (100 + vatPercent) * 100) / 100
+          } else {
+            data.vatAmount = 0
+          }
         }
 
         return data

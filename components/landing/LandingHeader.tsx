@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 import styles from "./LandingHeader.module.css";
@@ -17,9 +18,25 @@ export default function LandingHeader({
 }: LandingHeaderProps) {
   const { user } = useAuth();
   const router = useRouter();
+  const [hidden, setHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y > lastScrollY.current && y > 80) {
+        setHidden(true);
+      } else {
+        setHidden(false);
+      }
+      lastScrollY.current = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <nav className={styles.navBar}>
+    <nav className={`${styles.navBar} ${hidden && !isMenuOpen ? styles.navHidden : ""}`}>
       <a href="/" className={styles.navLogo}>
         <img src="/Основной (упрощенный).svg" alt="10coffee" className={styles.navLogoImg} />
       </a>

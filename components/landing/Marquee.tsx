@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import styles from "./Marquee.module.css";
 
-const MARQUEE_TEXT = "10coffee";
+const MARQUEE_TEXT = "10 КОФЕ";
 const MARQUEE_REPEAT = 12;
 
 export default function Marquee() {

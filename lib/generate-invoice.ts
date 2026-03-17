@@ -246,11 +246,14 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   // ══════════════════════════════════════════
   //  SUPPLIER & BUYER
   // ══════════════════════════════════════════
+  // Text width constrained to avoid QR code area on the right
+  const textMaxW = R - L - 110
+
   y -= 18
   txt("Поставщик:", L, y, 8, fontB)
   y -= 12
   const supplierFull = `${data.sellerName}, ИНН ${data.sellerInn}, КПП ${data.sellerKpp || "—"}, ${data.sellerAddress}`
-  const supplierLines = wrapText(supplierFull, font, 7.5, R - L)
+  const supplierLines = wrapText(supplierFull, font, 7.5, textMaxW)
   for (const line of supplierLines) {
     txt(line, L, y, 7.5, font)
     y -= 10
@@ -260,7 +263,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   txt("Покупатель:", L, y, 8, fontB)
   y -= 12
   const buyerFull = `${data.buyerName}, ИНН ${data.buyerInn}${data.buyerKpp && data.buyerKpp !== "—" ? `, КПП ${data.buyerKpp}` : ""}${data.buyerAddress && data.buyerAddress !== "—" ? `, ${data.buyerAddress}` : ""}`
-  const buyerLines = wrapText(buyerFull, font, 7.5, R - L)
+  const buyerLines = wrapText(buyerFull, font, 7.5, textMaxW)
   for (const line of buyerLines) {
     txt(line, L, y, 7.5, font)
     y -= 10
@@ -363,9 +366,13 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   y -= 6
   hLine(L, y + 4, R, 1)
   y -= 4
-  txt(`Итого к оплате: ${amountInWords(data.total)}`, L, y, 9, fontB)
-  y -= 4
-  hLine(L, y - 4, R, 1)
+  const totalWords = `Итого к оплате: ${amountInWords(data.total)}`
+  const totalWordsLines = wrapText(totalWords, fontB, 9, R - L)
+  for (const line of totalWordsLines) {
+    txt(line, L, y, 9, fontB)
+    y -= 12
+  }
+  hLine(L, y, R, 1)
 
   // ══════════════════════════════════════════
   //  SIGNATURE

@@ -3,7 +3,7 @@
   position: fixed;
   top: 1.25rem;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(0);
   z-index: 100;
   display: flex;
   align-items: center;
@@ -16,6 +16,13 @@
   border-radius: 12px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.navHidden {
+  transform: translateX(-50%) translateY(-120%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ===== Logo ===== */
@@ -181,7 +188,7 @@
   .navBar {
     top: 0.75rem;
     width: calc(100% - 1.5rem);
-    padding: 0.4rem 0.4rem 0.4rem 1rem;
+    padding: 0.4rem 0.35rem 0.4rem 1rem;
   }
 
   .navLogoImg {

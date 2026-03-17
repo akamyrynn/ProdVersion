@@ -64,9 +64,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // VAT 22% always included in price
-    const VAT_RATE = 22
-    const vatLabel = `${VAT_RATE}%`
+    // VAT rate from order (set by global settings or admin override)
+    const rateStr = doc.vatRate || "none"
+    let VAT_RATE = 0
+    if (rateStr !== "none") {
+      VAT_RATE = rateStr === "custom" ? (Number(doc.vatCustomRate) || 0) : Number(rateStr)
+    }
+    const vatLabel = VAT_RATE > 0 ? `${VAT_RATE}%` : ""
 
     // Build items — support both Payload embedded items and old order_items table
     let items: any[] = []
@@ -155,7 +159,9 @@ export async function GET(req: NextRequest) {
       discountAmount: Number(doc.discountAmount) || 0,
       deliveryCost: Number(doc.deliveryCost) || 0,
       vatLabel,
-      vatAmount: Math.round((Number(doc.total) || 0) * VAT_RATE / (100 + VAT_RATE) * 100) / 100,
+      vatAmount: VAT_RATE > 0
+        ? Math.round((Number(doc.total) || 0) * VAT_RATE / (100 + VAT_RATE) * 100) / 100
+        : 0,
       total: Number(doc.total) || 0,
     })
 

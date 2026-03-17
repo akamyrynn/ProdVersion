@@ -97,7 +97,7 @@
 
 .menuLink a {
   font-family: var(--font-google-sans), sans-serif;
-  font-size: clamp(2rem, 4.5vw, 4.5rem);
+  font-size: clamp(1.4rem, min(4vw, 3.5vh), 3.5rem);
   font-weight: 500;
   line-height: 1;
 }

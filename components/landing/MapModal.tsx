@@ -225,6 +225,12 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
             controls: ["zoomControl"],
           });
 
+          const MarkerLayout = window.ymaps.templateLayoutFactory.createClass(
+            '<div style="position:absolute;left:-24px;top:-24px;width:48px;height:48px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' +
+              '<img src="/map.png" style="width:24px;height:auto">' +
+            '</div>'
+          );
+
           const placemarks: any[] = [];
 
           locations.forEach((loc, idx) => {
@@ -254,7 +260,12 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
                 hintContent: loc.name,
               },
               {
-                preset: "islands#orangeDotIcon",
+                iconLayout: MarkerLayout,
+                iconShape: {
+                  type: "Circle",
+                  coordinates: [0, 0],
+                  radius: 24,
+                },
                 balloonMaxWidth: 320,
               }
             );
@@ -377,20 +388,6 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
         </div>
 
         <div className={styles.headerRight}>
-          {/* Filter button */}
-          <button
-            type="button"
-            className={`${styles.filterBtn} ${showFilters ? styles.filterBtnActive : ""}`}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <line x1="6" y1="12" x2="18" y2="12" />
-              <line x1="8" y1="18" x2="16" y2="18" />
-            </svg>
-            Фильтры
-          </button>
-
           <button
             type="button"
             className={styles.closeBtn}

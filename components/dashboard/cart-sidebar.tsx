@@ -138,7 +138,7 @@ export function CartSidebar({
                         </div>
                         <button
                           onClick={() => onRemoveItem?.(item.id)}
-                          className="opacity-0 group-hover:opacity-100 shrink-0 h-6 w-6 flex items-center justify-center rounded-lg text-neutral-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                          className="sm:opacity-0 sm:group-hover:opacity-100 shrink-0 h-6 w-6 flex items-center justify-center rounded-lg text-neutral-300 hover:text-red-500 hover:bg-red-50 transition-all"
                         >
                           <X className="h-3 w-3" />
                         </button>

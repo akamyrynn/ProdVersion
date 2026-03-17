@@ -124,9 +124,8 @@ export default function ProductImages() {
           ))}
         </div>
 
-        <p className={`${styles.productName} ${styles.fadeIn}`}>{active.name}</p>
-
-        <div className={`${styles.cta} ${styles.fadeIn}`}>
+        <div className={`${styles.bottomRow} ${styles.fadeIn}`}>
+          <p className={styles.productName}>{active.name}</p>
           <AnimatedButton href="#price-list-form">
             Получить прайс-лист
           </AnimatedButton>

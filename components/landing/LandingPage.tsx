@@ -22,7 +22,12 @@ export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
 
-  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
+  const toggleMenu = () => {
+    setIsMenuOpen((prev) => {
+      if (!prev) setIsMapOpen(false);
+      return !prev;
+    });
+  };
   const closeMenu = () => setIsMenuOpen(false);
 
   return (

@@ -148,6 +148,41 @@ export const Clients: CollectionConfig = {
       ],
     },
   ],
+  hooks: {
+    afterRead: [
+      async ({ doc }) => {
+        // Populate companies from Supabase companies table
+        if (doc.supabaseId && (!doc.companies || doc.companies.length === 0)) {
+          try {
+            const { createAdminClient } = await import("@/lib/supabase/admin")
+            const admin = createAdminClient()
+            const { data } = await admin
+              .from("companies")
+              .select("*")
+              .eq("client_id", doc.supabaseId)
+              .order("created_at", { ascending: false })
+
+            if (data && data.length > 0) {
+              doc.companies = data.map((c: any) => ({
+                name: c.name,
+                inn: c.inn,
+                kpp: c.kpp,
+                ogrn: c.ogrn,
+                legalAddress: c.legal_address,
+                bankName: c.bank_name,
+                bik: c.bik,
+                settlementAccount: c.settlement_account,
+                correspondentAccount: c.correspondent_account,
+              }))
+            }
+          } catch {
+            // Supabase not available
+          }
+        }
+        return doc
+      },
+    ],
+  },
   access: {
     read: () => true,
     create: () => true,

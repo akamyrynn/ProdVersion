@@ -67,19 +67,16 @@ export default function SettingsPage() {
 
     try {
       const resized = await resizeImage(file, 200)
-      const filePath = `${user.id}.jpg`
+      const form = new FormData()
+      form.append("file", resized, "avatar.jpg")
 
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, resized, { upsert: true, contentType: "image/jpeg" })
+      const res = await fetch("/api/upload-avatar", { method: "POST", body: form })
+      const json = await res.json()
 
-      if (uploadError) throw uploadError
+      if (!res.ok) throw new Error(json.error || "Ошибка загрузки")
 
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath)
-      const url = `${urlData.publicUrl}?t=${Date.now()}`
-
-      await supabase.auth.updateUser({ data: { avatar_url: url } })
-      setAvatarUrl(url)
+      await supabase.auth.updateUser({ data: { avatar_url: json.url } })
+      setAvatarUrl(json.url)
       toast.success("Аватар обновлён")
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Ошибка загрузки"

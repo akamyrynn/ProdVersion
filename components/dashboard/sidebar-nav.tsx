@@ -19,7 +19,7 @@ const navItems = [
   { title: "МОИ КОМПАНИИ", href: "/dashboard/companies", icon: Building2 },
   { title: "НОВОСТИ", href: "/dashboard/news", icon: Newspaper },
   { title: "НАСТРОЙКИ", href: "/dashboard/settings", icon: Settings },
-  { title: "ОБУЧЕНИЕ", href: "/dashboard/training", icon: GraduationCap, external: true },
+  { title: "ОБУЧЕНИЕ", href: "/obuchenie", icon: GraduationCap, external: true },
 ]
 
 export function DashboardSidebar() {

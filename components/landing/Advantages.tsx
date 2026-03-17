@@ -12,6 +12,16 @@ function chunkPairs<T>(arr: T[]): T[][] {
 
 const PAIRS = chunkPairs(ADVANTAGES);
 
+/**
+ * Chess pattern: in even rows left=purple right=light,
+ * in odd rows left=light right=purple.
+ */
+function getVariant(pairIndex: number, cardIndex: number): "purple" | "light" {
+  const isEvenRow = pairIndex % 2 === 0;
+  if (isEvenRow) return cardIndex === 0 ? "purple" : "light";
+  return cardIndex === 0 ? "light" : "purple";
+}
+
 export default function Advantages() {
   return (
     <div className={styles.stickyCards}>
@@ -21,7 +31,7 @@ export default function Advantages() {
             <div
               className={styles.stickyCard}
               key={cardIndex}
-              data-variant={(pairIndex * 2 + cardIndex) % 3}
+              data-variant={getVariant(pairIndex, cardIndex)}
             >
               <div className={styles.cardImg}>
                 <img src={card.image} alt={card.title} />

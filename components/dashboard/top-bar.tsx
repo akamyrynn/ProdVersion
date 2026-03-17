@@ -30,11 +30,11 @@ export function TopBar({ notificationCount = 0 }: TopBarProps) {
   }
 
   return (
-    <header className="flex h-12 items-center justify-end gap-5 border-b border-gray-200 bg-white px-6 text-sm">
+    <header className="flex h-12 items-center justify-end gap-3 sm:gap-5 border-b border-gray-200 bg-white px-3 sm:px-6 text-sm">
       <Link
         href="https://10coffee.ru"
         target="_blank"
-        className="flex items-center gap-1 text-gray-500 hover:text-black transition-colors text-xs font-medium"
+        className="hidden sm:flex items-center gap-1 text-gray-500 hover:text-black transition-colors text-xs font-medium"
       >
         НА ОПТОВЫЙ САЙТ
         <ExternalLink className="h-3 w-3" />
@@ -45,7 +45,7 @@ export function TopBar({ notificationCount = 0 }: TopBarProps) {
         className="flex items-center gap-1.5 text-gray-500 hover:text-black transition-colors text-xs font-medium"
       >
         <Bell className="h-3.5 w-3.5" />
-        УВЕДОМЛЕНИЯ
+        <span className="hidden sm:inline">УВЕДОМЛЕНИЯ</span>
         {notificationCount > 0 && (
           <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-black text-white text-[9px] font-bold px-1">
             {notificationCount}

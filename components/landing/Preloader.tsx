@@ -115,12 +115,12 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
     >
       <div className={styles.preloaderInner}>
         <div className={styles.titleWrap}>
-          <h2 className={`${styles.title} ${styles.titleBase}`}>10coffee</h2>
+          <h2 className={`${styles.title} ${styles.titleBase}`}>10кофе</h2>
           <h2
             className={`${styles.title} ${styles.titleFill}`}
             style={{ width: `${progress}%` }}
           >
-            10coffee
+            10кофе
           </h2>
         </div>
 
