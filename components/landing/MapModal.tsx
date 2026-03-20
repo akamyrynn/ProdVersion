@@ -225,12 +225,6 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
             controls: ["zoomControl"],
           });
 
-          const MarkerLayout = window.ymaps.templateLayoutFactory.createClass(
-            '<div style="position:absolute;left:-24px;top:-24px;width:48px;height:48px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' +
-              '<img src="/map.png" style="width:24px;height:auto">' +
-            '</div>'
-          );
-
           const placemarks: any[] = [];
 
           locations.forEach((loc, idx) => {
@@ -260,12 +254,6 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
                 hintContent: loc.name,
               },
               {
-                iconLayout: MarkerLayout,
-                iconShape: {
-                  type: "Circle",
-                  coordinates: [0, 0],
-                  radius: 24,
-                },
                 balloonMaxWidth: 320,
               }
             );

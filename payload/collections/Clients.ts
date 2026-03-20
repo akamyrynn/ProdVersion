@@ -33,6 +33,18 @@ export const Clients: CollectionConfig = {
         position: "sidebar",
       },
     },
+    {
+      name: "discountPercent",
+      type: "number",
+      label: "Скидка (%)",
+      defaultValue: 0,
+      min: 0,
+      max: 100,
+      admin: {
+        position: "sidebar",
+        description: "Персональная скидка клиента на все заказы",
+      },
+    },
 
     // === Main content (tabs) ===
     {

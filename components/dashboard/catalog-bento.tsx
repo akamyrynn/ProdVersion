@@ -109,8 +109,9 @@ export function CatalogBento({ categories, favoriteIds, activeType }: Props) {
     })
   }
 
-  function expandAll() {
-    setExpandedListIds(new Set(allCats.map((c) => c.id)))
+  function toggleExpandAll() {
+    const allExpanded = allCats.every((c) => expandedListIds.has(c.id))
+    setExpandedListIds(allExpanded ? new Set() : new Set(allCats.map((c) => c.id)))
   }
 
   return (
@@ -174,10 +175,10 @@ export function CatalogBento({ categories, favoriteIds, activeType }: Props) {
             {/* Expand all (list mode only) */}
             {viewMode === "list" && (
               <button
-                onClick={expandAll}
+                onClick={toggleExpandAll}
                 className="text-[11px] font-medium text-neutral-400 hover:text-neutral-900 transition-colors uppercase tracking-wider mr-3"
               >
-                Развернуть все
+                {allCats.every((c) => expandedListIds.has(c.id)) ? "Свернуть все" : "Развернуть все"}
               </button>
             )}
 
