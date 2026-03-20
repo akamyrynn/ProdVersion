@@ -85,8 +85,20 @@
 }
 
 @media (max-width: 600px) {
+  .stickyRow {
+    position: relative;
+    flex-direction: column;
+    top: 0 !important;
+    min-height: auto;
+  }
+
   .stickyCard {
     width: 100%;
-    min-height: 50svh;
+    min-height: 100svh;
+    padding: 2rem 1.5rem;
+  }
+
+  .cardImg {
+    width: 50%;
   }
 }

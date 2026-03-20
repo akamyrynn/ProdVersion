@@ -25,6 +25,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  text-align: center;
 }
 
 .content h1,
@@ -59,12 +61,12 @@
 
 @media (max-width: 1000px) {
   .marquee {
-    height: auto;
-    min-height: 80svh;
+    height: 100svh;
+    min-height: unset;
   }
 
   .container {
-    padding: 1.5rem;
+    padding: 2rem 1.5rem;
   }
 
   .pill {
