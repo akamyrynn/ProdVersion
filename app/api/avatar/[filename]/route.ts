@@ -28,7 +28,7 @@ export async function GET(
     const bytes = await result.Body?.transformToByteArray()
     if (!bytes) return new NextResponse(null, { status: 404 })
 
-    return new NextResponse(bytes, {
+    return new NextResponse(Buffer.from(bytes), {
       headers: {
         "Content-Type": result.ContentType || "image/jpeg",
         "Cache-Control": "public, max-age=3600",
