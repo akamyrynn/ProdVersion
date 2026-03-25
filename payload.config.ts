@@ -20,6 +20,8 @@ import { BlogPosts } from "./payload/collections/BlogPosts"
 import { SiteSettings } from "./payload/globals/SiteSettings"
 
 export default buildConfig({
+  serverURL: process.env.NEXT_PUBLIC_SERVER_URL || "",
+
   admin: {
     user: Admins.slug,
     meta: {
