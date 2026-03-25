@@ -122,11 +122,19 @@
   .nav {
     top: 0.75rem;
     width: calc(100% - 1.5rem);
-    padding: 0.4rem 0.4rem 0.4rem 1rem;
+    padding: 0.4rem 0.35rem 0.4rem 1rem;
+  }
+
+  .logoImg {
+    width: 100px;
   }
 
   .links {
     display: none;
+  }
+
+  .actions {
+    margin-left: auto;
   }
 
   .pillBtn {
