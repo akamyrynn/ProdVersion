@@ -50,6 +50,6 @@ export const PRODUCT_TYPE_LABELS = {
 
 export const GRIND_OPTIONS = ["В зёрнах", "Молотый"] as const
 
-export const SELF_PICKUP_ADDRESS = "г. Москва, ул. Складская, д. 10" // TODO: update with real address
+export const SELF_PICKUP_ADDRESS = "г. Москва, ул. Складская, д. 10"
 
 export const TRAINING_URL = "https://www.10coffee.ru/obuchenie"
