@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+
+const s3 = new S3Client({
+  endpoint: process.env.S3_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
+  },
+  region: process.env.S3_REGION || "us-east-1",
+  forcePathStyle: true,
+})
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -22,12 +31,18 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const fileName = `${user.id}.jpg`
-  const dir = path.join(process.cwd(), "public", "uploads", "avatars")
+  const key = `avatars/${fileName}`
 
-  await mkdir(dir, { recursive: true })
-  await writeFile(path.join(dir, fileName), buffer)
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET || "10coffee",
+      Key: key,
+      Body: buffer,
+      ContentType: "image/jpeg",
+    })
+  )
 
-  const url = `/uploads/avatars/${fileName}?t=${Date.now()}`
+  const url = `/api/avatar/${fileName}?t=${Date.now()}`
 
   return NextResponse.json({ url })
 }

@@ -67,7 +67,9 @@ export default buildConfig({
 
   plugins: [
     s3Storage({
-      collections: { media: true },
+      collections: {
+        media: { prefix: "media/" },
+      },
       bucket: process.env.S3_BUCKET || "placeholder",
       config: {
         endpoint: process.env.S3_ENDPOINT,
