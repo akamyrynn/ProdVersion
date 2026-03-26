@@ -19,6 +19,7 @@ export default function LandingHeader({
   const { user } = useAuth();
   const router = useRouter();
   const [hidden, setHidden] = useState(false);
+  const avatarUrl: string | null = user?.user_metadata?.avatar_url || null;
   const lastScrollY = useRef(0);
 
   useEffect(() => {
@@ -51,9 +52,13 @@ export default function LandingHeader({
       <div className={styles.navActions}>
         {user ? (
           <a href="/dashboard" className={styles.navAvatar}>
-            {user.user_metadata?.full_name?.[0]?.toUpperCase() ||
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
+            ) : (
+              user.user_metadata?.full_name?.[0]?.toUpperCase() ||
               user.email?.[0]?.toUpperCase() ||
-              "U"}
+              "U"
+            )}
           </a>
         ) : (
           <button

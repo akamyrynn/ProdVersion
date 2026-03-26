@@ -5,7 +5,9 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import crypto from "crypto"
-import nodemailer from "nodemailer"
+import { Resend } from "resend"
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 function generatePassword(length = 12): string {
   const chars =
@@ -88,18 +90,10 @@ export async function signUp(formData: {
     console.error("Failed to sync client to Payload:", syncError)
   }
 
-  // Send password to email via Nodemailer (Gmail SMTP)
+  // Send password to email via Resend
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.SMTP_EMAIL,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    })
-
-    await transporter.sendMail({
-      from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+    await resend.emails.send({
+      from: "10coffee <onboarding@resend.dev>",
       to: formData.email,
       subject: "Ваш пароль для входа в личный кабинет 10coffee",
       html: `
@@ -134,17 +128,53 @@ export async function signOut() {
 }
 
 export async function resetPassword(formData: { email: string }) {
-  const supabase = await createClient()
+  const adminClient = createAdminClient()
 
-  const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || ""}/auth/callback?type=recovery`,
+  const { data: users, error: listError } = await adminClient.auth.admin.listUsers()
+  if (listError) return { error: "Ошибка при поиске пользователя" }
+
+  const user = users.users.find(
+    (u) => u.email?.toLowerCase() === formData.email.toLowerCase()
+  )
+
+  if (!user) {
+    return { error: "Пользователь с таким email не найден" }
+  }
+
+  const newPassword = generatePassword()
+
+  const { error } = await adminClient.auth.admin.updateUserById(user.id, {
+    password: newPassword,
   })
 
   if (error) {
-    return { error: error.message }
+    return { error: "Не удалось сбросить пароль" }
   }
 
-  return { success: true, message: "Письмо для сброса пароля отправлено на ваш email" }
+  try {
+    await resend.emails.send({
+      from: "10coffee <onboarding@resend.dev>",
+      to: formData.email,
+      subject: "Новый пароль для входа в личный кабинет 10coffee",
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+          <h2 style="margin:0 0 16px">Сброс пароля</h2>
+          <p style="color:#666;margin:0 0 24px">Ваш пароль был сброшен. Используйте новый пароль для входа.</p>
+          <div style="background:#f5f5f5;border-radius:12px;padding:20px;margin:0 0 24px">
+            <p style="margin:0 0 8px;color:#999;font-size:13px">Email</p>
+            <p style="margin:0 0 16px;font-weight:bold">${formData.email}</p>
+            <p style="margin:0 0 8px;color:#999;font-size:13px">Новый пароль</p>
+            <p style="margin:0;font-weight:bold;font-size:18px;letter-spacing:1px">${newPassword}</p>
+          </div>
+          <p style="color:#999;font-size:12px;margin:0">Вы можете изменить пароль в настройках личного кабинета.</p>
+        </div>
+      `,
+    })
+  } catch (emailError) {
+    console.error("Failed to send reset email:", emailError)
+  }
+
+  return { success: true, message: `Новый пароль отправлен на ${formData.email}` }
 }
 
 // ============================================================

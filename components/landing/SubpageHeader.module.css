@@ -118,6 +118,54 @@
   box-shadow: 0 4px 20px rgba(91, 50, 138, 0.3);
 }
 
+.burger {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  gap: 4px;
+  transition: border-color 0.3s, background-color 0.3s;
+}
+
+.burger:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.burgerLine {
+  display: block;
+  width: 12px;
+  height: 1.5px;
+  background-color: #ffffff;
+  border-radius: 1px;
+  transition:
+    transform 0.4s cubic-bezier(0.77, 0, 0.18, 1),
+    opacity 0.3s ease;
+  transform-origin: center;
+}
+
+.burgerOpen .burgerLine:nth-child(1) {
+  transform: translateY(5.5px) rotate(45deg);
+}
+
+.burgerOpen .burgerLine:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.burgerOpen .burgerLine:nth-child(3) {
+  transform: translateY(-5.5px) rotate(-45deg);
+}
+
 @media (max-width: 1000px) {
   .nav {
     top: 0.75rem;
