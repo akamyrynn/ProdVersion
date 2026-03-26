@@ -6,9 +6,9 @@ import { createAdminClient } from "@/lib/supabase/admin"
 async function resolveMediaUrls(items: any[]) {
   if (!items.length) return items
 
-  // Collect all numeric media IDs from cover_image
+  // Collect all numeric media IDs from cover_image_id or cover_image
   const mediaIds = items
-    .map((item) => item.cover_image)
+    .map((item) => item.cover_image_id ?? item.cover_image)
     .filter((id) => typeof id === "number")
 
   // Also collect media IDs from Lexical rich-text content (upload nodes)
@@ -67,9 +67,11 @@ async function resolveMediaUrls(items: any[]) {
       ...item,
       content,
       cover_image:
-        typeof item.cover_image === "number"
-          ? mediaMap.get(item.cover_image) || null
-          : item.cover_image,
+        typeof item.cover_image_id === "number"
+          ? mediaMap.get(item.cover_image_id) || null
+          : typeof item.cover_image === "number"
+            ? mediaMap.get(item.cover_image) || null
+            : item.cover_image,
     }
   })
 }
