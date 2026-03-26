@@ -8,11 +8,10 @@ import crypto from "crypto"
 import nodemailer from "nodemailer"
 
 const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
+  service: "gmail",
   auth: {
-    user: process.env.BREVO_SMTP_LOGIN,
-    pass: process.env.BREVO_SMTP_PASSWORD,
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
   },
 })
 
@@ -100,7 +99,7 @@ export async function signUp(formData: {
   // Send password to email via Brevo SMTP
   try {
     await transporter.sendMail({
-      from: `"10coffee" <${process.env.BREVO_FROM_EMAIL || "10coffeeroasters@gmail.com"}>`,
+      from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
       to: formData.email,
       subject: "Ваш пароль для входа в личный кабинет 10coffee",
       html: `
@@ -160,7 +159,7 @@ export async function resetPassword(formData: { email: string }) {
 
   try {
     await transporter.sendMail({
-      from: `"10coffee" <${process.env.BREVO_FROM_EMAIL || "10coffeeroasters@gmail.com"}>`,
+      from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
       to: formData.email,
       subject: "Новый пароль для входа в личный кабинет 10coffee",
       html: `

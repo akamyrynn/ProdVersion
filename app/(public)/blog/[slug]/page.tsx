@@ -74,12 +74,15 @@ function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
           {children}
         </a>
       )
-    case "upload":
-      return node.src ? (
+    case "upload": {
+      const val = (node as any).value
+      const uploadSrc = node.src || val?.url || (val?.filename ? `/api/media/file/${val.filename}` : null)
+      return uploadSrc ? (
         <figure key={i} className={styles.contentImage}>
-          <img src={node.src} alt={node.altText || ""} />
+          <img src={uploadSrc} alt={node.altText || val?.alt || ""} />
         </figure>
       ) : null
+    }
     case "quote":
       return <blockquote key={i}>{children}</blockquote>
     default:
