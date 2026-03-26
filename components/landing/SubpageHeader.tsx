@@ -73,7 +73,7 @@ export default function SubpageHeader() {
         </div>
       </nav>
 
-      <BurgerMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
+      <BurgerMenu isOpen={menuOpen} onClose={() => setMenuOpen(false)} pageRef={{ current: null }} />
     </>
   );
 }
