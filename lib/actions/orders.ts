@@ -333,7 +333,7 @@ export async function createOrder(params: {
       companyName,
       companyInn,
     }
-    let pdfBuffer: Buffer | undefined
+    let pdfBuffer: Uint8Array | undefined
     try {
       pdfBuffer = await generateInvoicePDF(orderForInvoice as any)
     } catch (pdfErr) {
