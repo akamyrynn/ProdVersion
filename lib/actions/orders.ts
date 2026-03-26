@@ -6,7 +6,74 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getCartItems, clearCart as clearPayloadCart, addToCart } from "@/lib/actions/cart"
 import { revalidatePath } from "next/cache"
+import nodemailer from "nodemailer"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
+
+const smtpTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
+  },
+})
+
+function formatPrice(n: number) {
+  return new Intl.NumberFormat("ru-RU").format(n) + " ₽"
+}
+
+async function sendOrderEmail(email: string, order: any, items: any[], pdfBuffer?: Buffer) {
+  const itemsHtml = items.map(i =>
+    `<tr><td style="padding:8px;border-bottom:1px solid #eee">${i.productName} ${i.variantName ? `(${i.variantName})` : ""}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatPrice(i.totalPrice)}</td></tr>`
+  ).join("")
+
+  const attachments: any[] = []
+  if (pdfBuffer) {
+    attachments.push({
+      filename: `Счёт_${order.orderId || order.id}.pdf`,
+      content: pdfBuffer,
+      contentType: "application/pdf",
+    })
+  }
+
+  await smtpTransporter.sendMail({
+    from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+    to: email,
+    subject: `Заказ ${order.orderId || order.id} оформлен — 10coffee`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px">
+        <h2 style="margin:0 0 16px">Спасибо за заказ!</h2>
+        <p style="color:#666;margin:0 0 24px">Ваш заказ <strong>${order.orderId || order.id}</strong> принят и ожидает обработки.</p>
+        <table style="width:100%;border-collapse:collapse;margin:0 0 24px">
+          <thead><tr style="background:#f5f5f5"><th style="padding:8px;text-align:left">Товар</th><th style="padding:8px;text-align:center">Кол-во</th><th style="padding:8px;text-align:right">Сумма</th></tr></thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+        <div style="background:#f5f5f5;border-radius:12px;padding:16px;margin:0 0 24px">
+          <p style="margin:0;font-size:18px;font-weight:bold">Итого: ${formatPrice(order.total)}</p>
+        </div>
+        <p style="color:#999;font-size:12px;margin:0">Менеджер свяжется с вами для подтверждения заказа.</p>
+      </div>
+    `,
+    attachments,
+  })
+}
+
+async function sendStatusEmail(email: string, orderId: string, status: string, statusLabel: string) {
+  await smtpTransporter.sendMail({
+    from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+    to: email,
+    subject: `Заказ ${orderId} — ${statusLabel}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+        <h2 style="margin:0 0 16px">Обновление заказа</h2>
+        <p style="color:#666;margin:0 0 24px">Статус вашего заказа <strong>${orderId}</strong> изменён:</p>
+        <div style="background:#f5f5f5;border-radius:12px;padding:20px;margin:0 0 24px">
+          <p style="margin:0;font-size:18px;font-weight:bold">${statusLabel}</p>
+        </div>
+        <p style="color:#999;font-size:12px;margin:0">Подробности в личном кабинете.</p>
+      </div>
+    `,
+  })
+}
 
 async function getPayloadClient() {
   return getPayload({ config: configPromise })
@@ -251,6 +318,31 @@ export async function createOrder(params: {
 
   // Clear cart (now uses direct Supabase queries, no Payload transaction issues)
   await clearPayloadCart()
+
+  // Send order confirmation email with invoice PDF
+  try {
+    const { generateInvoicePDF } = await import("@/lib/generate-invoice")
+    const orderForInvoice = {
+      id: doc.id,
+      orderId: (doc as any).orderId,
+      items,
+      subtotal,
+      discountAmount,
+      deliveryCost,
+      total,
+      companyName,
+      companyInn,
+    }
+    let pdfBuffer: Buffer | undefined
+    try {
+      pdfBuffer = await generateInvoicePDF(orderForInvoice as any)
+    } catch (pdfErr) {
+      console.error("Failed to generate invoice PDF:", pdfErr)
+    }
+    await sendOrderEmail(user.email!, orderForInvoice, items, pdfBuffer)
+  } catch (emailErr) {
+    console.error("Failed to send order email:", emailErr)
+  }
 
   // Create notification via admin client (RLS requires admin for INSERT)
   await adminDb.from("notifications").insert({
@@ -590,8 +682,50 @@ export async function updateOrderStatus(
       message: `Статус вашего заказа изменён: ${statusLabels[newStatus] || newStatus}`,
       data: { order_id: orderId },
     })
+
+    // Send email notification about status change
+    try {
+      const { data: userData } = await adminDb.auth.admin.getUserById(supabaseId)
+      if (userData?.user?.email) {
+        const orderDisplayId = (doc as any).orderId || orderId
+        await sendStatusEmail(
+          userData.user.email,
+          orderDisplayId,
+          newStatus,
+          statusLabels[newStatus] || newStatus
+        )
+      }
+    } catch (emailErr) {
+      console.error("Failed to send status email:", emailErr)
+    }
   }
 
   revalidatePath("/admin/orders")
   return { success: true }
+}
+
+export async function sendPromoCodeEmail(email: string, code: string, discount: string, description?: string) {
+  try {
+    await smtpTransporter.sendMail({
+      from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+      to: email,
+      subject: `Промокод от 10coffee — скидка ${discount}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+          <h2 style="margin:0 0 16px">У вас промокод!</h2>
+          <p style="color:#666;margin:0 0 24px">${description || "Используйте промокод при оформлении заказа в личном кабинете."}</p>
+          <div style="background:#f5f5f5;border-radius:12px;padding:20px;text-align:center;margin:0 0 24px">
+            <p style="margin:0 0 8px;color:#999;font-size:13px">Ваш промокод</p>
+            <p style="margin:0;font-weight:bold;font-size:28px;letter-spacing:3px;color:#5b328a">${code}</p>
+            <p style="margin:8px 0 0;font-size:14px;font-weight:bold">Скидка ${discount}</p>
+          </div>
+          <p style="color:#999;font-size:12px;margin:0">Введите промокод при оформлении заказа на сайте.</p>
+        </div>
+      `,
+    })
+    return { success: true }
+  } catch (err) {
+    console.error("Failed to send promo email:", err)
+    return { error: "Не удалось отправить письмо" }
+  }
 }
