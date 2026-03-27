@@ -89,7 +89,7 @@ async function getCurrentUserId(): Promise<string | null> {
   }
 }
 
-async function getClientDocId(supabaseUserId: string): Promise<number | null> {
+async function getClientDoc(supabaseUserId: string): Promise<{ id: number; discountPercent: number } | null> {
   try {
     const payload = await getPayloadClient()
     const { docs } = await payload.find({
@@ -98,10 +98,19 @@ async function getClientDocId(supabaseUserId: string): Promise<number | null> {
       limit: 1,
       depth: 0,
     })
-    return (docs[0]?.id as number) ?? null
+    if (!docs[0]) return null
+    return {
+      id: docs[0].id as number,
+      discountPercent: Number((docs[0] as any).discountPercent) || 0,
+    }
   } catch {
     return null
   }
+}
+
+async function getClientDocId(supabaseUserId: string): Promise<number | null> {
+  const doc = await getClientDoc(supabaseUserId)
+  return doc?.id ?? null
 }
 
 // ============================================================
@@ -213,8 +222,9 @@ export async function createOrder(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Не авторизован" }
 
-  const clientDocId = await getClientDocId(user.id)
-  if (!clientDocId) return { error: "Клиент не найден" }
+  const clientDoc = await getClientDoc(user.id)
+  if (!clientDoc) return { error: "Клиент не найден" }
+  const clientDocId = clientDoc.id
 
   const cartItems = await getCartItems()
   if (!cartItems || cartItems.length === 0) return { error: "Корзина пуста" }
@@ -228,7 +238,17 @@ export async function createOrder(params: {
     return sum + (item.variant?.weight_grams ?? 0) * item.quantity
   }, 0)
 
-  const discountAmount = params.discountAmount ?? 0
+  // Apply personal client discount if no promo (or promo is smaller)
+  const clientDiscountPercent = clientDoc.discountPercent
+  const clientDiscountAmount = clientDiscountPercent > 0
+    ? Math.round(subtotal * clientDiscountPercent / 100)
+    : 0
+  const promoDiscountAmount = params.discountAmount ?? 0
+  const discountAmount = Math.max(clientDiscountAmount, promoDiscountAmount)
+  const appliedDiscountPercent = discountAmount === clientDiscountAmount && clientDiscountPercent > 0
+    ? clientDiscountPercent
+    : 0
+
   const deliveryCost = params.deliveryCost ?? 0
   const total = subtotal - discountAmount + deliveryCost
 
@@ -290,6 +310,7 @@ export async function createOrder(params: {
     items,
   }
 
+  if (appliedDiscountPercent > 0) orderData.discountPercent = appliedDiscountPercent
   if (companyName) orderData.companyName = companyName
   if (companyInn) orderData.companyInn = companyInn
   if (payloadPromoId) orderData.promoCode = payloadPromoId
