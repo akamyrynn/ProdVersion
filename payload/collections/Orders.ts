@@ -23,25 +23,24 @@ export const Orders: CollectionConfig = {
   },
   hooks: {
     beforeChange: [
-      async ({ data, operation, req }) => {
+      async ({ data, operation, req, originalDoc }) => {
         if (operation === "create" && data && !data.orderId) {
           const timestamp = Date.now().toString(36).toUpperCase()
           const random = Math.random().toString(36).substring(2, 5).toUpperCase()
           data.orderId = `10C-${timestamp}-${random}`
         }
 
-        // Auto-calculate total
         if (data) {
-          const subtotal = Number(data.subtotal) || 0
-          const discountPercent = Number(data.discountPercent) || 0
+          const subtotal = Number(data.subtotal ?? originalDoc?.subtotal) || 0
+          const discountPercent = Number(data.discountPercent ?? originalDoc?.discountPercent) || 0
 
           if (discountPercent > 0) {
             data.discountAmount = Math.round(subtotal * discountPercent) / 100
           }
 
-          const discountAmount = Number(data.discountAmount) || 0
+          const discountAmount = Number(data.discountAmount ?? originalDoc?.discountAmount) || 0
           const afterDiscount = subtotal - discountAmount
-          const deliveryCost = Number(data.deliveryCost) || 0
+          const deliveryCost = Number(data.deliveryCost ?? originalDoc?.deliveryCost) || 0
           data.total = afterDiscount + deliveryCost
 
           // Auto-populate VAT from global settings on create

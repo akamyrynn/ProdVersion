@@ -33,7 +33,7 @@ export default function LandingPage() {
   return (
     <>
       <Preloader />
-      <LandingHeader onToggleMenu={toggleMenu} isMenuOpen={isMenuOpen} onOpenMap={() => setIsMapOpen(true)} />
+      <LandingHeader onToggleMenu={toggleMenu} isMenuOpen={isMenuOpen} onOpenMap={() => setIsMapOpen(true)} isMapOpen={isMapOpen} />
       <BurgerMenu isOpen={isMenuOpen} onClose={closeMenu} pageRef={pageRef} />
       <MapModal isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} />
 

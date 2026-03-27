@@ -9,12 +9,14 @@ interface LandingHeaderProps {
   onToggleMenu: () => void;
   isMenuOpen: boolean;
   onOpenMap: () => void;
+  isMapOpen?: boolean;
 }
 
 export default function LandingHeader({
   onToggleMenu,
   isMenuOpen,
   onOpenMap,
+  isMapOpen = false,
 }: LandingHeaderProps) {
   const { user } = useAuth();
   const router = useRouter();
@@ -38,7 +40,7 @@ export default function LandingHeader({
   }, []);
 
   return (
-    <nav className={`${styles.navBar} ${hidden && !isMenuOpen ? styles.navHidden : ""}`}>
+    <nav className={`${styles.navBar} ${(hidden && !isMenuOpen) || isMapOpen ? styles.navHidden : ""}`}>
       <a href="/" className={styles.navLogo}>
         <img src="/Основной (упрощенный).svg" alt="10coffee" className={styles.navLogoImg} />
       </a>
