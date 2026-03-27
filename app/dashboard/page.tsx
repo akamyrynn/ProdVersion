@@ -1,4 +1,7 @@
 import Link from "next/link"
+
+export const dynamic = "force-dynamic"
+
 import { getClientOrders } from "@/lib/actions/orders"
 import { getClientCompanies } from "@/lib/actions/companies"
 import { getNewsPaginated } from "@/lib/actions/news"

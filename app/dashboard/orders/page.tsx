@@ -1,6 +1,8 @@
 import { getClientOrders } from "@/lib/actions/orders"
 import { OrdersList } from "@/components/dashboard/orders-list"
 
+export const dynamic = "force-dynamic"
+
 export default async function OrdersPage() {
   const orders = await getClientOrders()
 
