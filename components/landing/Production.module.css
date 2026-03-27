@@ -1,0 +1,134 @@
+.about {
+  position: relative;
+  width: 100%;
+  min-height: 100svh;
+  height: 100%;
+  background-color: var(--base-400);
+}
+
+.aboutHeader {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100svh;
+}
+
+.headerContainer {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 2000px;
+  height: 100%;
+  padding: 2.5rem;
+  margin: 0 auto;
+}
+
+.headerContainer h3 {
+  width: 75%;
+  will-change: opacity;
+}
+
+.footer {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 2000px;
+  padding: 2.5rem;
+  transform: translateX(-50%);
+}
+
+.footer p {
+  color: var(--base-300);
+}
+
+.aboutImgs {
+  position: relative;
+  width: 100%;
+  height: 300svh;
+}
+
+.imgsContainer {
+  position: relative;
+  width: 100%;
+  max-width: 2000px;
+  height: 100%;
+  margin: 0 auto;
+}
+
+.aboutImg {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 0.35rem;
+  will-change: transform;
+}
+
+.aboutImg:nth-child(1) {
+  top: 2.5%;
+  left: 25%;
+  width: 12.5%;
+  aspect-ratio: 1;
+}
+
+.aboutImg:nth-child(2) {
+  top: 7.5%;
+  left: 60%;
+  width: 15%;
+  aspect-ratio: 5/7;
+}
+
+.aboutImg:nth-child(3) {
+  top: 20%;
+  left: 8rem;
+  width: 17.5%;
+  aspect-ratio: 4/5;
+}
+
+.aboutImg:nth-child(4) {
+  top: 30%;
+  left: 40%;
+  width: 20%;
+  aspect-ratio: 1;
+}
+
+.aboutImg:nth-child(5) {
+  top: 45%;
+  right: 4rem;
+  width: 14%;
+  aspect-ratio: 5/7;
+}
+
+@media (max-width: 1000px) {
+  .headerContainer h3 {
+    width: 100%;
+  }
+
+  .headerContainer,
+  .footer {
+    padding: 1.5rem;
+  }
+
+  .aboutImg:nth-child(1) { width: 22.5%; }
+  .aboutImg:nth-child(2) { top: 12.5%; width: 17.5%; }
+  .aboutImg:nth-child(3) { width: 20%; }
+  .aboutImg:nth-child(4) { width: 22.5%; }
+  .aboutImg:nth-child(5) { width: 18%; }
+
+  .aboutImgs {
+    height: 200svh;
+  }
+
+  .aboutImg:nth-child(3) {
+    left: 1.5rem;
+  }
+
+  .aboutImg:nth-child(5) {
+    right: 1.5rem;
+  }
+}

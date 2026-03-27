@@ -1,0 +1,127 @@
+.section {
+  position: relative;
+  width: 100%;
+  padding: 8rem 0;
+  background-color: var(--base-500);
+}
+
+.container {
+  display: flex;
+  gap: 4rem;
+  width: 100%;
+  max-width: 2000px;
+  padding: 0 2.5rem;
+  margin: 0 auto;
+}
+
+.left {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.left h3 {
+  color: var(--base-100);
+  margin-bottom: 1rem;
+}
+
+.accordionItem {
+  border-bottom: 1px solid var(--base-300);
+}
+
+.accordionTrigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 1.25rem 0;
+  border: none;
+  background: none;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--base-100);
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.3s;
+}
+
+.accordionTrigger:hover {
+  color: var(--base-200);
+}
+
+.accordionIcon {
+  font-size: 1.5rem;
+  color: var(--base-200);
+  transition: transform 0.3s;
+}
+
+.accordionIconOpen {
+  transform: rotate(45deg);
+}
+
+.accordionContent {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.4s ease, padding 0.4s ease;
+}
+
+.accordionContentOpen {
+  max-height: 300px;
+  padding-bottom: 1.25rem;
+}
+
+.accordionContent p {
+  color: var(--base-200);
+  line-height: 1.5;
+}
+
+.right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  text-align: center;
+}
+
+.right h4 {
+  color: var(--base-100);
+  text-transform: none;
+  line-height: 1.2;
+}
+
+.right p {
+  max-width: 300px;
+}
+
+.ozonBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2.5rem;
+  border-radius: 0.35rem;
+  background-color: var(--accent-orange);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.3s;
+}
+
+.ozonBtn:hover {
+  opacity: 0.85;
+}
+
+@media (max-width: 1000px) {
+  .section {
+    padding: 6rem 0;
+  }
+
+  .container {
+    flex-direction: column;
+    gap: 3rem;
+    padding: 0 1.5rem;
+  }
+}

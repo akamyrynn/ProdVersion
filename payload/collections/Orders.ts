@@ -1,0 +1,359 @@
+import type { CollectionConfig } from "payload"
+
+export const Orders: CollectionConfig = {
+  slug: "orders",
+  admin: {
+    useAsTitle: "orderId",
+    group: "Заказы и продажи",
+    description: "Заказы клиентов",
+    listSearchableFields: ["orderId", "companyName", "companyInn"],
+    defaultColumns: [
+      "orderId",
+      "client",
+      "status",
+      "paymentStatus",
+      "deliveryMethod",
+      "total",
+      "createdAt",
+    ],
+  },
+  labels: {
+    singular: "Заказ",
+    plural: "Заказы",
+  },
+  hooks: {
+    beforeChange: [
+      async ({ data, operation, req, originalDoc }) => {
+        if (operation === "create" && data && !data.orderId) {
+          const timestamp = Date.now().toString(36).toUpperCase()
+          const random = Math.random().toString(36).substring(2, 5).toUpperCase()
+          data.orderId = `10C-${timestamp}-${random}`
+        }
+
+        if (data) {
+          const subtotal = Number(data.subtotal ?? originalDoc?.subtotal) || 0
+          const discountPercent = Number(data.discountPercent ?? originalDoc?.discountPercent) || 0
+
+          if (discountPercent > 0) {
+            data.discountAmount = Math.round(subtotal * discountPercent) / 100
+          }
+
+          const discountAmount = Number(data.discountAmount ?? originalDoc?.discountAmount) || 0
+          const afterDiscount = subtotal - discountAmount
+          const deliveryCost = Number(data.deliveryCost ?? originalDoc?.deliveryCost) || 0
+          data.total = afterDiscount + deliveryCost
+
+          // Auto-populate VAT from global settings on create
+          if (operation === "create" && (!data.vatRate || data.vatRate === "none")) {
+            try {
+              const settings = await req.payload.findGlobal({ slug: "site-settings" })
+              const globalVat = Number((settings as any).vatPercent) || 0
+              if (globalVat > 0) {
+                data.vatRate = "custom"
+                data.vatCustomRate = globalVat
+              }
+            } catch {
+              // Settings not available yet
+            }
+          }
+
+          // Calculate VAT amount
+          const rateStr = data.vatRate || "none"
+          if (rateStr !== "none") {
+            const vp = rateStr === "custom"
+              ? (Number(data.vatCustomRate) || 0)
+              : Number(rateStr)
+            data.vatAmount = Math.round(data.total * vp / (100 + vp) * 100) / 100
+          } else {
+            data.vatAmount = 0
+          }
+        }
+
+        return data
+      },
+    ],
+    afterChange: [
+      async ({ doc, previousDoc }) => {
+        if (previousDoc && doc.status !== previousDoc.status) {
+          console.log(`[Order ${doc.orderId}] Status: ${previousDoc.status} → ${doc.status}`)
+        }
+      },
+    ],
+  },
+  fields: [
+    // === Sidebar (always visible) ===
+    {
+      name: "paymentStatus",
+      type: "select",
+      label: "Статус оплаты",
+      required: true,
+      defaultValue: "pending",
+      options: [
+        { label: "Ожидает оплаты", value: "pending" },
+        { label: "Счёт выставлен", value: "invoiced" },
+        { label: "Частично оплачен", value: "partial" },
+        { label: "Оплачен", value: "paid" },
+        { label: "Возврат", value: "refunded" },
+      ],
+      admin: { position: "sidebar" },
+    },
+    {
+      name: "subtotal",
+      type: "number",
+      label: "Сумма товаров",
+      required: true,
+      admin: { position: "sidebar" },
+    },
+    {
+      name: "discountPercent",
+      type: "number",
+      label: "Скидка (%)",
+      defaultValue: 0,
+      min: 0,
+      max: 100,
+      admin: { position: "sidebar", description: "Процент скидки от суммы товаров" },
+    },
+    {
+      name: "discountAmount",
+      type: "number",
+      label: "Сумма скидки",
+      defaultValue: 0,
+      admin: { position: "sidebar", readOnly: true, description: "Рассчитывается автоматически" },
+    },
+    {
+      name: "deliveryCost",
+      type: "number",
+      label: "Стоимость доставки",
+      defaultValue: 0,
+      admin: { position: "sidebar" },
+    },
+    {
+      name: "vatRate",
+      type: "select",
+      label: "Ставка НДС",
+      defaultValue: "none",
+      options: [
+        { label: "Без НДС", value: "none" },
+        { label: "0%", value: "0" },
+        { label: "5%", value: "5" },
+        { label: "10%", value: "10" },
+        { label: "20%", value: "20" },
+        { label: "22%", value: "22" },
+        { label: "Своё значение", value: "custom" },
+      ],
+      admin: { position: "sidebar" },
+    },
+    {
+      name: "vatCustomRate",
+      type: "number",
+      label: "НДС (%)",
+      min: 0,
+      max: 100,
+      admin: {
+        position: "sidebar",
+        condition: (data) => data?.vatRate === "custom",
+      },
+    },
+    {
+      name: "vatAmount",
+      type: "number",
+      label: "Сумма НДС",
+      defaultValue: 0,
+      admin: { position: "sidebar", readOnly: true, description: "Рассчитывается автоматически" },
+    },
+    {
+      name: "total",
+      type: "number",
+      label: "ИТОГО",
+      required: true,
+      admin: { position: "sidebar", readOnly: true, description: "Рассчитывается автоматически" },
+    },
+    {
+      name: "totalWeightGrams",
+      type: "number",
+      label: "Вес (г)",
+      admin: { position: "sidebar" },
+    },
+
+    // === Main content (tabs) ===
+    {
+      type: "tabs",
+      tabs: [
+        {
+          label: "Основное",
+          fields: [
+            {
+              type: "row",
+              fields: [
+                {
+                  name: "orderId",
+                  type: "text",
+                  label: "ID заказа",
+                  unique: true,
+                  admin: {
+                    readOnly: true,
+                    description: "Генерируется автоматически",
+                    width: "33%",
+                  },
+                },
+                {
+                  name: "status",
+                  type: "select",
+                  label: "Статус заказа",
+                  required: true,
+                  defaultValue: "new",
+                  options: [
+                    { label: "Новый", value: "new" },
+                    { label: "Подтверждён", value: "confirmed" },
+                    { label: "Счёт выставлен", value: "invoiced" },
+                    { label: "Оплачен", value: "paid" },
+                    { label: "В производстве", value: "in_production" },
+                    { label: "Готов к отгрузке", value: "ready" },
+                    { label: "Отгружен", value: "shipped" },
+                    { label: "Доставлен", value: "delivered" },
+                    { label: "Отменён", value: "cancelled" },
+                  ],
+                  admin: { width: "33%" },
+                },
+                {
+                  name: "client",
+                  type: "relationship",
+                  label: "Клиент",
+                  relationTo: "clients",
+                  required: true,
+                  admin: { width: "34%" },
+                },
+              ],
+            },
+            {
+              type: "row",
+              fields: [
+                {
+                  name: "companyName",
+                  type: "text",
+                  label: "Компания",
+                  admin: { width: "50%" },
+                },
+                {
+                  name: "companyInn",
+                  type: "text",
+                  label: "ИНН",
+                  admin: { width: "50%" },
+                },
+              ],
+            },
+            {
+              type: "collapsible",
+              label: "Доставка",
+              admin: { initCollapsed: false },
+              fields: [
+                {
+                  type: "row",
+                  fields: [
+                    {
+                      name: "deliveryMethod",
+                      type: "select",
+                      label: "Способ доставки",
+                      required: true,
+                      options: [
+                        { label: "Самовывоз", value: "self_pickup" },
+                        { label: "СДЭК", value: "cdek" },
+                        { label: "ЦАП 2000", value: "cap_2000" },
+                      ],
+                      admin: { width: "40%" },
+                    },
+                    {
+                      name: "deliveryAddress",
+                      type: "text",
+                      label: "Адрес доставки",
+                      admin: { width: "60%" },
+                    },
+                  ],
+                },
+                {
+                  name: "cdekTrackingNumber",
+                  type: "text",
+                  label: "Трек-номер СДЭК",
+                  admin: {
+                    condition: (data) => data?.deliveryMethod === "cdek",
+                  },
+                },
+                {
+                  name: "cap2000TrackingNumber",
+                  type: "text",
+                  label: "Трек-номер ЦАП-2000",
+                  admin: {
+                    condition: (data) => data?.deliveryMethod === "cap_2000",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: "Позиции заказа",
+          fields: [
+            {
+              name: "items",
+              type: "array",
+              label: "Позиции",
+              labels: { singular: "Позиция", plural: "Позиции" },
+              fields: [
+                {
+                  type: "row",
+                  fields: [
+                    { name: "productName", type: "text", label: "Товар", required: true, admin: { width: "40%" } },
+                    { name: "variantName", type: "text", label: "Фасовка", required: true, admin: { width: "30%" } },
+                    { name: "grindOption", type: "text", label: "Помол", admin: { width: "30%" } },
+                  ],
+                },
+                {
+                  type: "row",
+                  fields: [
+                    { name: "quantity", type: "number", label: "Кол-во", required: true, admin: { width: "33%" } },
+                    { name: "unitPrice", type: "number", label: "Цена/шт", required: true, admin: { width: "33%" } },
+                    { name: "totalPrice", type: "number", label: "Сумма", required: true, admin: { width: "34%" } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: "Промокод и заметки",
+          fields: [
+            {
+              name: "promoCode",
+              type: "relationship",
+              label: "Промокод",
+              relationTo: "promo-codes",
+            },
+            {
+              name: "comment",
+              type: "textarea",
+              label: "Комментарий клиента",
+              admin: {
+                readOnly: true,
+                description: "Оставлен клиентом при оформлении заказа",
+              },
+            },
+            {
+              name: "adminNotes",
+              type: "textarea",
+              label: "Заметки менеджера",
+              admin: {
+                description: "Видны только в админ-панели",
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  access: {
+    read: () => true,
+    create: () => true,
+    update: ({ req }) => !!req.user,
+    delete: ({ req }) => req.user?.role === "admin",
+  },
+}

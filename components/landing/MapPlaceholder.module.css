@@ -1,0 +1,28 @@
+.mapSection {
+  position: relative;
+  width: 100%;
+  min-height: 60vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--base-400);
+  overflow: hidden;
+}
+
+.mapInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.mapInner h3 {
+  color: var(--base-100);
+}
+
+.mapInner p {
+  color: var(--base-200);
+  max-width: 500px;
+}

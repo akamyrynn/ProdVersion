@@ -1,0 +1,87 @@
+import type { CollectionConfig } from "payload"
+
+export const News: CollectionConfig = {
+  slug: "news",
+  admin: {
+    useAsTitle: "title",
+    group: "Контент",
+    description: "Новости и объявления для клиентов",
+    defaultColumns: ["title", "isPublished", "publishedAt", "createdAt"],
+  },
+  labels: {
+    singular: "Новость",
+    plural: "Новости",
+  },
+  fields: [
+    {
+      name: "title",
+      type: "text",
+      label: "Заголовок",
+      required: true,
+    },
+    {
+      name: "slug",
+      type: "text",
+      label: "Slug (URL)",
+      required: true,
+      unique: true,
+    },
+    {
+      name: "excerpt",
+      type: "textarea",
+      label: "Краткое описание",
+      admin: {
+        description: "Короткий текст для предпросмотра",
+      },
+    },
+    {
+      name: "content",
+      type: "richText",
+      label: "Содержание",
+      required: true,
+    },
+    {
+      name: "coverImage",
+      type: "upload",
+      label: "Обложка",
+      relationTo: "media",
+    },
+    {
+      name: "isPublished",
+      type: "checkbox",
+      label: "Опубликовано",
+      defaultValue: false,
+      admin: {
+        position: "sidebar",
+      },
+    },
+    {
+      name: "publishedAt",
+      type: "date",
+      label: "Дата публикации",
+      admin: {
+        position: "sidebar",
+        date: {
+          pickerAppearance: "dayAndTime",
+        },
+      },
+    },
+  ],
+  access: {
+    read: () => true,
+    create: ({ req }) => !!req.user,
+    update: ({ req }) => !!req.user,
+    delete: ({ req }) => req.user?.role === "admin",
+  },
+  hooks: {
+    beforeChange: [
+      ({ data }) => {
+        // Auto-set publishedAt when first published
+        if (data?.isPublished && !data?.publishedAt) {
+          data.publishedAt = new Date().toISOString()
+        }
+        return data
+      },
+    ],
+  },
+}

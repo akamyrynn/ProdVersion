@@ -1,0 +1,159 @@
+"use server";
+
+import { z } from "zod";
+import path from "path";
+import fs from "fs";
+import nodemailer from "nodemailer";
+import { getPayload } from "payload";
+import configPromise from "@payload-config";
+
+const priceListSchema = z.object({
+  name: z.string().min(2, "Введите имя"),
+  email: z.string().email("Введите корректный email"),
+  phone: z.string().min(5, "Введите номер телефона"),
+  company: z.string().optional(),
+});
+
+export type PriceListState = {
+  success: boolean;
+  error?: string;
+  name?: string;
+};
+
+const smtpTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
+  },
+});
+
+export async function submitPriceListRequest(
+  _prev: PriceListState,
+  formData: FormData,
+): Promise<PriceListState> {
+  const parsed = priceListSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+    company: formData.get("company"),
+  });
+
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Ошибка валидации",
+    };
+  }
+
+  const { name, email, phone, company } = parsed.data;
+
+  try {
+    const payload = await getPayload({ config: configPromise });
+
+    // 1. Save to Payload admin
+    const record = await payload.create({
+      collection: "price-list-requests",
+      data: {
+        name,
+        email,
+        phone,
+        company: company || undefined,
+        emailSent: false,
+      },
+    });
+
+    // 2. Resolve price list file from SiteSettings
+    const { getSiteSettings } = await import("@/lib/actions/site-settings");
+    const settings = await getSiteSettings();
+
+    const attachments: nodemailer.SendMailOptions["attachments"] = [];
+
+    // Priority 1: uploaded media file from priceListForm.emailFile
+    const emailFile = settings?.priceListForm?.emailFile;
+    if (emailFile?.url) {
+      attachments.push({
+        filename: emailFile.filename || "Прайс-лист 10кофе.pdf",
+        href: emailFile.url,
+        contentType: "application/pdf",
+      });
+    } else {
+      // Priority 2: local /public/ file from priceListUrl
+      const priceListUrl = settings?.priceListUrl || "/Прайс 10coffee_ Март 2026г. (1).pdf";
+      const relPath = decodeURIComponent(priceListUrl.replace(/^\//, ""));
+      const filePath = path.join(process.cwd(), "public", relPath);
+      if (fs.existsSync(filePath)) {
+        const { size } = fs.statSync(filePath);
+        if (size < 15 * 1024 * 1024) {
+          attachments.push({ filename: path.basename(filePath), path: filePath, contentType: "application/pdf" });
+        }
+      }
+    }
+
+    // Sender info from settings
+    const senderName = settings?.priceListForm?.senderName || "Команда 10кофе";
+    const senderPosition = settings?.priceListForm?.senderPosition || "Руководитель отдела продаж";
+    const senderPhone = settings?.priceListForm?.senderPhone || "";
+    const senderTelegram = settings?.priceListForm?.senderTelegram || "@Ten120886";
+    const siteUrl = process.env.NEXT_PUBLIC_SERVER_URL || "https://10coffee.ru";
+
+    // 3. Send email to client
+    let emailSent = false;
+    try {
+      await smtpTransporter.sendMail({
+        from: `"10кофе" <${process.env.SMTP_EMAIL}>`,
+        to: email,
+        subject: "Прайс-лист и условия сотрудничества | 10кофе",
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1d1d1b">
+            <h2 style="margin-bottom:16px">Добрый день, ${name}!</h2>
+            <p style="line-height:1.7;margin-bottom:12px">
+              Спасибо за интерес к компании 10кофе. Вы оставляли заявку на сайте, чтобы получить прайс-лист — направляю его во вложении к этому письму.
+            </p>
+            <p style="line-height:1.7;margin-bottom:8px">В файле вы найдете актуальные цены на:</p>
+            <ul style="line-height:1.8;margin:0 0 16px;padding-left:20px">
+              <li>☕ Кофе собственной обжарки (всегда свежий, жарим под заказ)</li>
+              <li>🍵 Чай (премиальные сорта)</li>
+              <li>⚙️ Кофейное оборудование и аксессуары</li>
+            </ul>
+            <p style="line-height:1.7;margin-bottom:16px">
+              Прайс достаточно объемный, поэтому если вы ищете что-то конкретное (например, смесь для эспрессо в офис или оборудование для кофейни) — просто ответьте на это письмо или позвоните мне.<br><br>
+              Я помогу сориентироваться в сортах, рассчитаю стоимость под ваш бюджет и, при необходимости, организую дегустацию образцов.
+            </p>
+            <p style="line-height:1.9;margin-bottom:24px">
+              Мои контакты для быстрой связи:<br>
+              ${senderPhone ? `📞 ${senderPhone}<br>` : ""}
+              💬 <a href="https://t.me/${senderTelegram.replace("@", "")}" style="color:#e6610d">${senderTelegram}</a><br>
+              🌐 <a href="${siteUrl}" style="color:#e6610d">${siteUrl}</a>
+            </p>
+            <p style="margin-bottom:4px">Хорошего дня и вкусного кофе!</p>
+            <p style="margin-bottom:20px">
+              С уважением,<br>
+              <strong>${senderName}</strong><br>
+              <span style="color:#888;font-size:14px">${senderPosition}, компания 10кофе</span>
+            </p>
+            <hr style="border:none;border-top:1px solid #eee;margin:0 0 16px"/>
+            <p style="color:#999;font-size:12px">10кофе — оптовые поставки кофе для бизнеса</p>
+          </div>
+        `,
+        attachments,
+      });
+      emailSent = true;
+    } catch {
+      // Email failed — request is already saved in admin
+    }
+
+    // 4. Update emailSent status
+    if (emailSent) {
+      await payload.update({
+        collection: "price-list-requests",
+        id: record.id,
+        data: { emailSent: true },
+      });
+    }
+
+    return { success: true, name };
+  } catch {
+    return { success: false, error: "Произошла ошибка. Попробуйте позже." };
+  }
+}

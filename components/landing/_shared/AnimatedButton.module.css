@@ -1,0 +1,60 @@
+.slideButton {
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.25rem 2.75rem;
+  border-radius: 0.25rem;
+  text-decoration: none;
+  color: var(--btn-fg);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.slideButtonBg {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.35rem;
+  background-color: var(--btn-bg);
+  transition: transform 0.35s ease;
+}
+
+.slideButton:hover .slideButtonBg {
+  transform: scale(0.9);
+}
+
+.slideButtonText {
+  position: relative;
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.slideChar {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.charDefault,
+.charHover {
+  display: inline-block;
+  will-change: transform;
+}
+
+.charHover {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+@media (max-width: 1000px) {
+  .slideButton {
+    padding: 1rem 2rem;
+  }
+
+  .slideButtonText {
+    font-size: 0.9rem;
+  }
+}

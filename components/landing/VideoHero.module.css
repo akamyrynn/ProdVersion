@@ -1,0 +1,75 @@
+.hero {
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  overflow: hidden;
+  background-color: var(--base-500);
+}
+
+.heroMedia {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.heroMedia video,
+.heroMedia img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(23, 20, 21, 0.3) 0%,
+    rgba(23, 20, 21, 0.1) 40%,
+    rgba(23, 20, 21, 0.6) 100%
+  );
+}
+
+.heroContainer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 2000px;
+  height: 100%;
+  padding: 2.5rem;
+  margin: 0 auto;
+}
+
+.heroContainer h2 {
+  color: #ffffff;
+  font-size: clamp(2.5rem, 6vw, 8rem);
+  max-width: 90%;
+}
+
+.heroSub {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: clamp(1.1rem, 2vw, 2rem) !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 1000px) {
+  .heroContainer {
+    padding: 1.5rem;
+    gap: 1rem;
+  }
+
+  .heroContainer h2 {
+    max-width: 100%;
+  }
+}

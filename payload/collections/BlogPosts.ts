@@ -1,0 +1,86 @@
+import type { CollectionConfig } from "payload"
+
+export const BlogPosts: CollectionConfig = {
+  slug: "blog_posts",
+  admin: {
+    useAsTitle: "title",
+    group: "Контент",
+    description: "Статьи блога для публичной страницы /blog",
+    defaultColumns: ["title", "isPublished", "publishedAt", "createdAt"],
+  },
+  labels: {
+    singular: "Статья блога",
+    plural: "Блог",
+  },
+  fields: [
+    {
+      name: "title",
+      type: "text",
+      label: "Заголовок",
+      required: true,
+    },
+    {
+      name: "slug",
+      type: "text",
+      label: "Slug (URL)",
+      required: true,
+      unique: true,
+    },
+    {
+      name: "excerpt",
+      type: "textarea",
+      label: "Краткое описание",
+      admin: {
+        description: "Короткий текст для предпросмотра на странице блога",
+      },
+    },
+    {
+      name: "content",
+      type: "richText",
+      label: "Содержание",
+      required: true,
+    },
+    {
+      name: "coverImage",
+      type: "upload",
+      label: "Обложка",
+      relationTo: "media",
+    },
+    {
+      name: "isPublished",
+      type: "checkbox",
+      label: "Опубликовано",
+      defaultValue: false,
+      admin: {
+        position: "sidebar",
+      },
+    },
+    {
+      name: "publishedAt",
+      type: "date",
+      label: "Дата публикации",
+      admin: {
+        position: "sidebar",
+        date: {
+          pickerAppearance: "dayAndTime",
+        },
+      },
+    },
+  ],
+  access: {
+    read: () => true,
+    create: ({ req }) => !!req.user,
+    update: ({ req }) => !!req.user,
+    delete: ({ req }) => !!req.user,
+  },
+  hooks: {
+    beforeChange: [
+      ({ data }) => {
+        if (data?.isPublished && !data?.publishedAt) {
+          data.publishedAt = new Date().toISOString()
+        }
+        return data
+      },
+    ],
+  },
+}

@@ -1,0 +1,209 @@
+.hero {
+  display: flex;
+  align-items: flex-end;
+  min-height: 55vh;
+  padding: 8rem 2.5rem 4rem;
+  background: linear-gradient(135deg, #1d1d1b 0%, #2d1b11 50%, #5b328a 100%);
+}
+
+.heroContent {
+  width: 100%;
+  max-width: 2000px;
+  margin: 0 auto;
+}
+
+.heroLabel {
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #e6610d;
+  margin-bottom: 1.5rem;
+}
+
+.heroTitle {
+  font-size: clamp(3rem, 8vw, 9rem);
+  font-weight: 500;
+  color: #ffffff;
+  line-height: 1;
+  margin-bottom: 1.5rem;
+}
+
+.heroSubtitle {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: rgba(255, 255, 255, 0.55);
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+/* ===== Stats ===== */
+.stats {
+  padding: 5rem 2.5rem;
+  background: #1d1d1b;
+}
+
+.statsInner {
+  max-width: 2000px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+}
+
+.statItem {
+  text-align: center;
+}
+
+.statNumber {
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 700;
+  color: #e6610d;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.statLabel {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.4;
+}
+
+/* ===== Story ===== */
+.story {
+  padding: 7rem 2.5rem;
+  background: #ffffff;
+}
+
+.storyInner {
+  max-width: 2000px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 6rem;
+  align-items: start;
+}
+
+.storyLeft {}
+
+.stickySide {
+  position: sticky;
+  top: 6rem;
+}
+
+.sectionLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #e6610d;
+  margin-bottom: 1.5rem;
+}
+
+.sectionTitle {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 500;
+  color: #1d1d1b;
+  line-height: 1.1;
+}
+
+.storyRight {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.storyPara {
+  font-size: clamp(1rem, 1.5vw, 1.1rem);
+  color: #444;
+  line-height: 1.8;
+}
+
+.storyPara strong {
+  color: #1d1d1b;
+  font-weight: 600;
+}
+
+/* ===== Directions ===== */
+.directions {
+  padding: 6rem 2.5rem;
+  background: #f9f4ee;
+}
+
+.directionsInner {
+  max-width: 2000px;
+  margin: 0 auto;
+}
+
+.directionsTitle {
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-weight: 500;
+  color: #1d1d1b;
+  margin-bottom: 3rem;
+}
+
+.directionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.directionCard {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem;
+}
+
+.directionIcon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.directionName {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #1d1d1b;
+  margin-bottom: 0.5rem;
+}
+
+.directionDesc {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.6;
+}
+
+@media (max-width: 1000px) {
+  .hero {
+    padding: 7rem 1.5rem 3rem;
+    min-height: 40vh;
+  }
+
+  .stats {
+    padding: 3.5rem 1.5rem;
+  }
+
+  .statsInner {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem 1rem;
+  }
+
+  .story {
+    padding: 4rem 1.5rem;
+  }
+
+  .storyInner {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .stickySide {
+    position: static;
+  }
+
+  .directions {
+    padding: 4rem 1.5rem;
+  }
+
+  .directionGrid {
+    grid-template-columns: 1fr;
+  }
+}

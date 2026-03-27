@@ -1,0 +1,103 @@
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 100svh;
+  padding: 2rem;
+  overflow: hidden;
+  background: #1d1d1b;
+  transition:
+    opacity 0.7s ease,
+    visibility 0.7s ease;
+}
+
+.isExiting {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.preloaderInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+}
+
+.titleWrap {
+  position: relative;
+  display: inline-block;
+}
+
+.logoBase {
+  display: block;
+  width: 540px;
+  max-width: 85vw;
+  height: auto;
+  filter: brightness(0) invert(1);
+  opacity: 0.16;
+  user-select: none;
+}
+
+.titleFill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  height: 100%;
+  will-change: width;
+}
+
+.logoFill {
+  display: block;
+  width: 540px;
+  max-width: 85vw;
+  height: auto;
+  filter: brightness(0) invert(1);
+  user-select: none;
+}
+
+.actionSlot {
+  position: relative;
+  min-width: 16rem;
+  height: 3.75rem;
+}
+
+.loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  white-space: nowrap;
+  font-family: var(--font-google-sans), sans-serif;
+  color: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+
+.loadingHidden {
+  opacity: 0;
+  transform: translate(-50%, calc(-50% - 6px));
+  pointer-events: none;
+}
+
+@media (max-width: 1000px) {
+  .preloader {
+    padding: 1.5rem;
+  }
+
+  .preloaderInner {
+    gap: 2rem;
+  }
+
+  .actionSlot {
+    min-width: auto;
+    width: 100%;
+  }
+}
