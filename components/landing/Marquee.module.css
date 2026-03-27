@@ -60,7 +60,6 @@
   display: block;
   height: clamp(2rem, 5vw, 5rem);
   width: auto;
-  filter: brightness(0) saturate(100%) invert(39%) sepia(97%) saturate(550%) hue-rotate(8deg) brightness(102%) contrast(103%);
   user-select: none;
 }
 

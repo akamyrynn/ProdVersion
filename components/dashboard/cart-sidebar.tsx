@@ -16,6 +16,7 @@ interface CartSidebarProps {
   onUpdateQuantity?: (itemId: string, quantity: number) => void
   onRemoveItem?: (itemId: string) => void
   onClearCart?: () => void
+  onClose?: () => void
   inPanel?: boolean
   priceListUrl?: string
   clientDiscount?: number
@@ -26,6 +27,7 @@ export function CartSidebar({
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
+  onClose,
   inPanel = false,
   priceListUrl,
   clientDiscount = 0,
@@ -161,7 +163,7 @@ export function CartSidebar({
         {items.length > 0 && (
           <>
             {/* Total block */}
-            <div className="bg-gradient-to-r bg-[#faead5] rounded-xl p-3 sm:p-4 space-y-2">
+            <div className="bg-gradient-to-r bg-[#faead5] rounded-xl p-3 space-y-1.5">
               {appliedPromo && (
                 <>
                   <div className="flex items-end justify-between">
@@ -188,7 +190,7 @@ export function CartSidebar({
               )}
               <div className="flex items-end justify-between gap-2">
                 <span className="text-[12px] text-neutral-400 uppercase tracking-wider font-medium shrink-0">Итого</span>
-                <span className="text-xl sm:text-2xl font-black text-neutral-900 truncate text-right">
+                <span className="text-lg font-black text-neutral-900 truncate text-right">
                   {finalPrice > 0 ? `${Math.round(finalPrice).toLocaleString("ru-RU")} ₽` : "0 ₽"}
                 </span>
               </div>
@@ -229,6 +231,7 @@ export function CartSidebar({
             {/* Checkout */}
             <Link
               href="/dashboard/checkout"
+              onClick={() => onClose?.()}
               className="flex items-center justify-center w-full h-11 sm:h-12 bg-[#5b328a] text-white text-[13px] font-bold tracking-wide rounded-xl hover:bg-[#4a2870] transition-all hover:shadow-lg hover:shadow-[#5b328a]/20 active:scale-[0.98]"
             >
               Оформить заказ

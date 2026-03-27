@@ -399,8 +399,7 @@ function ListCategorySection({
                 : "Товары скоро появятся"}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              {/* Product rows */}
+            <div>
               {filteredAndSorted.map((product) => (
                 <ProductTableRow
                   key={product.id}

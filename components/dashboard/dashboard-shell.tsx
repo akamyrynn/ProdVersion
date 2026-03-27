@@ -322,7 +322,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               />
 
               {/* Panel */}
-              <div className="absolute top-0 right-0 bottom-0 w-full sm:max-w-[520px] bg-white z-50 shadow-2xl shadow-black/20 animate-slide-in-right flex flex-col sm:rounded-l-2xl">
+              <div className="absolute top-0 right-0 bottom-14 lg:bottom-0 w-full sm:max-w-[520px] bg-white z-50 shadow-2xl shadow-black/20 animate-slide-in-right flex flex-col sm:rounded-l-2xl">
                 {/* Panel header */}
                 <div className="flex items-center justify-between px-6 h-16 border-b border-neutral-100 shrink-0">
                   <div className="flex items-center gap-3">
@@ -389,13 +389,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Panel body */}
-                <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
+                <div className="flex flex-col flex-1 min-h-0">
                   {activePanel === "cart" ? (
                     <CartSidebar
                       items={items}
                       onUpdateQuantity={updateQuantity}
                       onRemoveItem={removeItem}
                       onClearCart={clearCart}
+                      onClose={() => setActivePanel(null)}
                       inPanel
                       priceListUrl={priceListUrl}
                       clientDiscount={clientDiscount}
