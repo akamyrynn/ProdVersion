@@ -24,9 +24,9 @@ export const SiteSettings: GlobalConfig = {
     {
       name: "priceListUrl",
       type: "text",
-      label: "Ссылка на прайс-лист (устарело)",
+      label: "Ссылка на прайс-лист",
       admin: {
-        description: "URL для скачивания прайс-листа (PDF). Используйте поле ниже вместо этого.",
+        description: "URL для скачивания прайс-листа (PDF).",
         placeholder: "/prais-list.pdf",
       },
     },
