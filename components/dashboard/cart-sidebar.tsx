@@ -157,11 +157,11 @@ export function CartSidebar({
         </div>
 
       {/* Bottom */}
-      <div className="px-5 pb-5 space-y-3">
+      <div className="px-3 pb-3 sm:px-5 sm:pb-5 space-y-2 sm:space-y-3">
         {items.length > 0 && (
           <>
             {/* Total block */}
-            <div className="bg-gradient-to-r bg-[#faead5] rounded-xl p-4 space-y-2">
+            <div className="bg-gradient-to-r bg-[#faead5] rounded-xl p-3 sm:p-4 space-y-2">
               {appliedPromo && (
                 <>
                   <div className="flex items-end justify-between">
@@ -186,9 +186,9 @@ export function CartSidebar({
                   </div>
                 </>
               )}
-              <div className="flex items-end justify-between">
-                <span className="text-[12px] text-neutral-400 uppercase tracking-wider font-medium">Итого</span>
-                <span className="text-2xl font-black text-neutral-900">
+              <div className="flex items-end justify-between gap-2">
+                <span className="text-[12px] text-neutral-400 uppercase tracking-wider font-medium shrink-0">Итого</span>
+                <span className="text-xl sm:text-2xl font-black text-neutral-900 truncate text-right">
                   {finalPrice > 0 ? `${Math.round(finalPrice).toLocaleString("ru-RU")} ₽` : "0 ₽"}
                 </span>
               </div>
@@ -197,12 +197,12 @@ export function CartSidebar({
             {/* Promo code */}
             {appliedPromo ? (
               <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 border border-green-100">
-                <span className="text-[12px] font-semibold text-green-700 flex-1">
+                <span className="text-[12px] font-semibold text-green-700 flex-1 truncate">
                   Промокод применён
                 </span>
                 <button
                   onClick={handleRemovePromo}
-                  className="text-[11px] font-medium text-green-600 hover:text-red-500 transition-colors"
+                  className="text-[11px] font-medium text-green-600 hover:text-red-500 transition-colors shrink-0"
                 >
                   Отменить
                 </button>
@@ -214,7 +214,7 @@ export function CartSidebar({
                   onChange={(e) => setPromoInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleApplyPromo()}
                   placeholder="Промокод"
-                  className="h-10 text-[12px] rounded-xl border-neutral-200 bg-neutral-50 flex-1"
+                  className="h-10 text-[12px] rounded-xl border-neutral-200 bg-neutral-50 flex-1 min-w-0"
                 />
                 <button
                   onClick={handleApplyPromo}
@@ -229,7 +229,7 @@ export function CartSidebar({
             {/* Checkout */}
             <Link
               href="/dashboard/checkout"
-              className="flex items-center justify-center w-full h-12 bg-[#5b328a] text-white text-[13px] font-bold tracking-wide rounded-xl hover:bg-[#4a2870] transition-all hover:shadow-lg hover:shadow-[#5b328a]/20 active:scale-[0.98]"
+              className="flex items-center justify-center w-full h-11 sm:h-12 bg-[#5b328a] text-white text-[13px] font-bold tracking-wide rounded-xl hover:bg-[#4a2870] transition-all hover:shadow-lg hover:shadow-[#5b328a]/20 active:scale-[0.98]"
             >
               Оформить заказ
             </Link>
@@ -241,13 +241,13 @@ export function CartSidebar({
           <a
             href={priceListHref}
             download
-            className="flex items-center gap-3 p-3.5 rounded-xl bg-[#faead5]/80 hover:bg-[#faead5] transition-colors"
+            className="flex items-center gap-3 p-3 rounded-xl bg-[#faead5]/80 hover:bg-[#faead5] transition-colors"
           >
-            <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm">
+            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm">
               <FileText className="h-4 w-4 text-[#5b328a]" />
             </div>
-            <div>
-              <p className="text-[12px] font-bold text-[#1d1d1b] leading-tight">Скачать прайс-лист</p>
+            <div className="min-w-0">
+              <p className="text-[12px] font-bold text-[#1d1d1b] leading-tight truncate">Скачать прайс-лист</p>
               <p className="text-[10px] text-[#2d1b11]">PDF каталог с ценами</p>
             </div>
           </a>
@@ -256,13 +256,13 @@ export function CartSidebar({
             href="https://t.me/Ten120886"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 p-3.5 rounded-xl bg-[#e8f4fd]/80 hover:bg-[#d4ecfa] transition-colors"
+            className="flex items-center gap-3 p-3 rounded-xl bg-[#e8f4fd]/80 hover:bg-[#d4ecfa] transition-colors"
           >
-            <div className="h-9 w-9 rounded-lg bg-[#2AABEE] flex items-center justify-center shrink-0 shadow-sm">
+            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-[#2AABEE] flex items-center justify-center shrink-0 shadow-sm">
               <Send className="h-3.5 w-3.5 text-white" />
             </div>
-            <div>
-              <p className="text-[12px] font-bold text-neutral-900 leading-tight">Связаться с менеджером</p>
+            <div className="min-w-0">
+              <p className="text-[12px] font-bold text-neutral-900 leading-tight truncate">Связаться с менеджером</p>
               <p className="text-[10px] text-neutral-400">Telegram поддержка</p>
             </div>
           </a>
