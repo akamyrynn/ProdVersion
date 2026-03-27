@@ -115,13 +115,10 @@ export default function Preloader({ onAnimationComplete }: PreloaderProps) {
     >
       <div className={styles.preloaderInner}>
         <div className={styles.titleWrap}>
-          <h2 className={`${styles.title} ${styles.titleBase}`}>10КОФЕ</h2>
-          <h2
-            className={`${styles.title} ${styles.titleFill}`}
-            style={{ width: `${progress}%` }}
-          >
-            10КОФЕ
-          </h2>
+          <img src="/logo_text.svg" className={styles.logoBase} alt="" draggable={false} />
+          <div className={styles.titleFill} style={{ width: `${progress}%` }}>
+            <img src="/logo_text.svg" className={styles.logoFill} alt="" draggable={false} />
+          </div>
         </div>
 
         <div className={styles.actionSlot}>

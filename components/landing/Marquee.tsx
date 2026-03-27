@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import styles from "./Marquee.module.css";
 
-const MARQUEE_TEXT = "10 КОФЕ";
 const MARQUEE_REPEAT = 12;
 
 export default function Marquee() {
@@ -59,7 +58,7 @@ export default function Marquee() {
           <div className={styles.track} ref={trackRef}>
             {Array.from({ length: MARQUEE_REPEAT }, (_, index) => (
               <span className={styles.item} key={index}>
-                {MARQUEE_TEXT}
+                <img src="/logo_text.svg" className={styles.itemLogo} alt="" draggable={false} />
               </span>
             ))}
           </div>

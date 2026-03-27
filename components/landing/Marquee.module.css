@@ -52,11 +52,16 @@
 .item {
   flex-shrink: 0;
   padding: 0 1.5rem;
-  font-size: clamp(2rem, 5vw, 5rem);
-  font-weight: 800;
-  line-height: 1;
-  text-transform: uppercase;
-  color: var(--accent-orange);
+  display: flex;
+  align-items: center;
+}
+
+.itemLogo {
+  display: block;
+  height: clamp(2rem, 5vw, 5rem);
+  width: auto;
+  filter: brightness(0) saturate(100%) invert(39%) sepia(97%) saturate(550%) hue-rotate(8deg) brightness(102%) contrast(103%);
+  user-select: none;
 }
 
 @media (max-width: 1000px) {
@@ -75,6 +80,9 @@
 
   .item {
     padding: 0 1rem;
-    font-size: clamp(1.5rem, 5vw, 3rem);
+  }
+
+  .itemLogo {
+    height: clamp(1.5rem, 5vw, 3rem);
   }
 }
