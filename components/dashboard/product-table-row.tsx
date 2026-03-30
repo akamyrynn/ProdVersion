@@ -6,6 +6,7 @@ import { Heart, Plus, Minus, Coffee } from "lucide-react"
 import { useCart } from "@/providers/cart-provider"
 import { toggleFavorite } from "@/lib/actions/products"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import type { Product, ProductVariant } from "@/types"
 
 interface ProductTableRowProps {
@@ -25,11 +26,17 @@ export function ProductTableRow({
   const variants = product.variants ?? []
 
   function handleFavorite() {
-    setIsFavorite(!isFavorite)
+    const newState = !isFavorite
+    setIsFavorite(newState)
     startTransition(async () => {
       const result = await toggleFavorite(product.id)
       if ("isFavorite" in result) {
         setIsFavorite(result.isFavorite ?? false)
+        if (result.isFavorite) {
+          toast.success("Добавлено в избранное")
+        } else {
+          toast("Удалено из избранного")
+        }
       }
     })
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import PhoneInput from "@/components/shared/phone-input";
 import { submitTrainingRequest, type ContactFormState } from "@/lib/actions/contact-forms";
 
 const initialState: ContactFormState = { success: false };
@@ -26,7 +27,7 @@ export default function TrainingForm({ className, inputClassName, buttonClassNam
   return (
     <form action={formAction} className={className}>
       <input type="text" name="name" placeholder="Имя" required className={inputClassName} />
-      <input type="tel" name="phone" placeholder="Телефон" required className={inputClassName} />
+      <PhoneInput name="phone" required className={inputClassName} />
       {state.error && <p style={{ color: "#e6610d", fontSize: "0.9rem" }}>{state.error}</p>}
       <button type="submit" className={buttonClassName} disabled={isPending}>
         {isPending ? "Отправка..." : "Записаться на курс"}

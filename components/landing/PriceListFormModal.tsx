@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useEffect } from "react";
+import PhoneInput from "@/components/shared/phone-input";
 import { submitPriceListRequest, type PriceListState } from "@/lib/actions/price-list";
 import styles from "./PriceListFormModal.module.css";
 
@@ -63,7 +64,7 @@ export default function PriceListFormModal({ isOpen, onClose }: Props) {
             <form action={formAction} className={styles.form}>
               <input type="text" name="name" placeholder="Ваше имя" required className={styles.input} />
               <input type="email" name="email" placeholder="Email" required className={styles.input} />
-              <input type="tel" name="phone" placeholder="Телефон" required className={styles.input} />
+              <PhoneInput name="phone" required className={styles.input} />
               <input type="text" name="company" placeholder="Компания (необязательно)" className={styles.input} />
               {state.error && <p className={styles.error}>{state.error}</p>}
               <label className={styles.privacy}>

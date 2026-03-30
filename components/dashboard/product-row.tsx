@@ -17,6 +17,7 @@ import { toggleFavorite } from "@/lib/actions/products"
 import { formatPrice } from "@/lib/utils/format"
 import { getTagBgClass } from "@/lib/utils/constants"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import type { Product, ProductVariant } from "@/types"
 
 interface ProductRowProps {
@@ -49,6 +50,11 @@ export function ProductRow({ product, isFavorite: initialFav }: ProductRowProps)
       const result = await toggleFavorite(product.id)
       if ("isFavorite" in result) {
         setIsFavorite(result.isFavorite ?? false)
+        if (result.isFavorite) {
+          toast.success("Добавлено в избранное")
+        } else {
+          toast("Удалено из избранного")
+        }
       }
     })
   }

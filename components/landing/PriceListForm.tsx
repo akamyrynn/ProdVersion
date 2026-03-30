@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useEffect } from "react";
 import Copy from "./_shared/Copy";
+import PhoneInput from "@/components/shared/phone-input";
 import { submitPriceListRequest, type PriceListState } from "@/lib/actions/price-list";
 import styles from "./PriceListForm.module.css";
 
@@ -47,13 +48,7 @@ export default function PriceListForm() {
             required
             className={styles.input}
           />
-          <input
-            type="tel"
-            name="phone"
-            placeholder="Телефон"
-            required
-            className={styles.input}
-          />
+          <PhoneInput name="phone" required className={styles.input} />
           <input
             type="text"
             name="company"

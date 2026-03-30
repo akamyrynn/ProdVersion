@@ -7,6 +7,7 @@ import { signUp } from "@/lib/actions/auth"
 import { registerSchema, type RegisterFormData } from "@/lib/utils/validators"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import PhoneInput from "@/components/shared/phone-input"
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form"
@@ -109,7 +110,11 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             <FormItem>
               <FormLabel className="text-[12px] font-semibold text-neutral-600">Телефон</FormLabel>
               <FormControl>
-                <Input type="tel" placeholder="+7 (999) 123-45-67" className="h-11 rounded-xl" {...field} />
+                <PhoneInput
+                  className="flex h-11 w-full rounded-xl border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  value={field.value}
+                  onChange={field.onChange}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

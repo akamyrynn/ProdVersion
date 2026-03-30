@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import PhoneInput from "@/components/shared/phone-input";
 import { submitServiceRequest, type ContactFormState } from "@/lib/actions/contact-forms";
 
 const initialState: ContactFormState = { success: false };
@@ -26,7 +27,7 @@ export default function ServiceForm({ className, inputClassName, buttonClassName
   return (
     <form action={formAction} className={className}>
       <input type="text" name="name" placeholder="Имя" required className={inputClassName} />
-      <input type="tel" name="phone" placeholder="Телефон" required className={inputClassName} />
+      <PhoneInput name="phone" required className={inputClassName} />
       <input type="email" name="email" placeholder="Email" className={inputClassName} />
       <input type="text" name="address" placeholder="Адрес" className={inputClassName} />
       {state.error && <p style={{ color: "#e6610d", fontSize: "0.9rem" }}>{state.error}</p>}
