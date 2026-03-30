@@ -368,7 +368,7 @@ export async function toggleFavorite(productId: string): Promise<{ isFavorite: b
     where: {
       and: [
         { clientId: { equals: clientId } },
-        { product: { equals: productId } },
+        { product: { equals: parseInt(productId, 10) } },
       ],
     },
     limit: 1,
@@ -382,7 +382,7 @@ export async function toggleFavorite(productId: string): Promise<{ isFavorite: b
     // Add favorite
     await payload.create({
       collection: "favorites",
-      data: { clientId, product: productId },
+      data: { clientId, product: parseInt(productId, 10) },
     })
     return { isFavorite: true }
   }

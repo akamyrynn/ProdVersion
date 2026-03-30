@@ -3,6 +3,7 @@ import { buildConfig } from "payload"
 import { postgresAdapter } from "@payloadcms/db-postgres"
 import { lexicalEditor } from "@payloadcms/richtext-lexical"
 import { s3Storage } from "@payloadcms/storage-s3"
+import { ru } from "@payloadcms/translations/languages/ru"
 import sharp from "sharp"
 
 import { Categories } from "./payload/collections/Categories"
@@ -91,5 +92,10 @@ export default buildConfig({
   localization: {
     locales: [{ label: "Русский", code: "ru" }],
     defaultLocale: "ru",
+  },
+
+  i18n: {
+    supportedLanguages: { ru },
+    fallbackLanguage: "ru",
   },
 })

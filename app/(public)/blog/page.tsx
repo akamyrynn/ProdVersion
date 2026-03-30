@@ -41,7 +41,7 @@ export default async function BlogPage({
 
       <section className={styles.hero}>
         <div className={styles.heroContent}>
-          <p className={styles.heroLabel}>10coffee</p>
+          <p className={styles.heroLabel}>10КОФЕ</p>
           <h1 className={styles.heroTitle}>Блог</h1>
           <p className={styles.heroSubtitle}>
             Статьи о кофе, обжарке и индустрии

@@ -17,17 +17,15 @@ const MENU_IMAGES = [
 ];
 
 const NAV_LINKS = [
-  { label: "О нас", href: "#mission" },
+  { label: "О нас", href: "/o-nas" },
   { label: "Блог", href: "/blog" },
   { label: "Обучение", href: "/obuchenie" },
   { label: "Сервис", href: "/b2b-servis" },
-  { label: "Контакты", href: "#lets-connect" },
+  { label: "Контакты", href: "/kontakty" },
   { label: "Опт", href: "/?auth=login" },
 ];
 
 const SOCIAL_LINKS = [
-  { label: "Telegram", href: "https://t.me/local10coffee", icon: FaTelegram },
-  { label: "Instagram", href: "https://www.instagram.com/10coffee.ru?igsh=NmMzbDN2OW5xaXVp", icon: FaInstagram },
   { label: "VK", href: "https://vk.com/10coffee", icon: FaVk },
 ];
 

@@ -3,7 +3,7 @@
   align-items: flex-end;
   min-height: 45vh;
   padding: 8rem 2.5rem 4rem;
-  background: linear-gradient(135deg, #1d1d1b 0%, #2d1b11 60%, #5b328a 100%);
+  background: linear-gradient(135deg, #1d1d1b 0%, #2d1b11 100%);
 }
 
 .heroContent {

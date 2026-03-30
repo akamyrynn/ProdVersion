@@ -405,45 +405,49 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
     console.log("[repeatOrder] order_items query:", { orderId, dbItems: dbItems?.length, dbErr: dbErr?.message })
 
     if (dbItems && dbItems.length > 0) {
-      let addedCount = 0
-      for (const row of dbItems) {
-        const grindOption = row.grind_option || ""
-        const qty = row.quantity || 1
+      // Check if product_ids are old UUIDs (contain hyphens) vs new integer IDs
+      const hasIntegerIds = dbItems.every((r) => /^\d+$/.test(String(r.product_id)))
 
-        const { data: existing } = await db
-          .from("cart_items")
-          .select("id, quantity")
-          .eq("client_id", userId)
-          .eq("product_id", row.product_id)
-          .eq("variant_id", row.variant_id)
-          .eq("grind_option", grindOption)
-          .limit(1)
-          .single()
+      if (hasIntegerIds) {
+        let addedCount = 0
+        for (const row of dbItems) {
+          const grindOption = row.grind_option || ""
+          const qty = row.quantity || 1
 
-        if (existing) {
-          const { error } = await db
+          const { data: existing } = await db
             .from("cart_items")
-            .update({ quantity: existing.quantity + qty })
-            .eq("id", existing.id)
-          console.log("[repeatOrder] update cart:", { error: error?.message })
-          if (!error) addedCount++
-        } else {
-          const { error } = await db.from("cart_items").insert({
-            client_id: userId,
-            product_id: row.product_id,
-            variant_id: row.variant_id,
-            quantity: qty,
-            grind_option: grindOption,
-          })
-          console.log("[repeatOrder] insert cart:", { product_id: row.product_id, error: error?.message })
-          if (!error) addedCount++
+            .select("id, quantity")
+            .eq("client_id", userId)
+            .eq("product_id", row.product_id)
+            .eq("variant_id", row.variant_id)
+            .eq("grind_option", grindOption)
+            .limit(1)
+            .single()
+
+          if (existing) {
+            const { error } = await db
+              .from("cart_items")
+              .update({ quantity: existing.quantity + qty })
+              .eq("id", existing.id)
+            if (!error) addedCount++
+          } else {
+            const { error } = await db.from("cart_items").insert({
+              client_id: userId,
+              product_id: row.product_id,
+              variant_id: row.variant_id,
+              quantity: qty,
+              grind_option: grindOption,
+            })
+            if (!error) addedCount++
+          }
+        }
+
+        if (addedCount > 0) {
+          revalidatePath("/dashboard")
+          return { success: true }
         }
       }
-
-      if (addedCount > 0) {
-        revalidatePath("/dashboard")
-        return { success: true }
-      }
+      // If UUIDs (old orders) — fall through to Step 2 (name-based search)
     }
 
     // ===== Step 2: Try Payload items =====
@@ -491,11 +495,11 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
 
       const productId = products[0].id
 
-      // Find variant by name
+      // Find variant by name (Payload table: products_variants, with _parent_id)
       const { data: variants, error: vErr } = await db
-        .from("product_variants")
+        .from("products_variants")
         .select("id, name")
-        .eq("product_id", productId)
+        .eq("_parent_id", productId)
         .eq("name", item.variantName)
         .limit(1)
 

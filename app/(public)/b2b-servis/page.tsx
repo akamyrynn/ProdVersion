@@ -1,5 +1,6 @@
 import SiteHeader from "@/components/landing/SiteHeader"
 import LandingFooter from "@/components/landing/LandingFooter"
+import ServiceForm from "@/components/landing/ServiceForm"
 import styles from "./service.module.css"
 
 export const metadata = {
@@ -117,54 +118,12 @@ export default function ServicePage() {
               Оставьте свои контакты и мы свяжемся с вами для уточнения деталей
             </p>
           </div>
-          <form
+          <ServiceForm
             className={styles.contactForm}
-            action="https://formsubmit.co/10coffee@mail.ru"
-            method="POST"
-          >
-            <input type="hidden" name="_subject" value="Заявка на сервисное обслуживание" />
-            <input type="hidden" name="_captcha" value="false" />
-            <input type="hidden" name="_next" value="https://10coffee.ru/b2b-servis" />
-            <input
-              type="text"
-              name="name"
-              placeholder="Имя"
-              required
-              className={styles.contactInput}
-            />
-            <input
-              type="tel"
-              name="phone"
-              placeholder="+7 (___) ___-__-__"
-              required
-              className={styles.contactInput}
-            />
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              className={styles.contactInput}
-            />
-            <input
-              type="text"
-              name="address"
-              placeholder="Адрес"
-              className={styles.contactInput}
-            />
-            <button type="submit" className={styles.contactButton}>
-              Отправить
-            </button>
-            <p className={styles.contactDisclaimer}>
-              Нажимая на кнопку, вы принимаете{" "}
-              <a href="/Политика конфиденциальности.pdf" target="_blank" rel="noopener noreferrer">
-                политику конфиденциальности
-              </a>{" "}
-              и{" "}
-              <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer">
-                правила обработки персональных данных
-              </a>
-            </p>
-          </form>
+            inputClassName={styles.contactInput}
+            buttonClassName={styles.contactButton}
+            disclaimerClassName={styles.contactDisclaimer}
+          />
         </div>
       </section>
 

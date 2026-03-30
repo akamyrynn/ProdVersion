@@ -1,5 +1,6 @@
 import SiteHeader from "@/components/landing/SiteHeader"
 import LandingFooter from "@/components/landing/LandingFooter"
+import TrainingForm from "@/components/landing/TrainingForm"
 import styles from "./training.module.css"
 
 export const metadata = {
@@ -137,35 +138,12 @@ export default function TrainingPage() {
               Оставьте свои контакты и мы свяжемся с вами для записи на ближайший курс
             </p>
           </div>
-          <form
+          <TrainingForm
             className={styles.signupForm}
-            action="https://formsubmit.co/10coffee@mail.ru"
-            method="POST"
-          >
-            <input type="hidden" name="_subject" value="Заявка на обучение бариста" />
-            <input type="hidden" name="_captcha" value="false" />
-            <input type="hidden" name="_next" value="https://10coffee.ru/obuchenie" />
-            <input
-              type="text"
-              name="name"
-              placeholder="Имя"
-              required
-              className={styles.signupInput}
-            />
-            <input
-              type="tel"
-              name="phone"
-              placeholder="+7 (___) ___-__-__"
-              required
-              className={styles.signupInput}
-            />
-            <button type="submit" className={styles.signupButton}>
-              Записаться на курс
-            </button>
-            <p className={styles.signupDisclaimer}>
-              Нажимая на кнопку, вы соглашаетесь с пользовательским соглашением
-            </p>
-          </form>
+            inputClassName={styles.signupInput}
+            buttonClassName={styles.signupButton}
+            disclaimerClassName={styles.signupDisclaimer}
+          />
         </div>
       </section>
 

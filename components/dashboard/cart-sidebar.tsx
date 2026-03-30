@@ -44,12 +44,23 @@ export function CartSidebar({
     return sum + (item.variant?.weight_grams ?? 0) * item.quantity
   }, 0)
 
-  // Recalculate discount dynamically for percentage promos
-  const currentDiscount = appliedPromo
+  // Promo discount
+  const promoDiscount = appliedPromo
     ? appliedPromo.discountType === "percentage"
       ? Math.round((totalPrice * appliedPromo.discountValue) / 100)
       : Math.min(appliedPromo.discountValue, totalPrice)
     : 0
+
+  // Client personal discount (percentage)
+  const clientDiscountAmount = clientDiscount > 0
+    ? Math.round((totalPrice * clientDiscount) / 100)
+    : 0
+
+  // Use the greater of the two discounts
+  const currentDiscount = Math.max(promoDiscount, clientDiscountAmount)
+  const activeDiscountLabel = currentDiscount > 0
+    ? (clientDiscountAmount > promoDiscount && !appliedPromo ? `Скидка ${clientDiscount}%` : undefined)
+    : undefined
   const finalPrice = Math.max(0, totalPrice - currentDiscount)
 
   async function handleApplyPromo() {
@@ -164,7 +175,7 @@ export function CartSidebar({
           <>
             {/* Total block */}
             <div className="bg-gradient-to-r bg-[#faead5] rounded-xl p-3 space-y-1.5">
-              {appliedPromo && (
+              {currentDiscount > 0 && (
                 <>
                   <div className="flex items-end justify-between">
                     <span className="text-[11px] text-neutral-400">Товары</span>
@@ -173,17 +184,21 @@ export function CartSidebar({
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-green-600 font-medium">Скидка</span>
+                    <span className="text-[11px] text-green-600 font-medium">
+                      {activeDiscountLabel || "Скидка"}
+                    </span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[13px] font-bold text-green-600">
                         −{currentDiscount.toLocaleString("ru-RU")} ₽
                       </span>
-                      <button
-                        onClick={handleRemovePromo}
-                        className="h-4 w-4 rounded flex items-center justify-center text-neutral-300 hover:text-red-500 transition-colors"
-                      >
-                        <X className="h-2.5 w-2.5" />
-                      </button>
+                      {appliedPromo && (
+                        <button
+                          onClick={handleRemovePromo}
+                          className="h-4 w-4 rounded flex items-center justify-center text-neutral-300 hover:text-red-500 transition-colors"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>
@@ -253,7 +268,7 @@ export function CartSidebar({
           </a>
 
           <a
-            href="https://t.me/Ten120886"
+            href="tg://resolve?domain=Tencoffeesochi"
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-[#e8f4fd]/80 hover:bg-[#d4ecfa] transition-colors text-center"

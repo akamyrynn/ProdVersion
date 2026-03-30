@@ -271,13 +271,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   Прайс-лист
                 </a>
                 <a
-                  href="https://t.me/Ten120886"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="tg://resolve?domain=local10coffee"
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-white/60 transition-all"
                 >
                   <Send className="h-3.5 w-3.5 text-neutral-300 shrink-0" />
-                  Telegram
+                  Telegram-канал
                 </a>
               </div>
 

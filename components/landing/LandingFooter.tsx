@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { FaTelegram, FaInstagram, FaVk } from "react-icons/fa";
+import { FaVk } from "react-icons/fa";
 import Copy from "./_shared/Copy";
 import AnimatedButton from "./_shared/AnimatedButton";
+import PriceListFormModal from "./PriceListFormModal";
 import styles from "./LandingFooter.module.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -30,8 +31,6 @@ const FOOTER_LINKS = [
 ];
 
 const SOCIALS = [
-  { label: "Telegram", href: "https://t.me/local10coffee", icon: FaTelegram },
-  { label: "Instagram", href: "https://www.instagram.com/10coffee.ru?igsh=NmMzbDN2OW5xaXVp", icon: FaInstagram },
   { label: "ВКонтакте", href: "https://vk.com/10coffee", icon: FaVk },
 ];
 
@@ -39,6 +38,7 @@ export default function LandingFooter() {
   const sectionRef = useRef<HTMLElement>(null);
   const buttonRef = useRef<HTMLAnchorElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
+  const [showPriceModal, setShowPriceModal] = useState(false);
   const circleButtonRef = useRef<HTMLDivElement>(null);
   const circlePathRef = useRef<SVGPathElement>(null);
 
@@ -198,7 +198,12 @@ export default function LandingFooter() {
             </Copy>
           </div>
           <div className={styles.buttonContainer} ref={buttonContainerRef} style={{ ["--btn-bg" as string]: "#ffffff", ["--btn-fg" as string]: "#1d1d1b" }}>
-            <AnimatedButton href="#price-list-form" ref={buttonRef}>
+            <AnimatedButton href="#price-list-form" ref={buttonRef} onClick={(e) => {
+              if (!document.getElementById("price-list-form")) {
+                e.preventDefault();
+                setShowPriceModal(true);
+              }
+            }}>
               Получить прайс-лист
             </AnimatedButton>
           </div>
@@ -227,6 +232,7 @@ export default function LandingFooter() {
           <a href="/Политика обработки персональных данных пользователей сайта.pdf" target="_blank" rel="noopener noreferrer">Обработка данных</a>
         </div>
       </div>
+      <PriceListFormModal isOpen={showPriceModal} onClose={() => setShowPriceModal(false)} />
     </footer>
   );
 }

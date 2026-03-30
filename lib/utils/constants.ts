@@ -49,6 +49,6 @@ export const PRODUCT_TYPE_LABELS = {
 
 export const GRIND_OPTIONS = ["В зёрнах", "Молотый"] as const
 
-export const SELF_PICKUP_ADDRESS = "г. Москва, ул. Складская, д. 10"
+export const SELF_PICKUP_ADDRESS = "г. Сочи, ул. Пластунская 79/1, пом. 1"
 
 export const TRAINING_URL = "https://www.10coffee.ru/obuchenie"

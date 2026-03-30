@@ -59,7 +59,7 @@ export default function KontaktyPage() {
           {/* Right: map */}
           <div className={styles.mapBlock}>
             <iframe
-              src="https://yandex.ru/map-widget/v1/?ll=39.729506%2C43.585895&z=16&pt=39.729506,43.585895,pm2rdm"
+              src="https://yandex.ru/map-widget/v1/?ll=39.716619%2C43.584908&z=17&pt=39.716619,43.584908,pm2rdm"
               title="10кофе на карте"
               allowFullScreen
             />
