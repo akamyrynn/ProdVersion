@@ -30,7 +30,7 @@ export function HtmlWrapper({ children }: { children: React.ReactNode }) {
         <TooltipProvider>
           {children}
         </TooltipProvider>
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-right" richColors duration={2000} />
       </body>
     </html>
   )
