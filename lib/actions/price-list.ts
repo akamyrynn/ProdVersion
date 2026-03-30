@@ -153,7 +153,8 @@ export async function submitPriceListRequest(
     }
 
     return { success: true, name };
-  } catch {
+  } catch (err: any) {
+    console.error("[price-list] Error:", err?.message || err);
     return { success: false, error: "Произошла ошибка. Попробуйте позже." };
   }
 }
