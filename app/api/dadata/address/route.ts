@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
-  const { query } = await request.json()
+  const { query, city } = await request.json()
 
   if (!query || query.length < 2) {
     return NextResponse.json({ suggestions: [] })
@@ -22,7 +22,15 @@ export async function POST(request: NextRequest) {
           Accept: "application/json",
           Authorization: `Token ${apiKey}`,
         },
-        body: JSON.stringify({ query, count: 5 }),
+        body: JSON.stringify({
+          query,
+          count: 5,
+          ...(city ? {
+            from_bound: { value: "street" },
+            to_bound: { value: "house" },
+            locations: [{ city }],
+          } : {}),
+        }),
       }
     )
 

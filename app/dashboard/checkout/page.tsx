@@ -637,7 +637,7 @@ export default function CheckoutPage() {
                         <FormItem>
                           <FormLabel>Адрес доставки</FormLabel>
                           <FormControl>
-                            <AddressInput placeholder="Улица, дом, квартира" value={field.value} onChange={field.onChange} />
+                            <AddressInput placeholder="Улица, дом, квартира" value={field.value} onChange={field.onChange} city={selectedCity?.city} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

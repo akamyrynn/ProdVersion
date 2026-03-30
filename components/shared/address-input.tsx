@@ -13,9 +13,10 @@ interface AddressInputProps {
   onChange?: (value: string) => void
   placeholder?: string
   className?: string
+  city?: string
 }
 
-export default function AddressInput({ value = "", onChange, placeholder, className }: AddressInputProps) {
+export default function AddressInput({ value = "", onChange, placeholder, className, city }: AddressInputProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -30,7 +31,7 @@ export default function AddressInput({ value = "", onChange, placeholder, classN
       const res = await fetch("/api/dadata/address", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, city }),
       })
       const data = await res.json()
       setSuggestions(data.suggestions || [])
