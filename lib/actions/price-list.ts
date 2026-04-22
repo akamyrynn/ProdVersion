@@ -74,7 +74,7 @@ export async function submitPriceListRequest(
     if (emailFile?.url) {
       attachments.push({
         filename: emailFile.filename || "Прайс-лист 10кофе.pdf",
-        href: emailFile.url,
+        path: emailFile.url,
         contentType: "application/pdf",
       });
     } else {
@@ -153,8 +153,9 @@ export async function submitPriceListRequest(
     }
 
     return { success: true, name };
-  } catch (err: any) {
-    console.error("[price-list] Error:", err?.message || err);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : err;
+    console.error("[price-list] Error:", message);
     return { success: false, error: "Произошла ошибка. Попробуйте позже." };
   }
 }

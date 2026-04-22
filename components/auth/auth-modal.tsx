@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -26,21 +26,19 @@ export function AuthModal({ announcement }: AuthModalProps) {
   const authParam = searchParams.get("auth") as AuthView | null
   const urlOpen = authParam === "login" || authParam === "register" || authParam === "forgot"
 
-  // Local open state so close is instant, not dependent on URL update
-  const [open, setOpen] = useState(urlOpen)
-
-  useEffect(() => {
-    if (urlOpen) setOpen(true)
-  }, [urlOpen])
+  // Local close marker keeps the dialog snappy without syncing state in an effect.
+  const [closedAuthParam, setClosedAuthParam] = useState<AuthView | null>(null)
+  const open = urlOpen && closedAuthParam !== authParam
 
   function switchView(view: AuthView) {
+    setClosedAuthParam(null)
     const params = new URLSearchParams(searchParams.toString())
     params.set("auth", view)
     router.replace(`/?${params.toString()}`, { scroll: false })
   }
 
   function handleClose() {
-    setOpen(false)
+    setClosedAuthParam(authParam)
     const params = new URLSearchParams(searchParams.toString())
     params.delete("auth")
     const qs = params.toString()

@@ -161,15 +161,8 @@ export default function Copy({
     },
   );
 
-  if (React.Children.count(children) === 1 && React.isValidElement(children)) {
-    return React.cloneElement(
-      children as React.ReactElement<{ ref?: React.Ref<HTMLDivElement> }>,
-      { ref: containerRef },
-    );
-  }
-
   return (
-    <div ref={containerRef} data-copy-wrapper="true">
+    <div ref={containerRef} data-copy-wrapper="true" style={{ display: "contents" }}>
       {children}
     </div>
   );

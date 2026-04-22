@@ -47,7 +47,7 @@ export const Orders: CollectionConfig = {
           if (operation === "create" && (!data.vatRate || data.vatRate === "none")) {
             try {
               const settings = await req.payload.findGlobal({ slug: "site-settings" })
-              const globalVat = Number((settings as any).vatPercent) || 0
+              const globalVat = Number((settings as { vatPercent?: number | string }).vatPercent) || 0
               if (globalVat > 0) {
                 data.vatRate = "custom"
                 data.vatCustomRate = globalVat

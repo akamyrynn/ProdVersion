@@ -39,7 +39,7 @@ export default function AddressInput({ value = "", onChange, placeholder, classN
     } catch {
       setSuggestions([])
     }
-  }, [])
+  }, [city])
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value

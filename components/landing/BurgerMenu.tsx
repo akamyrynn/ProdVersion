@@ -69,7 +69,7 @@ export default function BurgerMenu({ isOpen, onClose, pageRef }: BurgerMenuProps
       lockScroll();
 
       if (page) {
-        page.style.transformOrigin = `right ${scrollY}px`;
+        gsap.set(page, { transformOrigin: `right ${scrollY}px` });
         gsap.to(page, {
           rotation: 10,
           x: 300,
@@ -136,7 +136,7 @@ export default function BurgerMenu({ isOpen, onClose, pageRef }: BurgerMenuProps
           ease: "power4.inOut",
           onComplete: () => {
             gsap.set(page, { clearProps: "all" });
-            page.style.transformOrigin = "";
+            gsap.set(page, { transformOrigin: "" });
           },
         });
       }
@@ -170,7 +170,7 @@ export default function BurgerMenu({ isOpen, onClose, pageRef }: BurgerMenuProps
       const page = pageRef?.current;
       if (page) {
         gsap.set(page, { clearProps: "all" });
-        page.style.transformOrigin = "";
+        gsap.set(page, { transformOrigin: "" });
       }
       gsap.set(overlayRef.current, {
         clipPath: "polygon(0% 0%, 100% 0%, 100% 0%, 0% 0%)",

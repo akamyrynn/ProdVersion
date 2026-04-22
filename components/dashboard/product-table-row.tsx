@@ -69,6 +69,16 @@ export function ProductTableRow({
           )}
         </div>
 
+        {/* Favorite before stickers */}
+        <button onClick={handleFavorite} disabled={isPending} className="shrink-0">
+          <Heart
+            className={cn(
+              "h-4 w-4 transition-colors",
+              isFavorite ? "fill-red-500 text-red-500" : "text-neutral-300 hover:text-red-400"
+            )}
+          />
+        </button>
+
         {/* Stickers */}
         {product.stickers?.length > 0 && (
           <div className="flex gap-1 shrink-0">
@@ -98,15 +108,6 @@ export function ProductTableRow({
           ))}
         </div>
 
-        {/* Favorite */}
-        <button onClick={handleFavorite} disabled={isPending} className="shrink-0">
-          <Heart
-            className={cn(
-              "h-4 w-4 transition-colors",
-              isFavorite ? "fill-red-500 text-red-500" : "text-neutral-300 hover:text-red-400"
-            )}
-          />
-        </button>
       </div>
 
       {/* ── MOBILE: header + variant rows below ── */}

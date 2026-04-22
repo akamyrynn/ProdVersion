@@ -1,5 +1,30 @@
 import type { CollectionConfig } from "payload"
 
+interface SupabaseCompanyRow {
+  id?: string | number
+  name?: string
+  inn?: string
+  kpp?: string | null
+  ogrn?: string | null
+  legal_address?: string | null
+  bank_name?: string | null
+  bik?: string | null
+  settlement_account?: string | null
+  correspondent_account?: string | null
+}
+
+interface PayloadCompanyRow {
+  name?: string
+  inn?: string
+  kpp?: string | null
+  ogrn?: string | null
+  legalAddress?: string | null
+  bankName?: string | null
+  bik?: string | null
+  settlementAccount?: string | null
+  correspondentAccount?: string | null
+}
+
 export const Clients: CollectionConfig = {
   slug: "clients",
   admin: {
@@ -175,7 +200,7 @@ export const Clients: CollectionConfig = {
               .order("created_at", { ascending: false })
 
             if (data && data.length > 0) {
-              const supabaseCompanies = data.map((c: any) => ({
+              const supabaseCompanies = (data as SupabaseCompanyRow[]).map((c) => ({
                 name: c.name,
                 inn: c.inn,
                 kpp: c.kpp,
@@ -188,9 +213,9 @@ export const Clients: CollectionConfig = {
               }))
 
               // Merge: Payload companies + Supabase companies (deduplicate by INN)
-              const payloadCompanies = doc.companies || []
-              const existingInns = new Set(payloadCompanies.map((c: any) => c.inn).filter(Boolean))
-              const newFromSupabase = supabaseCompanies.filter((c: any) => !existingInns.has(c.inn))
+              const payloadCompanies = (doc.companies || []) as PayloadCompanyRow[]
+              const existingInns = new Set(payloadCompanies.map((c) => c.inn).filter(Boolean))
+              const newFromSupabase = supabaseCompanies.filter((c) => !existingInns.has(c.inn))
               doc.companies = [...payloadCompanies, ...newFromSupabase]
             }
           } catch {
@@ -213,8 +238,8 @@ export const Clients: CollectionConfig = {
               .select("id, inn")
               .eq("client_id", doc.supabaseId)
 
-            const existingInns = new Set((existing || []).map((c: any) => c.inn))
-            const payloadInns = new Set((doc.companies || []).map((c: any) => c.inn).filter(Boolean))
+            const existingInns = new Set(((existing || []) as SupabaseCompanyRow[]).map((c) => c.inn))
+            const payloadInns = new Set(((doc.companies || []) as PayloadCompanyRow[]).map((c) => c.inn).filter(Boolean))
 
             // Add new companies to Supabase
             for (const company of (doc.companies || [])) {

@@ -1,4 +1,4 @@
-import { getCategories, getFavoriteProductIds, getTags } from "@/lib/actions/products"
+import { getCategories, getFavoriteProductIds, getProductTypes, getTags } from "@/lib/actions/products"
 import { CatalogBento } from "@/components/dashboard/catalog-bento"
 import type { ProductType } from "@/types"
 
@@ -8,19 +8,28 @@ interface CatalogPageProps {
 
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const params = await searchParams
-  const productType = (params.type as ProductType) || "coffee"
+  const requestedType = params.type as ProductType | undefined
 
-  const [categories, favoriteIds, tags] = await Promise.all([
-    getCategories(productType),
+  const [productTypes, favoriteIds, tags] = await Promise.all([
+    getProductTypes(),
     getFavoriteProductIds(),
     getTags(),
   ])
+
+  const productType =
+    productTypes.find((type) => type.slug === requestedType)?.slug ||
+    productTypes[0]?.slug ||
+    requestedType ||
+    "coffee"
+
+  const categories = await getCategories(productType)
 
   return (
     <CatalogBento
       categories={categories}
       favoriteIds={favoriteIds}
       activeType={productType}
+      productTypes={productTypes}
       tags={tags}
     />
   )

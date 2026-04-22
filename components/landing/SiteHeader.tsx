@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BurgerMenu from "./BurgerMenu";
 import MapModal from "./MapModal";
@@ -39,15 +40,15 @@ export default function SiteHeader() {
   return (
     <>
       <nav className={`${styles.navBar} ${(hidden && !isMenuOpen) || isMapOpen ? styles.navHidden : ""}`}>
-        <a href="/" className={styles.navLogo}>
+        <Link href="/" className={styles.navLogo}>
           <img src="/Основной (упрощенный).svg" alt="10coffee" className={styles.navLogoImg} />
-        </a>
+        </Link>
 
         <div className={styles.navCenter}>
           {NAV_LINKS.map((link) => (
-            <a key={link.href} href={link.href} className={styles.navLink}>
+            <Link key={link.href} href={link.href} className={styles.navLink}>
               {link.label}
-            </a>
+            </Link>
           ))}
           <button type="button" className={styles.navLink} onClick={() => setIsMapOpen(true)}>
             Где попробовать
@@ -56,7 +57,7 @@ export default function SiteHeader() {
 
         <div className={styles.navActions}>
           {user ? (
-            <a href="/dashboard" className={styles.navAvatar}>
+            <Link href="/dashboard" className={styles.navAvatar}>
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
@@ -68,7 +69,7 @@ export default function SiteHeader() {
                 user.email?.[0]?.toUpperCase() ||
                 "U"
               )}
-            </a>
+            </Link>
           ) : (
             <button
               type="button"

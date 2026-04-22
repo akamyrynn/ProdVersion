@@ -17,6 +17,49 @@ const SELLER = {
   director: "Тен Игорь Олегович",
 }
 
+interface PayloadOrderLine {
+  productName?: string
+  variantName?: string
+  grindOption?: string
+  quantity?: number | string
+  unitPrice?: number | string
+  totalPrice?: number | string
+}
+
+interface LegacyOrderLine {
+  product_name?: string
+  variant_name?: string
+  grind_option?: string | null
+  quantity?: number | string
+  unit_price?: number | string
+  total_price?: number | string
+}
+
+interface InvoiceLine {
+  name: string
+  quantity: number
+  unit: string
+  price: number
+  vat: string
+  total: number
+}
+
+interface PayloadOrderDoc {
+  id: string | number
+  orderId?: string
+  client?: { supabaseId?: string | null } | string | number | null
+  vatRate?: string | null
+  vatCustomRate?: number | string | null
+  items?: PayloadOrderLine[]
+  companyName?: string | null
+  companyInn?: string | null
+  createdAt?: string
+  subtotal?: number | string
+  discountAmount?: number | string
+  deliveryCost?: number | string
+  total?: number | string
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -36,7 +79,7 @@ export async function GET(req: NextRequest) {
       collection: "orders",
       id: orderId,
       depth: 1,
-    }) as any
+    }) as PayloadOrderDoc
 
     if (!doc) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
@@ -44,7 +87,7 @@ export async function GET(req: NextRequest) {
 
     // Verify ownership — support both old (client_user_id) and new (client relationship) orders
     const clientRef = doc.client
-    const clientSupabaseId = typeof clientRef === "object" ? clientRef?.supabaseId : null
+    const clientSupabaseId = typeof clientRef === "object" && clientRef !== null ? clientRef.supabaseId : null
 
     if (clientSupabaseId) {
       // New order: client relationship exists
@@ -73,12 +116,12 @@ export async function GET(req: NextRequest) {
     const vatLabel = VAT_RATE > 0 ? `${VAT_RATE}%` : ""
 
     // Build items — support both Payload embedded items and old order_items table
-    let items: any[] = []
+    let items: InvoiceLine[] = []
 
     if (doc.items && doc.items.length > 0) {
       // New order: items embedded in Payload
-      items = doc.items.map((item: any) => ({
-        name: `${item.productName}${item.variantName ? ` (${item.variantName})` : ""}${item.grindOption ? `, ${item.grindOption}` : ""}`,
+      items = doc.items.map((item) => ({
+        name: `${item.productName || ""}${item.variantName ? ` (${item.variantName})` : ""}${item.grindOption ? `, ${item.grindOption}` : ""}`,
         quantity: Number(item.quantity) || 0,
         unit: "шт",
         price: Number(item.unitPrice) || 0,
@@ -92,7 +135,7 @@ export async function GET(req: NextRequest) {
         .select("*")
         .eq("order_id", orderId)
 
-      items = (orderItems || []).map((item: any) => ({
+      items = ((orderItems || []) as LegacyOrderLine[]).map((item) => ({
         name: `${item.product_name}${item.variant_name ? ` (${item.variant_name})` : ""}${item.grind_option ? `, ${item.grind_option}` : ""}`,
         quantity: Number(item.quantity) || 0,
         unit: "шт",
@@ -132,7 +175,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const invoiceDate = new Date(doc.createdAt).toLocaleDateString("ru-RU", {
+    const invoiceDate = new Date(doc.createdAt || Date.now()).toLocaleDateString("ru-RU", {
       day: "numeric",
       month: "long",
       year: "numeric",
@@ -171,8 +214,8 @@ export async function GET(req: NextRequest) {
         "Content-Disposition": `inline; filename="schet-${doc.orderId || doc.id}.pdf"`,
       },
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Invoice generation error:", err)
-    return NextResponse.json({ error: err.message || "Internal error" }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Internal error" }, { status: 500 })
   }
 }

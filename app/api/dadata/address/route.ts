@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 
+interface DadataSuggestion {
+  value?: string
+  unrestricted_value?: string
+}
+
 export async function POST(request: NextRequest) {
   const { query, city } = await request.json()
 
@@ -39,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json()
-    const suggestions = (data.suggestions || []).map((s: any) => ({
+    const suggestions = ((data.suggestions || []) as DadataSuggestion[]).map((s) => ({
       value: s.value,
       unrestricted: s.unrestricted_value,
     }))

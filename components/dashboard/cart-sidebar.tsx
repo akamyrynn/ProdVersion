@@ -5,7 +5,6 @@ import Link from "next/link"
 import { Trash2, Send, Minus, Plus, FileText, ShoppingBag, X, Coffee, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
-import { cn } from "@/lib/utils"
 import { useCart } from "@/providers/cart-provider"
 import { validatePromoCode } from "@/lib/actions/promo"
 import { toast } from "sonner"
@@ -288,7 +287,7 @@ export function CartSidebar({
   }
 
   return (
-    <div className="hidden xl:flex w-[270px] 2xl:w-[340px] flex-col shrink-0 p-3 pl-0 min-h-0">
+    <div className="hidden xl:flex w-[400px] min-w-[400px] 2xl:w-[420px] flex-col shrink-0 p-3 pl-0 min-h-0">
       <div className="flex flex-col flex-1 min-h-0 bg-white rounded-2xl overflow-hidden border border-black/[0.04]">
         {/* Header */}
         <div className="px-5 pt-5 pb-3">

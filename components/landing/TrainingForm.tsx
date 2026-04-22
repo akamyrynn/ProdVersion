@@ -28,6 +28,7 @@ export default function TrainingForm({ className, inputClassName, buttonClassNam
     <form action={formAction} className={className}>
       <input type="text" name="name" placeholder="Имя" required className={inputClassName} />
       <PhoneInput name="phone" required className={inputClassName} />
+      <input type="email" name="email" placeholder="Email для подтверждения" className={inputClassName} />
       {state.error && <p style={{ color: "#e6610d", fontSize: "0.9rem" }}>{state.error}</p>}
       <button type="submit" className={buttonClassName} disabled={isPending}>
         {isPending ? "Отправка..." : "Записаться на курс"}

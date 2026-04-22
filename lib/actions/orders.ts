@@ -4,10 +4,76 @@ import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getCartItems, clearCart as clearPayloadCart, addToCart } from "@/lib/actions/cart"
+import { getCartItems, clearCart as clearPayloadCart } from "@/lib/actions/cart"
 import { revalidatePath } from "next/cache"
 import nodemailer from "nodemailer"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
+
+interface OrderEmailItem {
+  productName: string
+  variantName?: string
+  quantity: number
+  totalPrice: number
+}
+
+interface OrderEmailSummary {
+  id: string | number
+  orderId?: string | number
+  total: number
+}
+
+interface PayloadClientRef {
+  id?: string | number
+  supabaseId?: string | null
+  email?: string
+  fullName?: string
+  phone?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+interface PayloadOrderItem {
+  id?: string | number
+  productName?: string
+  product_name?: string
+  variantName?: string
+  variant_name?: string
+  grindOption?: string | null
+  grind_option?: string | null
+  quantity?: number | string
+  unitPrice?: number | string
+  totalPrice?: number | string
+}
+
+interface PayloadOrderDoc {
+  id: string | number
+  orderId?: string
+  client?: PayloadClientRef | string | number | null
+  companyName?: string | null
+  companyInn?: string | null
+  status?: OrderStatus
+  paymentStatus?: string
+  deliveryMethod?: DeliveryMethod
+  deliveryAddress?: string | null
+  subtotal?: number | string
+  discountAmount?: number | string
+  deliveryCost?: number | string
+  total?: number | string
+  totalWeightGrams?: number | string
+  promoCode?: { id?: string | number } | string | number | null
+  comment?: string | null
+  adminNotes?: string | null
+  cdekTrackingNumber?: string | null
+  cap2000TrackingNumber?: string | null
+  createdAt?: string
+  updatedAt?: string
+  items?: PayloadOrderItem[]
+}
+
+interface PayloadClientDoc {
+  id: number
+  discountPercent?: number | string
+}
 
 const smtpTransporter = nodemailer.createTransport({
   service: "gmail",
@@ -21,19 +87,18 @@ function formatPrice(n: number) {
   return new Intl.NumberFormat("ru-RU").format(n) + " ₽"
 }
 
-async function sendOrderEmail(email: string, order: any, items: any[], pdfBuffer?: Uint8Array) {
+async function sendOrderEmail(email: string, order: OrderEmailSummary, items: OrderEmailItem[], pdfBuffer?: Uint8Array) {
   const itemsHtml = items.map(i =>
     `<tr><td style="padding:8px;border-bottom:1px solid #eee">${i.productName} ${i.variantName ? `(${i.variantName})` : ""}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatPrice(i.totalPrice)}</td></tr>`
   ).join("")
 
-  const attachments: any[] = []
-  if (pdfBuffer) {
-    attachments.push({
+  const attachments = pdfBuffer
+    ? [{
       filename: `Счёт_${order.orderId || order.id}.pdf`,
-      content: pdfBuffer,
+      content: Buffer.from(pdfBuffer),
       contentType: "application/pdf",
-    })
-  }
+    }]
+    : []
 
   await smtpTransporter.sendMail({
     from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
@@ -101,7 +166,7 @@ async function getClientDoc(supabaseUserId: string): Promise<{ id: number; disco
     if (!docs[0]) return null
     return {
       id: docs[0].id as number,
-      discountPercent: Number((docs[0] as any).discountPercent) || 0,
+      discountPercent: Number((docs[0] as PayloadClientDoc).discountPercent) || 0,
     }
   } catch {
     return null
@@ -117,9 +182,9 @@ async function getClientDocId(supabaseUserId: string): Promise<number | null> {
 // Transform: Payload doc → frontend Order type
 // ============================================================
 
-function transformOrderItem(item: any): OrderItem {
+function transformOrderItem(item: PayloadOrderItem): OrderItem {
   return {
-    id: item.id || "",
+    id: String(item.id ?? ""),
     order_id: "",
     product_id: "",
     variant_id: "",
@@ -133,9 +198,9 @@ function transformOrderItem(item: any): OrderItem {
   }
 }
 
-function transformOrder(doc: any): Order {
+function transformOrder(doc: PayloadOrderDoc): Order {
   const clientRef = doc.client
-  const clientId = typeof clientRef === "object" ? String(clientRef?.id) : String(clientRef ?? "")
+  const clientId = typeof clientRef === "object" && clientRef !== null ? String(clientRef?.id) : String(clientRef ?? "")
 
   return {
     id: String(doc.id),
@@ -152,7 +217,7 @@ function transformOrder(doc: any): Order {
     delivery_cost: Number(doc.deliveryCost) || 0,
     total: Number(doc.total) || 0,
     total_weight_grams: Number(doc.totalWeightGrams) || 0,
-    promo_code_id: doc.promoCode ? String(typeof doc.promoCode === "object" ? doc.promoCode.id : doc.promoCode) : null,
+    promo_code_id: doc.promoCode ? String(typeof doc.promoCode === "object" && doc.promoCode !== null ? doc.promoCode.id : doc.promoCode) : null,
     comment: doc.comment || null,
     admin_notes: doc.adminNotes || null,
     cdek_tracking_number: doc.cdekTrackingNumber || null,
@@ -191,7 +256,7 @@ export async function getClientOrders(): Promise<Order[]> {
     limit: 200,
   })
 
-  return docs.map(transformOrder)
+  return (docs as PayloadOrderDoc[]).map(transformOrder)
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
@@ -203,7 +268,7 @@ export async function getOrderById(orderId: string): Promise<Order | null> {
       id: orderId,
       depth: 1,
     })
-    return transformOrder(doc)
+    return transformOrder(doc as PayloadOrderDoc)
   } catch {
     return null
   }
@@ -297,7 +362,7 @@ export async function createOrder(params: {
 
   // Create order via Payload API
   const payload = await getPayloadClient()
-  const orderData: Record<string, any> = {
+  const orderData: Record<string, unknown> = {
     client: clientDocId,
     deliveryMethod: params.deliveryMethod,
     deliveryAddress: params.deliveryAddress || "",
@@ -318,7 +383,7 @@ export async function createOrder(params: {
   const doc = await payload.create({
     collection: "orders",
     data: orderData,
-  })
+  }) as PayloadOrderDoc
 
   // Also populate order_items Supabase table (reliable source for repeat orders)
   const adminDb = createAdminClient()
@@ -345,7 +410,7 @@ export async function createOrder(params: {
     const { generateInvoicePDF } = await import("@/lib/generate-invoice")
     const orderForInvoice = {
       id: doc.id,
-      orderId: (doc as any).orderId,
+      orderId: doc.orderId,
       items,
       subtotal,
       discountAmount,
@@ -356,7 +421,7 @@ export async function createOrder(params: {
     }
     let pdfBuffer: Uint8Array | undefined
     try {
-      pdfBuffer = await generateInvoicePDF(orderForInvoice as any)
+      pdfBuffer = await generateInvoicePDF(orderForInvoice as unknown as Parameters<typeof generateInvoicePDF>[0])
     } catch (pdfErr) {
       console.error("Failed to generate invoice PDF:", pdfErr)
     }
@@ -370,7 +435,7 @@ export async function createOrder(params: {
     client_id: user.id,
     type: "order_update",
     title: "Заказ создан",
-    message: `Ваш заказ ${(doc as any).orderId || doc.id} ожидает обработки`,
+    message: `Ваш заказ ${doc.orderId || doc.id} ожидает обработки`,
     data: { order_id: String(doc.id) },
   })
 
@@ -458,20 +523,20 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
         collection: "orders",
         id: orderId,
         depth: 0,
-      })
-      const rawDoc = doc as any
+      }) as PayloadOrderDoc
+      const rawDoc = doc
       console.log("[repeatOrder] Payload doc keys:", Object.keys(rawDoc))
       console.log("[repeatOrder] Payload doc.items:", JSON.stringify(rawDoc.items)?.slice(0, 500))
 
-      const payloadItems = rawDoc.items as any[] || []
-      items = payloadItems.map((i: any) => ({
+      const payloadItems = rawDoc.items || []
+      items = payloadItems.map((i) => ({
         productName: i.productName || i.product_name || "",
         variantName: i.variantName || i.variant_name || "",
         grindOption: i.grindOption || i.grind_option || "",
         quantity: Number(i.quantity) || 1,
       }))
-    } catch (e: any) {
-      console.log("[repeatOrder] Payload findByID error:", e?.message)
+    } catch (e: unknown) {
+      console.log("[repeatOrder] Payload findByID error:", e instanceof Error ? e.message : e)
     }
 
     console.log("[repeatOrder] parsed items:", JSON.stringify(items))
@@ -571,10 +636,10 @@ export async function setTrackingNumber(
       collection: "orders",
       id: orderId,
       depth: 1,
-    })
+    }) as PayloadOrderDoc
 
-    const clientRef = (doc as any).client
-    const supabaseId = typeof clientRef === "object" ? clientRef?.supabaseId : null
+    const clientRef = doc.client
+    const supabaseId = typeof clientRef === "object" && clientRef !== null ? clientRef?.supabaseId : null
 
     if (supabaseId) {
       const adminDb = createAdminClient()
@@ -583,7 +648,7 @@ export async function setTrackingNumber(
         client_id: supabaseId,
         type: "order_update",
         title: "Трек-номер присвоен",
-        message: `Заказ ${(doc as any).orderId} отправлен через ${carrierName}. Трек: ${trackingNumber}`,
+        message: `Заказ ${doc.orderId} отправлен через ${carrierName}. Трек: ${trackingNumber}`,
         data: { order_id: String(doc.id) },
       })
     }
@@ -609,11 +674,11 @@ export async function deleteOrder(orderId: string): Promise<{ success?: boolean;
       collection: "orders",
       id: orderId,
       depth: 0,
-    })
+    }) as PayloadOrderDoc
 
-    const docClient = typeof (doc as any).client === "object"
-      ? (doc as any).client?.id
-      : (doc as any).client
+    const docClient = typeof doc.client === "object" && doc.client !== null
+      ? doc.client?.id
+      : doc.client
     if (String(docClient) !== String(clientDocId)) {
       return { error: "Нет доступа" }
     }
@@ -644,7 +709,7 @@ export async function getAllOrders(): Promise<Order[]> {
     limit: 500,
   })
 
-  return docs.map(transformOrder)
+  return (docs as PayloadOrderDoc[]).map(transformOrder)
 }
 
 export async function updateOrderStatus(
@@ -662,9 +727,9 @@ export async function updateOrderStatus(
     collection: "orders",
     id: orderId,
     depth: 1,
-  })
+  }) as PayloadOrderDoc
 
-  const oldStatus = (doc as any).status
+  const oldStatus = doc.status
 
   // Update via Payload
   await payload.update({
@@ -695,8 +760,8 @@ export async function updateOrderStatus(
     cancelled: "отменён",
   }
 
-  const clientRef = (doc as any).client
-  const supabaseId = typeof clientRef === "object" ? clientRef?.supabaseId : null
+  const clientRef = doc.client
+  const supabaseId = typeof clientRef === "object" && clientRef !== null ? clientRef?.supabaseId : null
 
   if (supabaseId) {
     const adminDb = createAdminClient()
@@ -712,7 +777,7 @@ export async function updateOrderStatus(
     try {
       const { data: userData } = await adminDb.auth.admin.getUserById(supabaseId)
       if (userData?.user?.email) {
-        const orderDisplayId = (doc as any).orderId || orderId
+        const orderDisplayId = doc.orderId || orderId
         await sendStatusEmail(
           userData.user.email,
           orderDisplayId,

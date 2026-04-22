@@ -19,6 +19,11 @@ interface LexicalNode {
   url?: string
   src?: string
   altText?: string
+  value?: {
+    url?: string
+    filename?: string
+    alt?: string
+  }
 }
 
 function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
@@ -55,7 +60,7 @@ function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
         </a>
       )
     case "upload": {
-      const val = (node as any).value
+      const val = node.value
       const uploadSrc = node.src || val?.url || (val?.filename ? `/api/media/file/${val.filename}` : null)
       return uploadSrc ? (
         <figure key={i} className="my-4">

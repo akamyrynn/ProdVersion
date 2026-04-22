@@ -33,9 +33,62 @@ interface MapModalProps {
   onClose: () => void;
 }
 
+interface PayloadMapLocation {
+  name?: string;
+  address?: string;
+  phone?: string;
+  image?: { url?: string } | string | number | null;
+  workingHours?: string;
+  tags?: string[];
+  city?: string;
+  yandexMapsUrl?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+interface YandexPlacemark {
+  events: {
+    add: (event: string, callback: () => void) => void;
+  };
+}
+
+interface YandexMapInstance {
+  destroy: () => void;
+  setCenter: (
+    center: [number, number],
+    zoom: number,
+    options?: { duration?: number },
+  ) => void;
+  setBounds: (
+    bounds: unknown,
+    options?: { checkZoomRange?: boolean; zoomMargin?: number },
+  ) => void;
+  geoObjects: {
+    add: (placemark: YandexPlacemark) => void;
+    getBounds: () => unknown;
+  };
+}
+
+interface YandexMapsApi {
+  ready: (callback: () => void) => void;
+  Map: new (
+    element: HTMLElement,
+    options: {
+      center: [number, number];
+      zoom: number;
+      controls: string[];
+    },
+  ) => YandexMapInstance;
+  Placemark: new (
+    coordinates: [number, number],
+    properties: Record<string, string>,
+    options?: { balloonMaxWidth?: number },
+  ) => YandexPlacemark;
+}
+
 declare global {
   interface Window {
-    ymaps: any;
+    ymaps?: YandexMapsApi;
   }
 }
 
@@ -98,10 +151,9 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
   const [selectedCity, setSelectedCity] = useState<string>("Сочи");
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const placemarkRefs = useRef<any[]>([]);
+  const mapInstanceRef = useRef<YandexMapInstance | null>(null);
+  const placemarkRefs = useRef<YandexPlacemark[]>([]);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -168,8 +220,8 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
     fetch("/api/map-locations?where[isActive][equals]=true&limit=100&depth=1")
       .then((r) => r.json())
       .then((data) => {
-        const locs: MapLocation[] = (data.docs || []).map(
-          (d: Record<string, any>) => {
+        const locs: MapLocation[] = ((data.docs || []) as PayloadMapLocation[]).map(
+          (d) => {
             let imageUrl: string | undefined;
             if (d.image && typeof d.image === "object" && d.image.url) {
               imageUrl = d.image.url;
@@ -183,8 +235,8 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
               tags: Array.isArray(d.tags) ? d.tags : [],
               city: (d.city as string) || "Сочи",
               yandexMapsUrl: (d.yandexMapsUrl as string) || "",
-              latitude: d.latitude as number,
-              longitude: d.longitude as number,
+              latitude: Number(d.latitude) || 0,
+              longitude: Number(d.longitude) || 0,
             };
           }
         );
@@ -206,7 +258,10 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
         await loadYmapsScript();
         if (destroyed || !mapContainerRef.current) return;
 
-        window.ymaps.ready(() => {
+        const ymaps = window.ymaps;
+        if (!ymaps) return;
+
+        ymaps.ready(() => {
           if (destroyed || !mapContainerRef.current) return;
 
           if (mapInstanceRef.current) {
@@ -219,13 +274,16 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
           const centerLon =
             locations.reduce((s, l) => s + l.longitude, 0) / locations.length;
 
-          const map = new window.ymaps.Map(mapContainerRef.current, {
+          const mapContainer = mapContainerRef.current;
+          if (!mapContainer) return;
+
+          const map = new ymaps.Map(mapContainer, {
             center: [centerLat, centerLon],
             zoom: 12,
             controls: ["zoomControl"],
           });
 
-          const placemarks: any[] = [];
+          const placemarks: YandexPlacemark[] = [];
 
           locations.forEach((loc, idx) => {
             const imgHtml = loc.imageUrl
@@ -245,7 +303,7 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
               ? `<a href="${loc.yandexMapsUrl}" target="_blank" rel="noopener noreferrer" style="color:#e6610d;font-weight:600;text-decoration:none;font-size:13px">Подробнее на Яндекс.Картах →</a>`
               : "";
 
-            const placemark = new window.ymaps.Placemark(
+            const placemark = new ymaps.Placemark(
               [loc.latitude, loc.longitude],
               {
                 balloonContentHeader: `<span style="font-size:15px;font-weight:700">${loc.name}</span>`,
@@ -283,7 +341,6 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
           }
 
           mapInstanceRef.current = map;
-          setMapReady(true);
         });
       } catch (err) {
         console.error("Map init error:", err);
@@ -302,8 +359,12 @@ export default function MapModal({ isOpen, onClose }: MapModalProps) {
     if (!isOpen && mapInstanceRef.current) {
       mapInstanceRef.current.destroy();
       mapInstanceRef.current = null;
-      setMapReady(false);
-      setActiveIdx(null);
+
+      const timer = window.setTimeout(() => {
+        setActiveIdx(null);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
   }, [isOpen]);
 

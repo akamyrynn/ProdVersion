@@ -1,9 +1,9 @@
 "use server"
 
-import { getPayload } from "payload"
+import { getPayload, type Where } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
-import type { Product, ProductVariant, ProductType, AttachedFile } from "@/types"
+import type { Product, ProductVariant, ProductType, ProductTypeOption, ProductTag, AttachedFile } from "@/types"
 
 async function getPayloadClient() {
   return getPayload({ config: configPromise })
@@ -28,21 +28,172 @@ const GRIND_MAP: Record<string, string> = {
   ground: "Молотый",
 }
 
-function extractImageUrls(images: any[] | undefined | null): string[] {
+const DEFAULT_PRODUCT_TYPES: ProductTypeOption[] = [
+  { id: "legacy-coffee", slug: "coffee", name: "Кофе", icon_url: null, sort_order: 0, product_count: 0 },
+  { id: "legacy-tea", slug: "tea", name: "Чай", icon_url: null, sort_order: 10, product_count: 0 },
+  { id: "legacy-accessory", slug: "accessory", name: "Аксессуары", icon_url: null, sort_order: 20, product_count: 0 },
+]
+
+interface PayloadMedia {
+  url?: string
+  filename?: string
+  filesize?: number
+  sizes?: {
+    card?: { url?: string }
+    full?: { url?: string }
+  }
+}
+
+type PayloadMediaRef = PayloadMedia | string | number | null | undefined
+
+interface PayloadTag {
+  id?: string | number
+  name?: string
+  slug?: string
+  color?: string
+}
+
+interface PayloadVariant {
+  id?: string | number
+  name?: string
+  sku?: string | null
+  price?: number
+  weightGrams?: number | null
+  isAvailable?: boolean
+  grindOptions?: string[]
+}
+
+interface PayloadProductTypeDoc {
+  id?: string | number
+  name?: string
+  slug?: ProductType
+  icon?: PayloadMediaRef
+  sortOrder?: number
+  isVisible?: boolean
+}
+
+interface LexicalNode {
+  root?: LexicalNode
+  children?: LexicalNode[]
+  type?: string
+  text?: string
+  format?: number
+  tag?: string
+  listType?: string
+  fields?: { url?: string }
+  value?: PayloadMediaRef
+}
+
+interface PayloadProductDoc {
+  id?: string | number
+  category?: { id?: string | number } | string | number | null
+  productType?: ProductType
+  productTypeRef?: PayloadProductTypeDoc | string | number | null
+  name?: string
+  slug?: string
+  description?: LexicalNode | string | null
+  sortOrder?: number
+  isVisible?: boolean
+  stickers?: (PayloadTag | string | number | null)[]
+  coffeeDetails?: {
+    roaster?: string
+    roastLevel?: string
+    region?: string
+    processingMethod?: string
+    growingHeight?: string
+    qGraderRating?: number
+    brewingMethods?: {
+      method?: string
+      description?: string
+      image?: PayloadMediaRef
+    }[]
+  }
+  teaDetails?: {
+    brewingInstructions?: {
+      title?: string
+      text?: string
+      image?: PayloadMediaRef
+    }[]
+  }
+  attachedFiles?: {
+    label?: string
+    file?: PayloadMediaRef
+  }[]
+  images?: { image?: PayloadMediaRef }[]
+  videoUrls?: { url?: string }[]
+  variants?: PayloadVariant[]
+  createdAt?: string
+  updatedAt?: string
+}
+
+interface PayloadCategoryDoc {
+  id: number
+  name: string
+  image?: PayloadMediaRef
+  productType?: ProductType
+  productTypeRef?: PayloadProductTypeDoc | string | number | null
+  parent?: { id?: number } | number | null
+  children?: PayloadCategoryDoc[]
+}
+
+interface CatalogCategoryDoc {
+  id: number
+  name: string
+  image?: PayloadMedia | null
+  children?: CatalogCategoryDoc[]
+}
+
+interface PayloadFavoriteDoc {
+  product?: { id?: string | number } | string | number | null
+}
+
+interface PayloadTagDoc {
+  id?: string | number
+  name?: string
+  slug?: string
+  color?: string
+}
+
+function isPayloadMedia(value: PayloadMediaRef): value is PayloadMedia {
+  return typeof value === "object" && value !== null
+}
+
+function isDefined<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined
+}
+
+function isNonEmptyString(value: string | null | undefined): value is string {
+  return Boolean(value)
+}
+
+function normalizeTagColor(color: string | undefined): ProductTag["color"] {
+  return color === "orange" || color === "purple" || color === "green" ? color : undefined
+}
+
+function transformTag(tag: PayloadTag | string | number | null): ProductTag | null {
+  if (!tag || typeof tag !== "object") return null
+  return {
+    id: String(tag.id ?? ""),
+    name: tag.name || "",
+    slug: tag.slug || "",
+    color: normalizeTagColor(tag.color),
+  }
+}
+
+function extractImageUrls(images: { image?: PayloadMediaRef }[] | undefined | null): string[] {
   if (!images || !Array.isArray(images)) return []
   return images
     .map((entry) => {
       const img = entry?.image
-      if (!img) return null
-      if (typeof img === "string") return null // just an ID, no URL
+      if (!isPayloadMedia(img)) return null
       return img.url || img.sizes?.card?.url || img.sizes?.full?.url || null
     })
-    .filter(Boolean) as string[]
+    .filter(isDefined)
 }
 
-function transformVariant(v: any, productId: string): ProductVariant {
+function transformVariant(v: PayloadVariant, productId: string): ProductVariant {
   return {
-    id: v.id || "",
+    id: String(v.id ?? ""),
     product_id: productId,
     name: v.name || "",
     sku: v.sku || null,
@@ -56,12 +207,77 @@ function transformVariant(v: any, productId: string): ProductVariant {
   }
 }
 
-function extractMediaUrl(media: any): string | null {
-  if (!media || typeof media === "string" || typeof media === "number") return null
+function extractMediaUrl(media: PayloadMediaRef): string | null {
+  if (!isPayloadMedia(media)) return null
   return media.url || media.sizes?.card?.url || media.sizes?.full?.url || null
 }
 
-function serializeLexical(node: any): string {
+function resolveProductType(doc: { productType?: ProductType; productTypeRef?: PayloadProductTypeDoc | string | number | null }): ProductType {
+  const typeRef = doc.productTypeRef
+  if (typeRef && typeof typeRef === "object" && typeRef.slug) {
+    return typeRef.slug
+  }
+  return doc.productType || "coffee"
+}
+
+function getProductTypeId(doc: PayloadProductTypeDoc | undefined): string | number | undefined {
+  return doc?.id
+}
+
+function buildProductTypeWhere(slug: ProductType, typeId?: string | number): Where {
+  const clauses: Where[] = [{ productType: { equals: slug } }]
+  if (typeId !== undefined) {
+    clauses.push({ productTypeRef: { equals: typeId } })
+  }
+  return { or: clauses }
+}
+
+type PayloadClient = Awaited<ReturnType<typeof getPayloadClient>>
+
+async function findProductTypeBySlug(payload: PayloadClient, slug: ProductType): Promise<PayloadProductTypeDoc | null> {
+  try {
+    const { docs } = await payload.find({
+      collection: "product-types",
+      where: { slug: { equals: slug } },
+      limit: 1,
+      depth: 1,
+    })
+    return (docs[0] as PayloadProductTypeDoc | undefined) || null
+  } catch {
+    return null
+  }
+}
+
+async function countProductsByType(payload: PayloadClient, slug: ProductType, typeId?: string | number): Promise<number> {
+  const result = await payload.find({
+    collection: "products",
+    where: {
+      and: [
+        { isVisible: { equals: true } },
+        buildProductTypeWhere(slug, typeId),
+      ],
+    },
+    limit: 1,
+    depth: 0,
+  })
+  return result.totalDocs
+}
+
+function transformProductType(doc: PayloadProductTypeDoc, fallback?: ProductTypeOption): ProductTypeOption | null {
+  const slug = doc.slug || fallback?.slug
+  if (!slug) return null
+
+  return {
+    id: String(doc.id ?? fallback?.id ?? slug),
+    slug,
+    name: doc.name || fallback?.name || slug,
+    icon_url: extractMediaUrl(doc.icon) || fallback?.icon_url || null,
+    sort_order: doc.sortOrder ?? fallback?.sort_order ?? 0,
+    product_count: 0,
+  }
+}
+
+function serializeLexical(node: LexicalNode | string | null | undefined): string {
   if (!node) return ""
   if (typeof node === "string") return node
   if (node.root) return serializeLexical(node.root)
@@ -96,7 +312,7 @@ function serializeLexical(node: any): string {
   return html
 }
 
-function serializeLexicalInline(children: any[]): string {
+function serializeLexicalInline(children: LexicalNode[]): string {
   let result = ""
   for (const child of children) {
     if (child.type === "text") {
@@ -118,7 +334,7 @@ function serializeLexicalInline(children: any[]): string {
   return result
 }
 
-function transformAttachedFiles(files: any[] | undefined | null): AttachedFile[] {
+function transformAttachedFiles(files: PayloadProductDoc["attachedFiles"] | undefined | null): AttachedFile[] {
   if (!files || !Array.isArray(files)) return []
   return files
     .map((entry) => {
@@ -133,8 +349,9 @@ function transformAttachedFiles(files: any[] | undefined | null): AttachedFile[]
     .filter(Boolean) as AttachedFile[]
 }
 
-function transformProduct(doc: any): Product {
+function transformProduct(doc: PayloadProductDoc): Product {
   const productId = String(doc.id)
+  const categoryId = typeof doc.category === "object" && doc.category !== null ? doc.category.id : doc.category
   const coffee = doc.coffeeDetails || {}
   const tea = doc.teaDetails || {}
 
@@ -142,19 +359,15 @@ function transformProduct(doc: any): Product {
 
   return {
     id: productId,
-    category_id: String(typeof doc.category === "object" ? doc.category?.id : doc.category),
-    product_type: doc.productType as ProductType,
+    category_id: categoryId === null || categoryId === undefined ? "" : String(categoryId),
+    product_type: resolveProductType(doc),
     name: doc.name || "",
     slug: doc.slug || "",
     description: descriptionHtml || null,
     description_images: [],
     sort_order: doc.sortOrder || 0,
     is_visible: doc.isVisible ?? true,
-    stickers: (doc.stickers || []).map((tag: any) =>
-      tag && typeof tag === "object"
-        ? { id: String(tag.id), name: tag.name || "", slug: tag.slug || "", color: tag.color }
-        : null
-    ).filter(Boolean),
+    stickers: (doc.stickers || []).map(transformTag).filter(isDefined),
 
     // Coffee details (flattened from coffeeDetails group)
     roaster: coffee.roaster || null,
@@ -165,16 +378,16 @@ function transformProduct(doc: any): Product {
     q_grader_rating: coffee.qGraderRating || null,
 
     // Coffee brewing methods
-    brewing_methods: (coffee.brewingMethods || []).map((m: any) => ({
-      method: m.method,
+    brewing_methods: (coffee.brewingMethods || []).map((m) => ({
+      method: m.method || "",
       description: m.description || "",
       image_url: extractMediaUrl(m.image) || undefined,
     })),
 
     // Tea brewing instructions
-    brewing_instructions: (tea.brewingInstructions || []).map((i: any) => ({
-      title: i.title,
-      text: i.text,
+    brewing_instructions: (tea.brewingInstructions || []).map((i) => ({
+      title: i.title || "",
+      text: i.text || "",
       image_url: extractMediaUrl(i.image) || undefined,
     })),
 
@@ -183,13 +396,21 @@ function transformProduct(doc: any): Product {
 
     // Media
     images: extractImageUrls(doc.images),
-    video_urls: (doc.videoUrls || []).map((v: any) => v.url).filter(Boolean),
+    video_urls: (doc.videoUrls || []).map((v) => v.url).filter(isNonEmptyString),
 
     created_at: doc.createdAt || "",
     updated_at: doc.updatedAt || "",
 
     // Relations
-    variants: (doc.variants || []).map((v: any) => transformVariant(v, productId)),
+    variants: (doc.variants || []).map((v) => transformVariant(v, productId)),
+  }
+}
+
+function transformCategory(doc: PayloadCategoryDoc): CatalogCategoryDoc {
+  return {
+    ...doc,
+    image: isPayloadMedia(doc.image) ? doc.image : null,
+    children: (doc.children || []).map(transformCategory),
   }
 }
 
@@ -197,12 +418,59 @@ function transformProduct(doc: any): Product {
 // Public API
 // ============================================================
 
-export async function getCategories(productType?: ProductType) {
+export async function getProductTypes(): Promise<ProductTypeOption[]> {
+  const payload = await getPayloadClient()
+  let productTypeDocs: PayloadProductTypeDoc[] = []
+
+  try {
+    const { docs } = await payload.find({
+      collection: "product-types",
+      where: { isVisible: { equals: true } },
+      sort: "sortOrder",
+      limit: 100,
+      depth: 1,
+    })
+    productTypeDocs = docs as PayloadProductTypeDoc[]
+  } catch {
+    productTypeDocs = []
+  }
+
+  const bySlug = new Map<ProductType, ProductTypeOption>()
+  for (const fallback of DEFAULT_PRODUCT_TYPES) {
+    bySlug.set(fallback.slug, fallback)
+  }
+
+  for (const doc of productTypeDocs) {
+    const fallback = DEFAULT_PRODUCT_TYPES.find((item) => item.slug === doc.slug)
+    const option = transformProductType(doc, fallback)
+    if (option) bySlug.set(option.slug, option)
+  }
+
+  const withCounts = await Promise.all(
+    Array.from(bySlug.values()).map(async (type) => {
+      const doc = productTypeDocs.find((item) => item.slug === type.slug)
+      const productCount = await countProductsByType(payload, type.slug, getProductTypeId(doc))
+      return { ...type, product_count: productCount }
+    })
+  )
+
+  return withCounts
+    .filter((type) => type.product_count > 0)
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "ru"))
+}
+
+export async function getCategories(productType?: ProductType): Promise<CatalogCategoryDoc[]> {
   const payload = await getPayloadClient()
 
-  const where: any = { isVisible: { equals: true } }
+  let where: Where = { isVisible: { equals: true } }
   if (productType) {
-    where.productType = { equals: productType }
+    const typeDoc = await findProductTypeBySlug(payload, productType)
+    where = {
+      and: [
+        { isVisible: { equals: true } },
+        buildProductTypeWhere(productType, getProductTypeId(typeDoc || undefined)),
+      ],
+    }
   }
 
   const { docs } = await payload.find({
@@ -213,13 +481,14 @@ export async function getCategories(productType?: ProductType) {
     depth: 1,
   })
 
-  const all = docs as any[]
+  const all = docs as PayloadCategoryDoc[]
   const roots = all.filter((c) => !c.parent)
-  const childMap = new Map<number, any[]>()
+  const childMap = new Map<number, PayloadCategoryDoc[]>()
 
   all.forEach((c) => {
     if (c.parent) {
       const parentId = typeof c.parent === "object" ? c.parent.id : c.parent
+      if (parentId === undefined) return
       const existing = childMap.get(parentId) || []
       existing.push(c)
       childMap.set(parentId, existing)
@@ -230,7 +499,7 @@ export async function getCategories(productType?: ProductType) {
     root.children = childMap.get(root.id) || []
   })
 
-  return roots
+  return roots.map(transformCategory)
 }
 
 export async function getProductsByCategory(categoryId: number | string): Promise<Product[]> {
@@ -247,7 +516,7 @@ export async function getProductsByCategory(categoryId: number | string): Promis
     depth: 2,
   })
 
-  return docs.map(transformProduct)
+  return (docs as PayloadProductDoc[]).map(transformProduct)
 }
 
 export async function getProductById(id: number | string): Promise<Product | null> {
@@ -259,7 +528,7 @@ export async function getProductById(id: number | string): Promise<Product | nul
       id: id,
       depth: 2,
     })
-    return transformProduct(doc)
+    return transformProduct(doc as PayloadProductDoc)
   } catch {
     return null
   }
@@ -276,7 +545,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   })
 
   if (!docs[0]) return null
-  return transformProduct(docs[0])
+  return transformProduct(docs[0] as PayloadProductDoc)
 }
 
 export async function searchProducts(query: string): Promise<Product[]> {
@@ -293,7 +562,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
     depth: 2,
   })
 
-  return docs.map(transformProduct)
+  return (docs as PayloadProductDoc[]).map(transformProduct)
 }
 
 // ============================================================
@@ -334,7 +603,7 @@ export async function getFavoriteProductIds(): Promise<string[]> {
     depth: 0,
   })
 
-  return docs.map((d: any) => String(typeof d.product === "object" ? d.product.id : d.product))
+  return (docs as PayloadFavoriteDoc[]).map((d) => String(typeof d.product === "object" && d.product !== null ? d.product.id : d.product))
 }
 
 export async function getFavoriteProducts(): Promise<Product[]> {
@@ -349,10 +618,10 @@ export async function getFavoriteProducts(): Promise<Product[]> {
     depth: 2,
   })
 
-  return docs
-    .map((d: any) => {
+  return (docs as PayloadFavoriteDoc[])
+    .map((d) => {
       const raw = typeof d.product === "object" ? d.product : null
-      return raw ? transformProduct(raw) : null
+      return raw ? transformProduct(raw as PayloadProductDoc) : null
     })
     .filter(Boolean) as Product[]
 }
@@ -396,11 +665,11 @@ export async function getTags() {
       limit: 100,
       sort: "name",
     })
-    return docs.map((tag: any) => ({
+    return (docs as PayloadTagDoc[]).map((tag) => ({
       id: String(tag.id),
       name: tag.name || "",
       slug: tag.slug || "",
-      color: tag.color as string | undefined,
+      color: normalizeTagColor(tag.color),
     }))
   } catch {
     return []

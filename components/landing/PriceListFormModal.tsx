@@ -18,11 +18,7 @@ export default function PriceListFormModal({ isOpen, onClose }: Props) {
     initialState,
   );
   const [agreed, setAgreed] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-
-  useEffect(() => {
-    if (state.success) setShowSuccess(true);
-  }, [state.success]);
+  const showSuccess = state.success;
 
   useEffect(() => {
     if (isOpen) {

@@ -26,7 +26,9 @@ export function CategorySection({
   const supabase = createClient()
 
   useEffect(() => {
-    if (isExpanded && !loaded) {
+    if (!isExpanded || loaded) return
+
+    const timer = window.setTimeout(() => {
       setLoading(true)
       supabase
         .from("products")
@@ -39,7 +41,9 @@ export function CategorySection({
           setLoading(false)
           setLoaded(true)
         })
-    }
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [isExpanded, loaded, category.id, supabase])
 
   return (

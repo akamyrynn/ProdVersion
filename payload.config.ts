@@ -7,6 +7,7 @@ import { ru } from "@payloadcms/translations/languages/ru"
 import sharp from "sharp"
 
 import { Categories } from "./payload/collections/Categories"
+import { ProductTypes } from "./payload/collections/ProductTypes"
 import { Products } from "./payload/collections/Products"
 import { Orders } from "./payload/collections/Orders"
 import { PromoCodes } from "./payload/collections/PromoCodes"
@@ -42,6 +43,7 @@ export default buildConfig({
     CartItems,
     Favorites,
     Tags,
+    ProductTypes,
     Products,
     Categories,
     News,

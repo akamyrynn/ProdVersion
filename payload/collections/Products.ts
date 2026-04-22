@@ -6,8 +6,8 @@ export const Products: CollectionConfig = {
   admin: {
     useAsTitle: "name",
     group: "Каталог",
-    description: "Товары: кофе, чай, аксессуары",
-    defaultColumns: ["name", "productType", "category", "isVisible", "stickers"],
+    description: "Товары каталога",
+    defaultColumns: ["name", "productTypeRef", "productType", "category", "isVisible", "stickers"],
   },
   labels: {
     singular: "Товар",
@@ -29,15 +29,26 @@ export const Products: CollectionConfig = {
       unique: true,
     },
     {
+      name: "productTypeRef",
+      type: "relationship",
+      label: "Тип товара",
+      relationTo: "product-types",
+      admin: {
+        description: "Основной управляемый тип для вкладок каталога. Старое поле ниже оставлено как fallback.",
+      },
+    },
+    {
       name: "productType",
       type: "select",
-      label: "Тип товара",
-      required: true,
+      label: "Системный тип характеристик",
       options: [
         { label: "Кофе", value: "coffee" },
         { label: "Чай", value: "tea" },
         { label: "Аксессуар", value: "accessory" },
       ],
+      admin: {
+        description: "Legacy/fallback: влияет на блоки характеристик кофе и чая, фронт сначала смотрит на управляемый тип выше.",
+      },
     },
     {
       name: "category",

@@ -61,7 +61,7 @@ export default function Production() {
         <div className={styles.headerContainer}>
           <Copy type="lines">
             <h3>
-              От зелёного зерна до готовой чашки — контролируем каждый этап
+              От зерна до чашки — контролируем каждый этап
               производства.
             </h3>
           </Copy>

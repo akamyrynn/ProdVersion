@@ -3,7 +3,32 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
-async function resolveMediaUrls(items: any[]) {
+interface NewsItemRecord {
+  cover_image_id?: number | null
+  cover_image?: number | string | null
+  content?: LexicalNode | null
+  [key: string]: unknown
+}
+
+interface LexicalNode {
+  type?: string
+  value?: { id?: number }
+  src?: string
+  root?: LexicalNode
+  children?: LexicalNode[]
+}
+
+interface MediaRecord {
+  id: number
+  url?: string | null
+  filename?: string | null
+}
+
+function isLexicalNode(node: LexicalNode | null | undefined): node is LexicalNode {
+  return Boolean(node)
+}
+
+async function resolveMediaUrls<T extends NewsItemRecord>(items: T[]) {
   if (!items.length) return items
 
   // Collect all numeric media IDs from cover_image_id or cover_image
@@ -13,7 +38,7 @@ async function resolveMediaUrls(items: any[]) {
 
   // Also collect media IDs from Lexical rich-text content (upload nodes)
   const contentMediaIds: number[] = []
-  function walkLexical(node: any) {
+  function walkLexical(node: LexicalNode | null | undefined) {
     if (!node) return
     if (node.type === "upload" && node.value?.id && typeof node.value.id === "number") {
       contentMediaIds.push(node.value.id)
@@ -39,11 +64,11 @@ async function resolveMediaUrls(items: any[]) {
     .in("id", allIds)
 
   const mediaMap = new Map(
-    (mediaItems || []).map((m: any) => [m.id, m.url || `/api/media/file/${m.filename}`])
+    ((mediaItems || []) as MediaRecord[]).map((m) => [m.id, m.url || `/api/media/file/${m.filename}`])
   )
 
   // Patch upload nodes in Lexical content with resolved src
-  function patchLexical(node: any): any {
+  function patchLexical(node: LexicalNode | null | undefined): LexicalNode | null | undefined {
     if (!node) return node
     if (node.type === "upload" && node.value?.id && typeof node.value.id === "number") {
       const resolvedUrl = mediaMap.get(node.value.id)
@@ -52,7 +77,7 @@ async function resolveMediaUrls(items: any[]) {
       }
     }
     if (Array.isArray(node.children)) {
-      return { ...node, children: node.children.map(patchLexical) }
+      return { ...node, children: node.children.map(patchLexical).filter(isLexicalNode) }
     }
     return node
   }
@@ -60,7 +85,7 @@ async function resolveMediaUrls(items: any[]) {
   return items.map((item) => {
     let content = item.content
     if (content && typeof content === "object" && content.root) {
-      content = { ...content, root: patchLexical(content.root) }
+      content = { ...content, root: patchLexical(content.root) ?? undefined }
     }
 
     return {

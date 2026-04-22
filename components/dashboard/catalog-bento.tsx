@@ -23,7 +23,7 @@ import { formatPrice } from "@/lib/utils/format"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { ProductTableRow } from "./product-table-row"
-import type { Product, ProductType } from "@/types"
+import type { Product, ProductType, ProductTypeOption } from "@/types"
 
 interface TagOption {
   id: string
@@ -32,10 +32,23 @@ interface TagOption {
   color?: string
 }
 
+interface CatalogCategory {
+  id: number
+  name: string
+  children?: CatalogCategory[]
+  image?: {
+    url?: string
+    sizes?: {
+      card?: { url?: string }
+    }
+  } | null
+}
+
 interface Props {
-  categories: any[]
+  categories: CatalogCategory[]
   favoriteIds: string[]
   activeType: ProductType
+  productTypes: ProductTypeOption[]
   tags: TagOption[]
 }
 
@@ -43,11 +56,11 @@ type ViewMode = "grid" | "list"
 type SortMode = "alphabetical" | "price"
 type FilterMode = string
 
-const typeTabs: { value: ProductType; label: string; icon: typeof Coffee }[] = [
-  { value: "coffee", label: "Кофе", icon: Coffee },
-  { value: "tea", label: "Чай", icon: Leaf },
-  { value: "accessory", label: "Аксессуары", icon: Package },
-]
+const fallbackTypeIcons: Record<string, typeof Coffee> = {
+  coffee: Coffee,
+  tea: Leaf,
+  accessory: Package,
+}
 
 const sortLabels: Record<SortMode, string> = {
   alphabetical: "По алфавиту",
@@ -69,33 +82,35 @@ const cardColors = [
   "bg-[#faead5]/60",
 ]
 
-export function CatalogBento({ categories, favoriteIds, activeType, tags }: Props) {
+export function CatalogBento({ categories, favoriteIds, activeType, productTypes, tags }: Props) {
   const router = useRouter()
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [sortMode, setSortMode] = useState<SortMode>("alphabetical")
   const [filterMode, setFilterMode] = useState<FilterMode>("all")
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [expandedName, setExpandedName] = useState("")
-  const [products, setProducts] = useState<any[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [expandedListIds, setExpandedListIds] = useState<Set<number>>(new Set())
 
   useEffect(() => {
-    if (!expandedId) {
-      setProducts([])
-      return
-    }
-    setLoading(true)
-    getProductsByCategory(expandedId).then((data) => {
-      setProducts(data)
-      setLoading(false)
-    })
+    if (!expandedId) return
+
+    const timer = window.setTimeout(() => {
+      setLoading(true)
+      getProductsByCategory(expandedId).then((data) => {
+        setProducts(data)
+        setLoading(false)
+      })
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [expandedId])
 
-  const allCats: any[] = useMemo(() => {
-    const result: any[] = []
-    categories.forEach((c: any) => {
-      if (c.children?.length) c.children.forEach((s: any) => result.push(s))
+  const allCats: CatalogCategory[] = useMemo(() => {
+    const result: CatalogCategory[] = []
+    categories.forEach((c) => {
+      if (c.children?.length) c.children.forEach((s) => result.push(s))
       else result.push(c)
     })
     return result
@@ -122,25 +137,32 @@ export function CatalogBento({ categories, favoriteIds, activeType, tags }: Prop
         <span className="text-[11px] font-bold text-neutral-300 mr-2 tracking-[0.15em] uppercase shrink-0 hidden sm:block">
           Каталог
         </span>
-        {typeTabs.map((t) => (
-          <button
-            key={t.value}
-            onClick={() => {
-              router.push(`/dashboard/catalog?type=${t.value}`)
-              setExpandedId(null)
-              setExpandedListIds(new Set())
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold transition-all duration-300",
-              activeType === t.value
-                ? "bg-[#5b328a] text-white shadow-md shadow-[#5b328a]/10"
-                : "bg-white/80 text-neutral-500 hover:text-neutral-900 hover:bg-white hover:shadow-sm"
-            )}
-          >
-            <t.icon className="h-3.5 w-3.5" />
-            {t.label}
-          </button>
-        ))}
+        {productTypes.map((t) => {
+          const FallbackIcon = fallbackTypeIcons[t.slug] || Package
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                router.push(`/dashboard/catalog?type=${encodeURIComponent(t.slug)}`)
+                setExpandedId(null)
+                setExpandedListIds(new Set())
+              }}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold transition-all duration-300",
+                activeType === t.slug
+                  ? "bg-[#5b328a] text-white shadow-md shadow-[#5b328a]/10"
+                  : "bg-white/80 text-neutral-500 hover:text-neutral-900 hover:bg-white hover:shadow-sm"
+              )}
+            >
+              {t.icon_url ? (
+                <img src={t.icon_url} alt="" className="h-3.5 w-3.5 object-contain" aria-hidden="true" />
+              ) : (
+                <FallbackIcon className="h-3.5 w-3.5" />
+              )}
+              {t.name}
+            </button>
+          )
+        })}
       </div>
 
       {/* Toolbar: view toggle + sort + filter */}
@@ -210,7 +232,7 @@ export function CatalogBento({ categories, favoriteIds, activeType, tags }: Prop
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {products.map((p: any, i: number) => (
+              {products.map((p, i) => (
                 <ProdCard key={p.id} product={p} idx={i} />
               ))}
             </div>
@@ -225,7 +247,7 @@ export function CatalogBento({ categories, favoriteIds, activeType, tags }: Prop
               <p className="text-neutral-400 text-sm">Нет категорий</p>
             </div>
           ) : (
-            allCats.map((cat: any, i: number) => {
+            allCats.map((cat, i) => {
               const catImageUrl =
                 cat.image?.url || cat.image?.sizes?.card?.url || null
               return (
@@ -282,22 +304,20 @@ export function CatalogBento({ categories, favoriteIds, activeType, tags }: Prop
           ) : (
             <>
               {/* Group by parent category */}
-              {categories.map((parentCat: any) => {
-                const subs =
-                  parentCat.children?.length > 0
-                    ? parentCat.children
-                    : [parentCat]
+              {categories.map((parentCat) => {
+                const childCategories = parentCat.children ?? []
+                const subs = childCategories.length > 0 ? childCategories : [parentCat]
                 return (
                   <div key={parentCat.id} className="mb-6">
                     {/* Parent label */}
-                    {parentCat.children?.length > 0 && (
+                    {childCategories.length > 0 && (
                       <p className="text-[10px] font-bold text-neutral-300 tracking-[0.2em] uppercase mb-2">
                         {parentCat.name}
                       </p>
                     )}
 
                     {/* Subcategory accordions */}
-                    {subs.map((cat: any) => (
+                    {subs.map((cat) => (
                       <ListCategorySection
                         key={cat.id}
                         category={cat}
@@ -328,7 +348,7 @@ function ListCategorySection({
   sortMode,
   filterMode,
 }: {
-  category: any
+  category: CatalogCategory
   isExpanded: boolean
   onToggle: () => void
   favoriteIds: string[]
@@ -340,14 +360,18 @@ function ListCategorySection({
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (isExpanded && !loaded) {
+    if (!isExpanded || loaded) return
+
+    const timer = window.setTimeout(() => {
       setLoading(true)
       getProductsByCategory(category.id).then((data) => {
         setProducts(data)
         setLoading(false)
         setLoaded(true)
       })
-    }
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [isExpanded, loaded, category.id])
 
   const filteredAndSorted = useMemo(() => {
@@ -420,7 +444,7 @@ function ListCategorySection({
 }
 
 // ── Grid mode: product card ──
-function ProdCard({ product, idx }: { product: any; idx: number }) {
+function ProdCard({ product, idx }: { product: Product; idx: number }) {
   const { items, addItem, updateQuantity, removeItem } = useCart()
   const variants = product.variants ?? []
   const [selectedIdx, setSelectedIdx] = useState(0)
@@ -496,7 +520,7 @@ function ProdCard({ product, idx }: { product: any; idx: number }) {
 
       {product.stickers?.length > 0 && (
         <div className="flex gap-1 px-4 pt-3">
-          {product.stickers.map((tag: any) => (
+          {product.stickers.map((tag) => (
             <span
               key={tag.id}
               className={cn(
@@ -530,7 +554,7 @@ function ProdCard({ product, idx }: { product: any; idx: number }) {
             {/* Variant selector */}
             {variants.length > 1 && (
               <div className="flex gap-1 flex-wrap">
-                {variants.map((v: any, i: number) => (
+                {variants.map((v, i) => (
                   <button
                     key={v.id}
                     onClick={(e) => { e.preventDefault(); setSelectedIdx(i) }}

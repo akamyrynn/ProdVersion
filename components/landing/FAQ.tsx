@@ -53,7 +53,7 @@ export default function FAQ() {
             <p>Наш кофе и чай также доступны на маркетплейсах</p>
           </Copy>
           <a
-            href="https://10cofshop.vercel.app/"
+            href="https://www.ozon.ru/category/kofe-v-zernah-31009/10coffee-100159106/"
             target="_blank"
             rel="noopener noreferrer"
             className={styles.ozonBtn}

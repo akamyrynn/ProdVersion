@@ -95,7 +95,7 @@ export function AdminOrdersList({ initialOrders }: AdminOrdersListProps) {
                     {formatOrderNumber(order.order_id)}
                   </TableCell>
                   <TableCell>
-                    {(order.client as any)?.full_name || "—"}
+                    {order.client?.full_name || "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(order.created_at)}

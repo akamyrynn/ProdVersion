@@ -53,18 +53,21 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const prevUnreadCount = useRef(unreadCount)
 
   useEffect(() => {
-    if (unreadCount > 0) {
-      setBadgeVisible(true)
-      setBadgeAnimatingOut(false)
-    } else if (prevUnreadCount.current > 0 && unreadCount === 0) {
-      setBadgeAnimatingOut(true)
-      const timer = setTimeout(() => {
-        setBadgeVisible(false)
+    const timer = window.setTimeout(() => {
+      if (unreadCount > 0) {
+        setBadgeVisible(true)
         setBadgeAnimatingOut(false)
-      }, 300)
-      return () => clearTimeout(timer)
-    }
-    prevUnreadCount.current = unreadCount
+      } else if (prevUnreadCount.current > 0 && unreadCount === 0) {
+        setBadgeAnimatingOut(true)
+        window.setTimeout(() => {
+          setBadgeVisible(false)
+          setBadgeAnimatingOut(false)
+        }, 300)
+      }
+      prevUnreadCount.current = unreadCount
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [unreadCount])
   const [activePanel, setActivePanel] = useState<SlidePanel>(null)
   const [favorites, setFavorites] = useState<Product[]>([])
@@ -171,7 +174,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                     badgeAnimatingOut ? "opacity-0 scale-0" : "opacity-100 scale-100"
                   )}
                 >
-                  {unreadCount || prevUnreadCount.current}
+                  {unreadCount || 1}
                 </span>
               )}
             </button>

@@ -6,7 +6,7 @@ export const Categories: CollectionConfig = {
     useAsTitle: "name",
     group: "Каталог",
     description: "Категории товаров",
-    defaultColumns: ["name", "productType", "parent", "sortOrder", "isVisible"],
+    defaultColumns: ["name", "productTypeRef", "productType", "parent", "sortOrder", "isVisible"],
   },
   labels: {
     singular: "Категория",
@@ -30,15 +30,26 @@ export const Categories: CollectionConfig = {
       },
     },
     {
+      name: "productTypeRef",
+      type: "relationship",
+      label: "Тип товара",
+      relationTo: "product-types",
+      admin: {
+        description: "Основной управляемый тип для вкладок каталога. Старое поле ниже оставлено как fallback.",
+      },
+    },
+    {
       name: "productType",
       type: "select",
-      label: "Тип товара",
-      required: true,
+      label: "Старый системный тип",
       options: [
         { label: "Кофе", value: "coffee" },
         { label: "Чай", value: "tea" },
         { label: "Аксессуар", value: "accessory" },
       ],
+      admin: {
+        description: "Legacy/fallback для уже существующих категорий.",
+      },
     },
     {
       name: "image",

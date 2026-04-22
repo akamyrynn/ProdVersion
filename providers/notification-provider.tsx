@@ -55,7 +55,11 @@ export function NotificationProvider({
   }, [user, supabase])
 
   useEffect(() => {
-    loadNotifications()
+    const timer = window.setTimeout(() => {
+      void loadNotifications()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [loadNotifications])
 
   // Realtime subscription

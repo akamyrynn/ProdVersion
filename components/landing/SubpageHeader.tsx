@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import BurgerMenu from "./BurgerMenu";
 import styles from "./SubpageHeader.module.css";
@@ -25,25 +26,25 @@ export default function SubpageHeader() {
   return (
     <>
       <nav className={styles.nav}>
-        <a href="/" className={styles.logo}>
+        <Link href="/" className={styles.logo}>
           <img src="/Основной (упрощенный).svg" alt="10coffee" className={styles.logoImg} />
-        </a>
+        </Link>
 
         <div className={styles.links}>
           {NAV_LINKS.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
               className={`${styles.link} ${pathname.startsWith(link.href) ? styles.linkActive : ""}`}
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </div>
 
         <div className={styles.actions}>
           {user ? (
-            <a href="/dashboard" className={styles.avatar}>
+            <Link href="/dashboard" className={styles.avatar}>
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} />
               ) : (
@@ -51,7 +52,7 @@ export default function SubpageHeader() {
                 user.email?.[0]?.toUpperCase() ||
                 "U"
               )}
-            </a>
+            </Link>
           ) : (
             <button
               type="button"

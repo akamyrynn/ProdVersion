@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useCart } from "@/providers/cart-provider"
 import { createOrder } from "@/lib/actions/orders"
+import { getClientDiscount } from "@/lib/actions/products"
 import { checkoutSchema, type CheckoutFormData } from "@/lib/utils/validators"
 import { createClient } from "@/lib/supabase/client"
 import { getQuickComments } from "@/lib/actions/client-settings"
@@ -64,11 +65,19 @@ interface CdekOffice {
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, totalPrice, totalWeight, clearCart, appliedPromo } = useCart()
-  const currentDiscount = appliedPromo
+  const [clientDiscount, setClientDiscount] = useState(0)
+  const promoDiscount = appliedPromo
     ? appliedPromo.discountType === "percentage"
       ? Math.round((totalPrice * appliedPromo.discountValue) / 100)
       : Math.min(appliedPromo.discountValue, totalPrice)
     : 0
+  const clientDiscountAmount = clientDiscount > 0
+    ? Math.round((totalPrice * clientDiscount) / 100)
+    : 0
+  const currentDiscount = Math.max(promoDiscount, clientDiscountAmount)
+  const activeDiscountLabel = currentDiscount > 0
+    ? (clientDiscountAmount > promoDiscount && !appliedPromo ? `Скидка ${clientDiscount}%` : "Скидка")
+    : ""
   const finalPrice = Math.max(0, totalPrice - currentDiscount)
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(false)
@@ -112,13 +121,15 @@ export default function CheckoutPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [companiesResult, comments] = await Promise.all([
+      const [companiesResult, comments, discount] = await Promise.all([
         supabase.from("companies").select("*").eq("client_id", user.id),
         getQuickComments(),
+        getClientDiscount(),
       ])
 
       if (companiesResult.data) setCompanies(companiesResult.data as Company[])
       if (comments.length > 0) setQuickComments(comments)
+      setClientDiscount(discount || 0)
     }
 
     loadData()
@@ -727,9 +738,9 @@ export default function CheckoutPage() {
                 <span className="text-muted-foreground">Общий вес</span>
                 <span>{formatWeight(totalWeight)}</span>
               </div>
-              {appliedPromo && currentDiscount > 0 && (
+              {currentDiscount > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-green-600 font-medium">Скидка</span>
+                  <span className="text-green-600 font-medium">{activeDiscountLabel}</span>
                   <span className="text-green-600 font-medium">
                     −{formatPrice(currentDiscount)}
                   </span>

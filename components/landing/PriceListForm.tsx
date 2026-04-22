@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import Copy from "./_shared/Copy";
 import PhoneInput from "@/components/shared/phone-input";
 import { submitPriceListRequest, type PriceListState } from "@/lib/actions/price-list";
@@ -14,11 +14,8 @@ export default function PriceListForm() {
     initialState,
   );
   const [agreed, setAgreed] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-
-  useEffect(() => {
-    if (state.success) setShowModal(true);
-  }, [state.success]);
+  const [successDismissed, setSuccessDismissed] = useState(false);
+  const showModal = state.success && !successDismissed;
 
   return (
     <section className={styles.section} id="price-list-form">
@@ -85,7 +82,7 @@ export default function PriceListForm() {
       </div>
 
       {showModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
+        <div className={styles.modalOverlay} onClick={() => setSuccessDismissed(true)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalIcon}>✓</div>
             <h4 className={styles.modalTitle}>
@@ -95,7 +92,7 @@ export default function PriceListForm() {
               Прайс-лист 10кофе уже летит к вам на почту.<br />
               Если письмо не пришло — проверьте папку «Спам».
             </p>
-            <button className={styles.modalClose} onClick={() => setShowModal(false)}>
+            <button className={styles.modalClose} onClick={() => setSuccessDismissed(true)}>
               Закрыть
             </button>
           </div>
