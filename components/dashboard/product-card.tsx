@@ -162,7 +162,7 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
         </Link>
 
         {/* Coffee details - elegant */}
-        {product.product_type === "coffee" && product.region && (
+        {product.product_type_schema === "coffee" && product.region && (
           <p className="text-[11px] text-neutral-400 mt-1 truncate font-medium">
             {product.region}
             {product.roast_level && (

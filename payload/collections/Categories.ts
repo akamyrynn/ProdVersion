@@ -1,4 +1,6 @@
 import type { CollectionConfig } from "payload"
+import { getRelationshipId } from "@/lib/product-types"
+import { validateCategoryProductType } from "../hooks/validateCategoryProductType"
 
 export const Categories: CollectionConfig = {
   slug: "categories",
@@ -6,7 +8,7 @@ export const Categories: CollectionConfig = {
     useAsTitle: "name",
     group: "Каталог",
     description: "Категории товаров",
-    defaultColumns: ["name", "productTypeRef", "productType", "parent", "sortOrder", "isVisible"],
+    defaultColumns: ["name", "productTypeRef", "parent", "sortOrder", "isVisible"],
   },
   labels: {
     singular: "Категория",
@@ -34,21 +36,9 @@ export const Categories: CollectionConfig = {
       type: "relationship",
       label: "Тип товара",
       relationTo: "product-types",
+      required: true,
       admin: {
-        description: "Основной управляемый тип для вкладок каталога. Старое поле ниже оставлено как fallback.",
-      },
-    },
-    {
-      name: "productType",
-      type: "select",
-      label: "Старый системный тип",
-      options: [
-        { label: "Кофе", value: "coffee" },
-        { label: "Чай", value: "tea" },
-        { label: "Аксессуар", value: "accessory" },
-      ],
-      admin: {
-        description: "Legacy/fallback для уже существующих категорий.",
+        description: "Основной тип для вкладок каталога.",
       },
     },
     {
@@ -65,8 +55,16 @@ export const Categories: CollectionConfig = {
       type: "relationship",
       label: "Родительская категория",
       relationTo: "categories",
+      filterOptions: ({ siblingData }) => {
+        const typeId = getRelationshipId((siblingData as { productTypeRef?: unknown })?.productTypeRef)
+        if (!typeId) return true
+
+        return {
+          productTypeRef: { equals: typeId },
+        }
+      },
       admin: {
-        description: "Оставьте пустым для корневой категории",
+        description: "Оставьте пустым для корневой категории. Доступны только категории того же типа.",
       },
     },
     {
@@ -98,5 +96,8 @@ export const Categories: CollectionConfig = {
     create: ({ req }) => !!req.user,
     update: ({ req }) => !!req.user,
     delete: ({ req }) => req.user?.role === "admin",
+  },
+  hooks: {
+    beforeChange: [validateCategoryProductType],
   },
 }

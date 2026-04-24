@@ -4,7 +4,8 @@ import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import type { CartItem, Product, ProductVariant, ProductTag } from "@/types"
+import { normalizeProductDetailsSchema } from "@/lib/product-types"
+import type { CartItem, Product, ProductVariant, ProductTag, ProductDetailsSchema } from "@/types"
 
 async function getPayloadClient() {
   return getPayload({ config: configPromise })
@@ -57,14 +58,16 @@ interface PayloadVariant {
 }
 
 interface PayloadProductTypeDoc {
+  name?: string
   slug?: Product["product_type"]
+  detailsSchema?: ProductDetailsSchema
 }
 
 interface PayloadProductDoc {
   id?: string | number
   category?: { id?: string | number } | string | number | null
-  productType?: Product["product_type"]
   productTypeRef?: PayloadProductTypeDoc | string | number | null
+  detailsSchema?: ProductDetailsSchema
   name?: string
   slug?: string
   sortOrder?: number
@@ -137,7 +140,23 @@ function resolveProductType(doc: PayloadProductDoc): Product["product_type"] {
   if (typeRef && typeof typeRef === "object" && typeRef.slug) {
     return typeRef.slug
   }
-  return doc.productType || "coffee"
+  return ""
+}
+
+function resolveProductTypeName(doc: PayloadProductDoc): string {
+  const typeRef = doc.productTypeRef
+  if (typeRef && typeof typeRef === "object") {
+    return typeRef.name || typeRef.slug || ""
+  }
+  return ""
+}
+
+function resolveProductTypeSchema(doc: PayloadProductDoc): ProductDetailsSchema {
+  const typeRef = doc.productTypeRef
+  if (typeRef && typeof typeRef === "object") {
+    return normalizeProductDetailsSchema(typeRef.detailsSchema)
+  }
+  return normalizeProductDetailsSchema(doc.detailsSchema)
 }
 
 function extractImageUrls(images: { image?: PayloadMediaRef }[] | undefined | null): string[] {
@@ -177,6 +196,8 @@ function transformProductFromPayload(doc: PayloadProductDoc): Product {
     id: productId,
     category_id: categoryId === null || categoryId === undefined ? "" : String(categoryId),
     product_type: resolveProductType(doc),
+    product_type_name: resolveProductTypeName(doc),
+    product_type_schema: resolveProductTypeSchema(doc),
     name: doc.name || "",
     slug: doc.slug || "",
     description: null,

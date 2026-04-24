@@ -78,7 +78,7 @@ export default function FavoritesPage() {
                   {product.name}
                 </Link>
                 <p className="text-sm text-muted-foreground">
-                  {product.region || product.product_type}
+                  {product.region || product.product_type_name || product.product_type}
                 </p>
               </div>
 

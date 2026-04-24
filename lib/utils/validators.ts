@@ -46,15 +46,16 @@ export const companySchema = z.object({
 const commonProductFields = z.object({
   name: z.string().min(1, "Введите название товара"),
   slug: z.string().min(1, "Введите slug"),
-  category_id: z.string().uuid("Выберите категорию"),
+  category_id: z.string().min(1, "Выберите категорию"),
+  product_type: z.string().min(1, "Выберите тип товара"),
+  product_type_schema: z.enum(["generic", "coffee", "tea"]).default("generic"),
   description: z.string().optional(),
   sort_order: z.number().int().default(0),
   is_visible: z.boolean().default(true),
   stickers: z.array(z.object({ id: z.string(), name: z.string(), slug: z.string(), color: z.string().optional() })).default([]),
 })
 
-export const coffeeProductSchema = commonProductFields.extend({
-  product_type: z.literal("coffee"),
+export const productSchema = commonProductFields.extend({
   roaster: z.string().optional(),
   roast_level: z.string().optional(),
   region: z.string().optional(),
@@ -70,10 +71,6 @@ export const coffeeProductSchema = commonProductFields.extend({
       })
     )
     .optional(),
-})
-
-export const teaProductSchema = commonProductFields.extend({
-  product_type: z.literal("tea"),
   brewing_instructions: z
     .array(
       z.object({
@@ -83,10 +80,6 @@ export const teaProductSchema = commonProductFields.extend({
       })
     )
     .optional(),
-})
-
-export const accessoryProductSchema = commonProductFields.extend({
-  product_type: z.literal("accessory"),
 })
 
 export const productVariantSchema = z.object({
@@ -106,8 +99,8 @@ export const productVariantSchema = z.object({
 export const categorySchema = z.object({
   name: z.string().min(1, "Введите название категории"),
   slug: z.string().min(1, "Введите slug"),
-  product_type: z.enum(["coffee", "tea", "accessory"]),
-  parent_id: z.string().uuid().nullable().optional(),
+  product_type: z.string().min(1, "Выберите тип товара"),
+  parent_id: z.string().nullable().optional(),
   description: z.string().optional(),
   sort_order: z.number().int().default(0),
   is_visible: z.boolean().default(true),

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { getProductsByCategory } from "@/lib/actions/products"
 import {
   Heart,
   Plus,
@@ -82,6 +81,18 @@ const cardColors = [
   "bg-[#faead5]/60",
 ]
 
+async function fetchCategoryProducts(categoryId: number | string, signal?: AbortSignal): Promise<Product[]> {
+  const response = await fetch(`/api/catalog/products?categoryId=${encodeURIComponent(categoryId)}`, {
+    signal,
+    cache: "no-store",
+  })
+
+  if (!response.ok) throw new Error("Failed to load category products")
+
+  const data = await response.json() as { products?: Product[] }
+  return data.products || []
+}
+
 export function CatalogBento({ categories, favoriteIds, activeType, productTypes, tags }: Props) {
   const router = useRouter()
   const [viewMode, setViewMode] = useState<ViewMode>("list")
@@ -96,15 +107,27 @@ export function CatalogBento({ categories, favoriteIds, activeType, productTypes
   useEffect(() => {
     if (!expandedId) return
 
+    const controller = new AbortController()
     const timer = window.setTimeout(() => {
       setLoading(true)
-      getProductsByCategory(expandedId).then((data) => {
-        setProducts(data)
-        setLoading(false)
-      })
+      fetchCategoryProducts(expandedId, controller.signal)
+        .then((data) => {
+          setProducts(data)
+        })
+        .catch((error) => {
+          if (error instanceof DOMException && error.name === "AbortError") return
+          console.error(error)
+          setProducts([])
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false)
+        })
     }, 0)
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
   }, [expandedId])
 
   const allCats: CatalogCategory[] = useMemo(() => {
@@ -362,16 +385,28 @@ function ListCategorySection({
   useEffect(() => {
     if (!isExpanded || loaded) return
 
+    const controller = new AbortController()
     const timer = window.setTimeout(() => {
       setLoading(true)
-      getProductsByCategory(category.id).then((data) => {
-        setProducts(data)
-        setLoading(false)
-        setLoaded(true)
-      })
+      fetchCategoryProducts(category.id, controller.signal)
+        .then((data) => {
+          setProducts(data)
+          setLoaded(true)
+        })
+        .catch((error) => {
+          if (error instanceof DOMException && error.name === "AbortError") return
+          console.error(error)
+          setProducts([])
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false)
+        })
     }, 0)
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
   }, [isExpanded, loaded, category.id])
 
   const filteredAndSorted = useMemo(() => {

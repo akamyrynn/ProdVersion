@@ -1,5 +1,7 @@
 import type { CollectionConfig } from "payload"
 import { notifyProductRestock } from "../hooks/productRestock"
+import { PRODUCT_DETAILS_SCHEMA_OPTIONS, getRelationshipId } from "@/lib/product-types"
+import { syncProductTypeConfig } from "../hooks/syncProductTypeConfig"
 
 export const Products: CollectionConfig = {
   slug: "products",
@@ -7,7 +9,7 @@ export const Products: CollectionConfig = {
     useAsTitle: "name",
     group: "Каталог",
     description: "Товары каталога",
-    defaultColumns: ["name", "productTypeRef", "productType", "category", "isVisible", "stickers"],
+    defaultColumns: ["name", "productTypeRef", "category", "isVisible", "stickers"],
   },
   labels: {
     singular: "Товар",
@@ -33,21 +35,22 @@ export const Products: CollectionConfig = {
       type: "relationship",
       label: "Тип товара",
       relationTo: "product-types",
+      required: true,
       admin: {
-        description: "Основной управляемый тип для вкладок каталога. Старое поле ниже оставлено как fallback.",
+        description: "Основной управляемый тип для вкладок каталога.",
+        components: {
+          Field: "/payload/components/ProductTypeRelationshipField",
+        },
       },
     },
     {
-      name: "productType",
+      name: "detailsSchema",
       type: "select",
-      label: "Системный тип характеристик",
-      options: [
-        { label: "Кофе", value: "coffee" },
-        { label: "Чай", value: "tea" },
-        { label: "Аксессуар", value: "accessory" },
-      ],
+      label: "Схема характеристик",
+      defaultValue: "generic",
+      options: [...PRODUCT_DETAILS_SCHEMA_OPTIONS],
       admin: {
-        description: "Legacy/fallback: влияет на блоки характеристик кофе и чая, фронт сначала смотрит на управляемый тип выше.",
+        hidden: true,
       },
     },
     {
@@ -56,6 +59,17 @@ export const Products: CollectionConfig = {
       label: "Категория",
       relationTo: "categories",
       required: true,
+      filterOptions: ({ siblingData }) => {
+        const typeId = getRelationshipId((siblingData as { productTypeRef?: unknown })?.productTypeRef)
+        if (!typeId) return true
+
+        return {
+          productTypeRef: { equals: typeId },
+        }
+      },
+      admin: {
+        description: "Категории автоматически фильтруются по выбранному типу товара.",
+      },
     },
     {
       name: "description",
@@ -176,7 +190,7 @@ export const Products: CollectionConfig = {
       type: "group",
       label: "Характеристики кофе",
       admin: {
-        condition: (data) => data?.productType === "coffee",
+        condition: (data) => data?.detailsSchema === "coffee",
       },
       fields: [
         {
@@ -247,7 +261,7 @@ export const Products: CollectionConfig = {
       type: "group",
       label: "Характеристики чая",
       admin: {
-        condition: (data) => data?.productType === "tea",
+        condition: (data) => data?.detailsSchema === "tea",
       },
       fields: [
         {
@@ -300,6 +314,7 @@ export const Products: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeChange: [syncProductTypeConfig],
     afterChange: [notifyProductRestock],
   },
   access: {

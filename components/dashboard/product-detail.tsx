@@ -76,8 +76,8 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
     setQuantity(1)
   }
 
-  const isCoffee = product.product_type === "coffee"
-  const isTea = product.product_type === "tea"
+  const isCoffee = product.product_type_schema === "coffee"
+  const isTea = product.product_type_schema === "tea"
 
   const coffeeSpecs = isCoffee
     ? [

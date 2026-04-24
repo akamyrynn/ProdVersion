@@ -18,17 +18,15 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
   const productType =
     productTypes.find((type) => type.slug === requestedType)?.slug ||
-    productTypes[0]?.slug ||
-    requestedType ||
-    "coffee"
+    productTypes[0]?.slug
 
-  const categories = await getCategories(productType)
+  const categories = productType ? await getCategories(productType) : []
 
   return (
     <CatalogBento
       categories={categories}
       favoriteIds={favoriteIds}
-      activeType={productType}
+      activeType={productType || (requestedType || "")}
       productTypes={productTypes}
       tags={tags}
     />

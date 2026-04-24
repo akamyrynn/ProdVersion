@@ -18,6 +18,7 @@ export type OrderStatus =
 export type DeliveryMethod = "self_pickup" | "cdek" | "cap_2000"
 
 export type ProductType = "coffee" | "tea" | "accessory" | (string & {})
+export type ProductDetailsSchema = "generic" | "coffee" | "tea"
 
 export interface ProductTypeOption {
   id: string
@@ -26,6 +27,7 @@ export interface ProductTypeOption {
   icon_url: string | null
   sort_order: number
   product_count: number
+  details_schema: ProductDetailsSchema
 }
 
 export type StickerType = string
@@ -145,6 +147,8 @@ export interface Product {
   id: string
   category_id: string
   product_type: ProductType
+  product_type_name: string
+  product_type_schema: ProductDetailsSchema
   name: string
   slug: string
   description: string | null

@@ -1,4 +1,5 @@
 import type { CollectionConfig, Where } from "payload"
+import { PRODUCT_DETAILS_SCHEMA_OPTIONS } from "@/lib/product-types"
 
 export const ProductTypes: CollectionConfig = {
   slug: "product-types",
@@ -6,7 +7,7 @@ export const ProductTypes: CollectionConfig = {
     useAsTitle: "name",
     group: "Каталог",
     description: "Управляемые типы товаров для вкладок каталога",
-    defaultColumns: ["name", "slug", "sortOrder", "isVisible"],
+    defaultColumns: ["name", "slug", "detailsSchema", "sortOrder", "isVisible"],
   },
   labels: {
     singular: "Тип товара",
@@ -39,6 +40,17 @@ export const ProductTypes: CollectionConfig = {
       },
     },
     {
+      name: "detailsSchema",
+      type: "select",
+      label: "Схема характеристик товара",
+      required: true,
+      defaultValue: "generic",
+      options: [...PRODUCT_DETAILS_SCHEMA_OPTIONS],
+      admin: {
+        description: "Определяет, какие блоки характеристик будут доступны у товаров этого типа.",
+      },
+    },
+    {
       name: "sortOrder",
       type: "number",
       label: "Порядок сортировки",
@@ -60,18 +72,7 @@ export const ProductTypes: CollectionConfig = {
   hooks: {
     beforeDelete: [
       async ({ req, id }) => {
-        const typeDoc = await req.payload.findByID({
-          collection: "product-types",
-          id,
-          depth: 0,
-        })
-
-        const slug = typeof typeDoc.slug === "string" ? typeDoc.slug : ""
-        const usageClauses: Where[] = [{ productTypeRef: { equals: id } }]
-        if (slug) {
-          usageClauses.push({ productType: { equals: slug } })
-        }
-        const usageWhere: Where = { or: usageClauses }
+        const usageWhere: Where = { productTypeRef: { equals: id } }
 
         const [products, categories] = await Promise.all([
           req.payload.find({
