@@ -1,0 +1,109 @@
+import type { CartItem } from "@/types"
+
+export interface CategoryDiscountRule {
+  categoryId: string
+  categoryName?: string
+  discountPercent: number
+}
+
+export interface ClientDiscountConfig {
+  discountPercent: number
+  categoryDiscounts: CategoryDiscountRule[]
+}
+
+export interface ClientDiscountLine {
+  cartItemId: string
+  categoryId: string
+  subtotal: number
+  discountPercent: number
+  discountAmount: number
+  source: "category" | "base"
+}
+
+export interface ClientDiscountResult {
+  amount: number
+  label: string
+  lines: ClientDiscountLine[]
+  hasCategoryDiscount: boolean
+  hasBaseDiscount: boolean
+}
+
+export const EMPTY_CLIENT_DISCOUNT_CONFIG: ClientDiscountConfig = {
+  discountPercent: 0,
+  categoryDiscounts: [],
+}
+
+export function normalizeDiscountPercent(value: unknown): number {
+  const percent = Number(value) || 0
+  return Math.max(0, Math.min(100, percent))
+}
+
+export function normalizeCategoryDiscounts(rules: CategoryDiscountRule[]): CategoryDiscountRule[] {
+  const byCategory = new Map<string, CategoryDiscountRule>()
+
+  for (const rule of rules) {
+    const categoryId = String(rule.categoryId || "")
+    const discountPercent = normalizeDiscountPercent(rule.discountPercent)
+    if (!categoryId || discountPercent <= 0) continue
+
+    const existing = byCategory.get(categoryId)
+    if (!existing || discountPercent >= existing.discountPercent) {
+      byCategory.set(categoryId, {
+        categoryId,
+        categoryName: rule.categoryName,
+        discountPercent,
+      })
+    }
+  }
+
+  return Array.from(byCategory.values())
+}
+
+export function calculateClientDiscount(
+  items: CartItem[],
+  config: ClientDiscountConfig
+): ClientDiscountResult {
+  const basePercent = normalizeDiscountPercent(config.discountPercent)
+  const categoryRules = normalizeCategoryDiscounts(config.categoryDiscounts)
+  const categoryRuleMap = new Map(categoryRules.map((rule) => [rule.categoryId, rule]))
+  const lines: ClientDiscountLine[] = []
+
+  for (const item of items) {
+    const categoryId = item.product?.category_id || ""
+    const subtotal = (item.variant?.price ?? 0) * item.quantity
+    const categoryRule = categoryRuleMap.get(categoryId)
+    const discountPercent = categoryRule?.discountPercent ?? basePercent
+    const source = categoryRule ? "category" : "base"
+    const discountAmount = discountPercent > 0
+      ? Math.round((subtotal * discountPercent) / 100)
+      : 0
+
+    if (discountAmount > 0) {
+      lines.push({
+        cartItemId: item.id,
+        categoryId,
+        subtotal,
+        discountPercent,
+        discountAmount,
+        source,
+      })
+    }
+  }
+
+  const amount = lines.reduce((sum, line) => sum + line.discountAmount, 0)
+  const hasCategoryDiscount = lines.some((line) => line.source === "category")
+  const hasBaseDiscount = lines.some((line) => line.source === "base")
+  const label = hasCategoryDiscount
+    ? "Скидка по категориям"
+    : hasBaseDiscount
+      ? `Скидка ${basePercent}%`
+      : ""
+
+  return {
+    amount,
+    label,
+    lines,
+    hasCategoryDiscount,
+    hasBaseDiscount,
+  }
+}

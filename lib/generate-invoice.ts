@@ -330,10 +330,17 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
   y -= 10
   const valX = CE  // value right edge
 
-  // Итого
+  // Итого по товарам
   txtRight("Итого:", valX - 80, y, 9, fontB)
-  txtRight(data.total.toFixed(2), valX, y, 9, font)
+  txtRight(data.subtotal.toFixed(2), valX, y, 9, font)
   y -= 16
+
+  // Скидка
+  if (data.discountAmount && data.discountAmount > 0) {
+    txtRight("Скидка:", valX - 80, y, 9, fontB)
+    txtRight(`-${data.discountAmount.toFixed(2)}`, valX, y, 9, font)
+    y -= 16
+  }
 
   // В том числе НДС
   if (data.vatAmount && data.vatAmount > 0) {
@@ -349,6 +356,10 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Uint8Array>
     txtRight(data.deliveryCost.toFixed(2), valX, y, 9, font)
     y -= 16
   }
+
+  txtRight("Всего к оплате:", valX - 80, y, 9, fontB)
+  txtRight(data.total.toFixed(2), valX, y, 9, font)
+  y -= 16
 
   // ══════════════════════════════════════════
   //  AMOUNT IN WORDS

@@ -5,6 +5,13 @@ import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getCartItems, clearCart as clearPayloadCart } from "@/lib/actions/cart"
+import {
+  calculateClientDiscount,
+  normalizeCategoryDiscounts,
+  normalizeDiscountPercent,
+  type CategoryDiscountRule,
+} from "@/lib/discounts"
+import { getRelationshipId } from "@/lib/product-types"
 import { revalidatePath } from "next/cache"
 import nodemailer from "nodemailer"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
@@ -19,6 +26,9 @@ interface OrderEmailItem {
 interface OrderEmailSummary {
   id: string | number
   orderId?: string | number
+  subtotal?: number
+  discountAmount?: number
+  deliveryCost?: number
   total: number
 }
 
@@ -73,6 +83,10 @@ interface PayloadOrderDoc {
 interface PayloadClientDoc {
   id: number
   discountPercent?: number | string
+  categoryDiscounts?: {
+    category?: { id?: string | number; name?: string } | string | number | null
+    discountPercent?: number | string | null
+  }[] | null
 }
 
 const smtpTransporter = nodemailer.createTransport({
@@ -91,6 +105,11 @@ async function sendOrderEmail(email: string, order: OrderEmailSummary, items: Or
   const itemsHtml = items.map(i =>
     `<tr><td style="padding:8px;border-bottom:1px solid #eee">${i.productName} ${i.variantName ? `(${i.variantName})` : ""}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${i.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${formatPrice(i.totalPrice)}</td></tr>`
   ).join("")
+  const summaryHtml = [
+    order.subtotal ? `<p style="margin:0 0 6px;color:#666">Товары: <strong>${formatPrice(order.subtotal)}</strong></p>` : "",
+    order.discountAmount && order.discountAmount > 0 ? `<p style="margin:0 0 6px;color:#16a34a">Скидка: <strong>−${formatPrice(order.discountAmount)}</strong></p>` : "",
+    order.deliveryCost && order.deliveryCost > 0 ? `<p style="margin:0 0 6px;color:#666">Доставка: <strong>${formatPrice(order.deliveryCost)}</strong></p>` : "",
+  ].filter(Boolean).join("")
 
   const attachments = pdfBuffer
     ? [{
@@ -113,6 +132,7 @@ async function sendOrderEmail(email: string, order: OrderEmailSummary, items: Or
           <tbody>${itemsHtml}</tbody>
         </table>
         <div style="background:#f5f5f5;border-radius:12px;padding:16px;margin:0 0 24px">
+          ${summaryHtml}
           <p style="margin:0;font-size:18px;font-weight:bold">Итого: ${formatPrice(order.total)}</p>
         </div>
         <p style="color:#999;font-size:12px;margin:0">Менеджер свяжется с вами для подтверждения заказа.</p>
@@ -154,19 +174,42 @@ async function getCurrentUserId(): Promise<string | null> {
   }
 }
 
-async function getClientDoc(supabaseUserId: string): Promise<{ id: number; discountPercent: number } | null> {
+async function getClientDoc(supabaseUserId: string): Promise<{
+  id: number
+  discountPercent: number
+  categoryDiscounts: CategoryDiscountRule[]
+} | null> {
   try {
     const payload = await getPayloadClient()
     const { docs } = await payload.find({
       collection: "clients",
       where: { supabaseId: { equals: supabaseUserId } },
       limit: 1,
-      depth: 0,
+      depth: 1,
     })
     if (!docs[0]) return null
+    const client = docs[0] as PayloadClientDoc
+    const categoryDiscounts = (client.categoryDiscounts || [])
+      .map((rule): CategoryDiscountRule | null => {
+        const categoryId = getRelationshipId(rule.category)
+        if (categoryId === null) return null
+
+        const categoryName = typeof rule.category === "object" && rule.category !== null
+          ? rule.category.name
+          : undefined
+
+        return {
+          categoryId: String(categoryId),
+          categoryName,
+          discountPercent: normalizeDiscountPercent(rule.discountPercent),
+        }
+      })
+      .filter((rule): rule is CategoryDiscountRule => rule !== null)
+
     return {
-      id: docs[0].id as number,
-      discountPercent: Number((docs[0] as PayloadClientDoc).discountPercent) || 0,
+      id: client.id,
+      discountPercent: normalizeDiscountPercent(client.discountPercent),
+      categoryDiscounts: normalizeCategoryDiscounts(categoryDiscounts),
     }
   } catch {
     return null
@@ -304,14 +347,17 @@ export async function createOrder(params: {
   }, 0)
 
   // Apply personal client discount if no promo (or promo is smaller)
-  const clientDiscountPercent = clientDoc.discountPercent
-  const clientDiscountAmount = clientDiscountPercent > 0
-    ? Math.round(subtotal * clientDiscountPercent / 100)
-    : 0
+  const clientDiscountResult = calculateClientDiscount(cartItems, {
+    discountPercent: clientDoc.discountPercent,
+    categoryDiscounts: clientDoc.categoryDiscounts,
+  })
+  const clientDiscountAmount = clientDiscountResult.amount
   const promoDiscountAmount = params.discountAmount ?? 0
   const discountAmount = Math.max(clientDiscountAmount, promoDiscountAmount)
-  const appliedDiscountPercent = discountAmount === clientDiscountAmount && clientDiscountPercent > 0
-    ? clientDiscountPercent
+  const appliedDiscountPercent = discountAmount === clientDiscountAmount &&
+    clientDiscountResult.hasBaseDiscount &&
+    !clientDiscountResult.hasCategoryDiscount
+    ? clientDoc.discountPercent
     : 0
 
   const deliveryCost = params.deliveryCost ?? 0

@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useCart } from "@/providers/cart-provider"
 import { createOrder } from "@/lib/actions/orders"
-import { getClientDiscount } from "@/lib/actions/products"
+import { getClientDiscountConfig } from "@/lib/actions/products"
+import { calculateClientDiscount, type CategoryDiscountRule } from "@/lib/discounts"
 import { checkoutSchema, type CheckoutFormData } from "@/lib/utils/validators"
 import { createClient } from "@/lib/supabase/client"
 import { getQuickComments } from "@/lib/actions/client-settings"
@@ -66,17 +67,20 @@ export default function CheckoutPage() {
   const router = useRouter()
   const { items, totalPrice, totalWeight, clearCart, appliedPromo } = useCart()
   const [clientDiscount, setClientDiscount] = useState(0)
+  const [categoryDiscounts, setCategoryDiscounts] = useState<CategoryDiscountRule[]>([])
   const promoDiscount = appliedPromo
     ? appliedPromo.discountType === "percentage"
       ? Math.round((totalPrice * appliedPromo.discountValue) / 100)
       : Math.min(appliedPromo.discountValue, totalPrice)
     : 0
-  const clientDiscountAmount = clientDiscount > 0
-    ? Math.round((totalPrice * clientDiscount) / 100)
-    : 0
+  const clientDiscountResult = calculateClientDiscount(items, {
+    discountPercent: clientDiscount,
+    categoryDiscounts,
+  })
+  const clientDiscountAmount = clientDiscountResult.amount
   const currentDiscount = Math.max(promoDiscount, clientDiscountAmount)
   const activeDiscountLabel = currentDiscount > 0
-    ? (clientDiscountAmount > promoDiscount && !appliedPromo ? `Скидка ${clientDiscount}%` : "Скидка")
+    ? (clientDiscountAmount > promoDiscount ? clientDiscountResult.label : "Скидка")
     : ""
   const finalPrice = Math.max(0, totalPrice - currentDiscount)
   const [companies, setCompanies] = useState<Company[]>([])
@@ -121,15 +125,16 @@ export default function CheckoutPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const [companiesResult, comments, discount] = await Promise.all([
+      const [companiesResult, comments, discountConfig] = await Promise.all([
         supabase.from("companies").select("*").eq("client_id", user.id),
         getQuickComments(),
-        getClientDiscount(),
+        getClientDiscountConfig(),
       ])
 
       if (companiesResult.data) setCompanies(companiesResult.data as Company[])
       if (comments.length > 0) setQuickComments(comments)
-      setClientDiscount(discount || 0)
+      setClientDiscount(discountConfig.discountPercent || 0)
+      setCategoryDiscounts(discountConfig.categoryDiscounts)
     }
 
     loadData()
@@ -283,7 +288,7 @@ export default function CheckoutPage() {
       deliveryAddress: address,
       comment: data.comment,
       promoCodeId: appliedPromo?.promoCodeId,
-      discountAmount: currentDiscount || undefined,
+      discountAmount: promoDiscount || undefined,
       deliveryCost: deliveryCost || undefined,
     })
 

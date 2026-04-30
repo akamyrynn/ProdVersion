@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
 import { useCart } from "@/providers/cart-provider"
 import { validatePromoCode } from "@/lib/actions/promo"
+import { calculateClientDiscount, type CategoryDiscountRule } from "@/lib/discounts"
 import { toast } from "sonner"
 import type { CartItem } from "@/types"
 
@@ -19,6 +20,7 @@ interface CartSidebarProps {
   inPanel?: boolean
   priceListUrl?: string
   clientDiscount?: number
+  categoryDiscounts?: CategoryDiscountRule[]
 }
 
 export function CartSidebar({
@@ -30,6 +32,7 @@ export function CartSidebar({
   inPanel = false,
   priceListUrl,
   clientDiscount = 0,
+  categoryDiscounts = [],
 }: CartSidebarProps) {
   const { appliedPromo, setAppliedPromo } = useCart()
   const [promoInput, setPromoInput] = useState("")
@@ -50,15 +53,16 @@ export function CartSidebar({
       : Math.min(appliedPromo.discountValue, totalPrice)
     : 0
 
-  // Client personal discount (percentage)
-  const clientDiscountAmount = clientDiscount > 0
-    ? Math.round((totalPrice * clientDiscount) / 100)
-    : 0
+  const clientDiscountResult = calculateClientDiscount(items, {
+    discountPercent: clientDiscount,
+    categoryDiscounts,
+  })
+  const clientDiscountAmount = clientDiscountResult.amount
 
   // Use the greater of the two discounts
   const currentDiscount = Math.max(promoDiscount, clientDiscountAmount)
   const activeDiscountLabel = currentDiscount > 0
-    ? (clientDiscountAmount > promoDiscount && !appliedPromo ? `Скидка ${clientDiscount}%` : undefined)
+    ? (clientDiscountAmount > promoDiscount ? clientDiscountResult.label : undefined)
     : undefined
   const finalPrice = Math.max(0, totalPrice - currentDiscount)
 

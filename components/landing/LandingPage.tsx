@@ -9,6 +9,7 @@ import Advantages from "./Advantages";
 import ProductImages from "./ProductImages";
 import Marquee from "./Marquee";
 import PriceListForm from "./PriceListForm";
+import WhereToBuy from "./WhereToBuy";
 import FAQ from "./FAQ";
 import Mission from "./Mission";
 import Production from "./Production";
@@ -33,6 +34,7 @@ export default function LandingPage() {
         <PartnerTestimonials />
         <Advantages />
         <PriceListForm />
+        <WhereToBuy />
         <FAQ />
         <Mission />
         <Production />

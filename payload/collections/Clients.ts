@@ -182,6 +182,46 @@ export const Clients: CollectionConfig = {
             },
           ],
         },
+        {
+          label: "Скидки",
+          fields: [
+            {
+              name: "categoryDiscounts",
+              type: "array",
+              label: "Скидки по категориям",
+              labels: {
+                singular: "Скидка по категории",
+                plural: "Скидки по категориям",
+              },
+              admin: {
+                description: "Работает только для выбранной категории. Подкатегории не наследуют скидку автоматически.",
+              },
+              fields: [
+                {
+                  name: "category",
+                  type: "relationship",
+                  label: "Категория",
+                  relationTo: "categories",
+                  required: true,
+                  admin: {
+                    width: "70%",
+                  },
+                },
+                {
+                  name: "discountPercent",
+                  type: "number",
+                  label: "Скидка (%)",
+                  required: true,
+                  min: 0,
+                  max: 100,
+                  admin: {
+                    width: "30%",
+                  },
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
   ],

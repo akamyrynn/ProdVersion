@@ -6,7 +6,7 @@ import { useAuth } from "@/providers/auth-provider"
 import { useCart } from "@/providers/cart-provider"
 import { useNotifications } from "@/providers/notification-provider"
 import { signOut } from "@/lib/actions/auth"
-import { getFavoriteProducts, getClientDiscount } from "@/lib/actions/products"
+import { getFavoriteProducts, getClientDiscountConfig } from "@/lib/actions/products"
 import { CartSidebar } from "./cart-sidebar"
 import {
   LogOut,
@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { formatDateTime } from "@/lib/utils/format"
+import type { CategoryDiscountRule } from "@/lib/discounts"
 import type { Product, NotificationType } from "@/types"
 
 type SlidePanel = "favorites" | "notifications" | "cart" | null
@@ -74,12 +75,16 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [favsLoading, setFavsLoading] = useState(false)
   const [priceListUrl, setPriceListUrl] = useState("")
   const [clientDiscount, setClientDiscount] = useState(0)
+  const [categoryDiscounts, setCategoryDiscounts] = useState<CategoryDiscountRule[]>([])
 
   useEffect(() => {
     getSiteSettings().then((s) => {
       if (s?.priceListUrl) setPriceListUrl(s.priceListUrl)
     })
-    getClientDiscount().then(setClientDiscount)
+    getClientDiscountConfig().then((config) => {
+      setClientDiscount(config.discountPercent)
+      setCategoryDiscounts(config.categoryDiscounts)
+    })
   }, [])
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || ""
@@ -311,6 +316,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             onClearCart={clearCart}
             priceListUrl={priceListUrl}
             clientDiscount={clientDiscount}
+            categoryDiscounts={categoryDiscounts}
           />
 
           {/* ── SLIDE-OVER PANEL ── */}
@@ -401,6 +407,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                       inPanel
                       priceListUrl={priceListUrl}
                       clientDiscount={clientDiscount}
+                      categoryDiscounts={categoryDiscounts}
                     />
                   ) : activePanel === "favorites" ? (
                     <FavoritesContent favorites={favorites} loading={favsLoading} onClose={() => setActivePanel(null)} />

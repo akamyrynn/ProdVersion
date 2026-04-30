@@ -3,7 +3,14 @@
 import { getPayload, type Where } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
-import { normalizeProductDetailsSchema } from "@/lib/product-types"
+import { getRelationshipId, normalizeProductDetailsSchema } from "@/lib/product-types"
+import {
+  EMPTY_CLIENT_DISCOUNT_CONFIG,
+  normalizeCategoryDiscounts,
+  normalizeDiscountPercent,
+  type CategoryDiscountRule,
+  type ClientDiscountConfig,
+} from "@/lib/discounts"
 import type { Product, ProductVariant, ProductType, ProductTypeOption, ProductTag, AttachedFile, ProductDetailsSchema } from "@/types"
 
 async function getPayloadClient() {
@@ -120,6 +127,16 @@ interface PayloadProductDoc {
   variants?: PayloadVariant[]
   createdAt?: string
   updatedAt?: string
+}
+
+interface PayloadClientCategoryDiscount {
+  category?: { id?: string | number; name?: string } | string | number | null
+  discountPercent?: number | string | null
+}
+
+interface PayloadClientDiscountDoc {
+  discountPercent?: number | string | null
+  categoryDiscounts?: PayloadClientCategoryDiscount[] | null
 }
 
 interface PayloadCategoryDoc {
@@ -572,8 +589,13 @@ export async function searchProducts(query: string): Promise<Product[]> {
 // ============================================================
 
 export async function getClientDiscount(): Promise<number> {
+  const config = await getClientDiscountConfig()
+  return config.discountPercent
+}
+
+export async function getClientDiscountConfig(): Promise<ClientDiscountConfig> {
   const userId = await getCurrentUserId()
-  if (!userId) return 0
+  if (!userId) return EMPTY_CLIENT_DISCOUNT_CONFIG
 
   try {
     const payload = await getPayloadClient()
@@ -581,11 +603,35 @@ export async function getClientDiscount(): Promise<number> {
       collection: "clients",
       where: { supabaseId: { equals: userId } },
       limit: 1,
-      depth: 0,
+      depth: 1,
     })
-    return (docs[0]?.discountPercent as number) || 0
+
+    const client = docs[0] as PayloadClientDiscountDoc | undefined
+    if (!client) return EMPTY_CLIENT_DISCOUNT_CONFIG
+
+    const categoryDiscounts = (client.categoryDiscounts || [])
+      .map((rule): CategoryDiscountRule | null => {
+        const categoryId = getRelationshipId(rule.category)
+        if (categoryId === null) return null
+
+        const categoryName = typeof rule.category === "object" && rule.category !== null
+          ? rule.category.name
+          : undefined
+
+        return {
+          categoryId: String(categoryId),
+          categoryName,
+          discountPercent: normalizeDiscountPercent(rule.discountPercent),
+        }
+      })
+      .filter((rule): rule is CategoryDiscountRule => rule !== null)
+
+    return {
+      discountPercent: normalizeDiscountPercent(client.discountPercent),
+      categoryDiscounts: normalizeCategoryDiscounts(categoryDiscounts),
+    }
   } catch {
-    return 0
+    return EMPTY_CLIENT_DISCOUNT_CONFIG
   }
 }
 

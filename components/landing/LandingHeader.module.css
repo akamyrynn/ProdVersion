@@ -183,6 +183,12 @@
   transform: translateY(-5.5px) rotate(-45deg);
 }
 
+@media (min-width: 1001px) {
+  .burger {
+    display: none;
+  }
+}
+
 /* ===== Mobile ===== */
 @media (max-width: 1000px) {
   .navBar {
