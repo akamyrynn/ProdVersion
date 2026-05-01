@@ -131,14 +131,20 @@ export default function CheckoutPage() {
         getClientDiscountConfig(),
       ])
 
-      if (companiesResult.data) setCompanies(companiesResult.data as Company[])
+      if (companiesResult.data) {
+        const loadedCompanies = companiesResult.data as Company[]
+        setCompanies(loadedCompanies)
+        if (loadedCompanies.length === 1 && !form.getValues("company_id")) {
+          form.setValue("company_id", loadedCompanies[0].id, { shouldValidate: true })
+        }
+      }
       if (comments.length > 0) setQuickComments(comments)
       setClientDiscount(discountConfig.discountPercent || 0)
       setCategoryDiscounts(discountConfig.categoryDiscounts)
     }
 
     loadData()
-  }, [])
+  }, [form])
 
   // Reset CDEK state when delivery method changes
   useEffect(() => {

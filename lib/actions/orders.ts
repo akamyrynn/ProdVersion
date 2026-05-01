@@ -89,6 +89,15 @@ interface PayloadClientDoc {
   }[] | null
 }
 
+interface SupabaseCompanyRow {
+  id: string
+  name: string | null
+  inn: string | null
+  kpp?: string | null
+  legal_address?: string | null
+  actual_address?: string | null
+}
+
 const smtpTransporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -96,6 +105,18 @@ const smtpTransporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASSWORD,
   },
 })
+
+const INVOICE_SELLER = {
+  name: 'ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ПЕЙДЖ КОФЕ"',
+  inn: "2366021670",
+  kpp: "236601001",
+  address: "354003, Россия, Краснодарский край, г Сочи, ул Пластунская, 79/1, 1",
+  bank: "ЮГО-ЗАПАДНЫЙ БАНК ПАО СБЕРБАНК, г Ростов-на-Дону",
+  bik: "046015602",
+  account: "40702810230060009772",
+  corrAccount: "30101810600000000602",
+  director: "Тен Игорь Олегович",
+}
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat("ru-RU").format(n) + " ₽"
@@ -333,6 +354,7 @@ export async function createOrder(params: {
   const clientDoc = await getClientDoc(user.id)
   if (!clientDoc) return { error: "Клиент не найден" }
   const clientDocId = clientDoc.id
+  const adminDb = createAdminClient()
 
   const cartItems = await getCartItems()
   if (!cartItems || cartItems.length === 0) return { error: "Корзина пуста" }
@@ -366,17 +388,43 @@ export async function createOrder(params: {
   // Resolve company name/inn from Supabase companies table
   let companyName: string | undefined
   let companyInn: string | undefined
-  if (params.companyId) {
-    const { data: company } = await supabase
+  let companyKpp: string | undefined
+  let companyAddress: string | undefined
+  const companyId = params.companyId?.trim()
+
+  if (companyId) {
+    const { data: company } = await adminDb
       .from("companies")
-      .select("name, inn")
-      .eq("id", params.companyId)
-      .single()
+      .select("id, name, inn, kpp, legal_address, actual_address")
+      .eq("id", companyId)
+      .eq("client_id", user.id)
+      .maybeSingle<SupabaseCompanyRow>()
 
     if (company) {
-      companyName = company.name
-      companyInn = company.inn
+      companyName = company.name || undefined
+      companyInn = company.inn || undefined
+      companyKpp = company.kpp || undefined
+      companyAddress = company.legal_address || company.actual_address || undefined
     }
+  } else {
+    const { data: companies } = await adminDb
+      .from("companies")
+      .select("id, name, inn, kpp, legal_address, actual_address")
+      .eq("client_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(2)
+      .returns<SupabaseCompanyRow[]>()
+
+    if (companies?.length === 1) {
+      companyName = companies[0].name || undefined
+      companyInn = companies[0].inn || undefined
+      companyKpp = companies[0].kpp || undefined
+      companyAddress = companies[0].legal_address || companies[0].actual_address || undefined
+    }
+  }
+
+  if (!companyName || !companyInn) {
+    return { error: "Выберите компанию для оформления заказа" }
   }
 
   // Build items array for Payload
@@ -432,7 +480,6 @@ export async function createOrder(params: {
   }) as PayloadOrderDoc
 
   // Also populate order_items Supabase table (reliable source for repeat orders)
-  const adminDb = createAdminClient()
   const orderItemsRows = cartItems.map((item) => ({
     order_id: String(doc.id),
     product_id: item.product_id,
@@ -454,20 +501,50 @@ export async function createOrder(params: {
   // Send order confirmation email with invoice PDF
   try {
     const { generateInvoicePDF } = await import("@/lib/generate-invoice")
+    const invoiceDate = new Date(doc.createdAt || Date.now()).toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })
+    const invoiceItems = items.map((item) => ({
+      name: `${item.productName}${item.variantName ? ` (${item.variantName})` : ""}${item.grindOption ? `, ${item.grindOption}` : ""}`,
+      quantity: item.quantity,
+      unit: "шт",
+      price: item.unitPrice,
+      vat: "",
+      total: item.totalPrice,
+    }))
     const orderForInvoice = {
       id: doc.id,
       orderId: doc.orderId,
-      items,
+      invoiceNumber: doc.orderId || String(doc.id),
+      invoiceDate,
+      sellerName: INVOICE_SELLER.name,
+      sellerInn: INVOICE_SELLER.inn,
+      sellerKpp: INVOICE_SELLER.kpp,
+      sellerAddress: INVOICE_SELLER.address,
+      sellerBank: INVOICE_SELLER.bank,
+      sellerBik: INVOICE_SELLER.bik,
+      sellerAccount: INVOICE_SELLER.account,
+      sellerCorrAccount: INVOICE_SELLER.corrAccount,
+      sellerDirector: INVOICE_SELLER.director,
+      buyerName: companyName || "—",
+      buyerInn: companyInn || "—",
+      buyerKpp: companyKpp || "—",
+      buyerAddress: companyAddress || params.deliveryAddress || "—",
+      items: invoiceItems,
       subtotal,
       discountAmount,
       deliveryCost,
+      vatLabel: "",
+      vatAmount: 0,
       total,
       companyName,
       companyInn,
     }
     let pdfBuffer: Uint8Array | undefined
     try {
-      pdfBuffer = await generateInvoicePDF(orderForInvoice as unknown as Parameters<typeof generateInvoicePDF>[0])
+      pdfBuffer = await generateInvoicePDF(orderForInvoice)
     } catch (pdfErr) {
       console.error("Failed to generate invoice PDF:", pdfErr)
     }
