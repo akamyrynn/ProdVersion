@@ -99,19 +99,32 @@
 .ozonBtn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 2.5rem;
-  border-radius: 0.35rem;
-  background-color: var(--accent-orange);
-  color: #fff;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.95rem 2.1rem;
+  border: 1px solid rgba(29, 29, 27, 0.18);
+  border-radius: 0.55rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--base-100);
   font-size: 1rem;
   font-weight: 600;
   text-decoration: none;
-  transition: opacity 0.3s;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: border-color 0.3s, background-color 0.3s, transform 0.3s;
 }
 
 .ozonBtn:hover {
-  opacity: 0.85;
+  border-color: rgba(29, 29, 27, 0.32);
+  background-color: rgba(255, 255, 255, 0.34);
+  transform: translateY(-1px);
+}
+
+.ozonIcon {
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: 0 0 auto;
+  background: url("/ozon-icon-logo.svg") center / contain no-repeat;
 }
 
 @media (max-width: 1000px) {

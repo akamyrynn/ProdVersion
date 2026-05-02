@@ -58,6 +58,7 @@ export default function FAQ() {
             rel="noopener noreferrer"
             className={styles.ozonBtn}
           >
+            <span aria-hidden="true" className={styles.ozonIcon} />
             Купить на Ozon
           </a>
         </div>

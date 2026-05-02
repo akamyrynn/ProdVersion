@@ -156,7 +156,7 @@ export function CatalogBento({ categories, favoriteIds, activeType, productTypes
   return (
     <div className="space-y-5">
       {/* Type pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 pr-4 sm:pr-0">
         <span className="text-[11px] font-bold text-neutral-300 mr-2 tracking-[0.15em] uppercase shrink-0 hidden sm:block">
           Каталог
         </span>
@@ -171,14 +171,22 @@ export function CatalogBento({ categories, favoriteIds, activeType, productTypes
                 setExpandedListIds(new Set())
               }}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-semibold transition-all duration-300",
+                "flex shrink-0 items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-full text-[13px] font-semibold transition-all duration-300",
                 activeType === t.slug
                   ? "bg-[#5b328a] text-white shadow-md shadow-[#5b328a]/10"
                   : "bg-white/80 text-neutral-500 hover:text-neutral-900 hover:bg-white hover:shadow-sm"
               )}
             >
               {t.icon_url ? (
-                <img src={t.icon_url} alt="" className="h-3.5 w-3.5 object-contain" aria-hidden="true" />
+                <img
+                  src={t.icon_url}
+                  alt=""
+                  className={cn(
+                    "h-3.5 w-3.5 object-contain transition-all duration-300",
+                    activeType === t.slug && "brightness-0 invert"
+                  )}
+                  aria-hidden="true"
+                />
               ) : (
                 <FallbackIcon className="h-3.5 w-3.5" />
               )}
