@@ -14,7 +14,9 @@ function getConnectionString() {
 
 function shouldUseSsl(connectionString: string) {
   if (process.env.DATABASE_SSL === "false") return false
-  if (connectionString.includes("localhost") || connectionString.includes("127.0.0.1")) return false
+  const { hostname } = new URL(connectionString)
+  if (hostname === "localhost" || hostname === "127.0.0.1") return false
+  if (hostname === "10coffee-postgres" || !hostname.includes(".")) return false
   return true
 }
 
