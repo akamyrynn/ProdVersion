@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { ChevronRight } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { ProductTableRow } from "@/components/dashboard/product-table-row"
 import { cn } from "@/lib/utils"
 import type { Category, Product } from "@/types"
@@ -23,28 +22,28 @@ export function CategorySection({
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const supabase = createClient()
 
   useEffect(() => {
     if (!isExpanded || loaded) return
 
     const timer = window.setTimeout(() => {
       setLoading(true)
-      supabase
-        .from("products")
-        .select("*, variants:product_variants(*)")
-        .eq("category_id", category.id)
-        .eq("is_visible", true)
-        .order("sort_order")
-        .then(({ data }) => {
-          if (data) setProducts(data as Product[])
+      fetch(`/api/catalog/products?categoryId=${encodeURIComponent(category.id)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.products) setProducts(data.products as Product[])
+          setLoading(false)
+          setLoaded(true)
+        })
+        .catch(() => {
+          setProducts([])
           setLoading(false)
           setLoaded(true)
         })
     }, 0)
 
     return () => window.clearTimeout(timer)
-  }, [isExpanded, loaded, category.id, supabase])
+  }, [isExpanded, loaded, category.id])
 
   return (
     <div className="border-b border-gray-100">

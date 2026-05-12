@@ -7,10 +7,8 @@ import {
   useState,
   useCallback,
 } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/providers/auth-provider"
 import type { Notification } from "@/types"
-import { toast } from "sonner"
 
 interface NotificationContextValue {
   notifications: Notification[]
@@ -32,7 +30,6 @@ export function NotificationProvider({
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [hasNewNotification, setHasNewNotification] = useState(false)
-  const supabase = createClient()
 
   const loadNotifications = useCallback(async () => {
     if (!user) {
@@ -41,18 +38,13 @@ export function NotificationProvider({
       return
     }
 
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("client_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50)
-
-    if (data) {
-      setNotifications(data as Notification[])
+    const res = await fetch("/api/notifications", { cache: "no-store" })
+    if (res.ok) {
+      const json = await res.json()
+      setNotifications((json.notifications || []) as Notification[])
     }
     setLoading(false)
-  }, [user, supabase])
+  }, [user])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -62,62 +54,17 @@ export function NotificationProvider({
     return () => window.clearTimeout(timer)
   }, [loadNotifications])
 
-  // Realtime subscription
   useEffect(() => {
     if (!user) return
 
-    const channel = supabase
-      .channel("notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `client_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification
-          setNotifications((prev) => [newNotification, ...prev])
-          toast.info(newNotification.title, {
-            description: newNotification.message,
-          })
-          setHasNewNotification(true)
-          setTimeout(() => setHasNewNotification(false), 2000)
+    const interval = window.setInterval(() => {
+      void loadNotifications()
+      setHasNewNotification(true)
+      window.setTimeout(() => setHasNewNotification(false), 1200)
+    }, 30000)
 
-          // Animate browser tab title
-          if (typeof document !== "undefined" && document.hidden) {
-            const originalTitle = document.title
-            let blink = true
-            const interval = setInterval(() => {
-              document.title = blink
-                ? `🔔 ${newNotification.title}`
-                : originalTitle
-              blink = !blink
-            }, 1500)
-
-            const restore = () => {
-              clearInterval(interval)
-              document.title = originalTitle
-              document.removeEventListener("visibilitychange", onVisible)
-            }
-
-            const onVisible = () => {
-              if (!document.hidden) restore()
-            }
-
-            document.addEventListener("visibilitychange", onVisible)
-            // Auto-stop after 30s
-            setTimeout(restore, 30000)
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [user, supabase])
+    return () => window.clearInterval(interval)
+  }, [user, loadNotifications])
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
@@ -127,12 +74,13 @@ export function NotificationProvider({
         prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
       )
 
-      await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("id", id)
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
     },
-    [supabase]
+    []
   )
 
   const markAllAsRead = useCallback(async () => {
@@ -140,12 +88,12 @@ export function NotificationProvider({
 
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
 
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("client_id", user.id)
-      .eq("is_read", false)
-  }, [user, supabase])
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true }),
+    })
+  }, [user])
 
   return (
     <NotificationContext.Provider

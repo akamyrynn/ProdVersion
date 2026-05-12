@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import crypto from "crypto"
 import nodemailer from "nodemailer"
+import { dbQuery } from "@/lib/db"
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -75,6 +76,19 @@ export async function signUp(formData: {
       return { error: "Пользователь с таким email уже зарегистрирован" }
     }
     return { error: error.message }
+  }
+
+  if (data.user?.id) {
+    await dbQuery(
+      `insert into public.client_profiles (id, email, full_name, phone, created_at, updated_at)
+       values ($1, $2, $3, $4, now(), now())
+       on conflict (id) do update
+          set email = excluded.email,
+              full_name = excluded.full_name,
+              phone = excluded.phone,
+              updated_at = now()`,
+      [data.user.id, formData.email, formData.full_name, formData.phone]
+    )
   }
 
   // Sync to Payload CMS clients collection

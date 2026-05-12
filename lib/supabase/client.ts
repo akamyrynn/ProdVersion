@@ -1,8 +1,55 @@
-import { createBrowserClient } from "@supabase/ssr"
+import type { AppUser } from "@/lib/auth/types"
+
+type AuthCallback = (_event: "INITIAL_SESSION", session: { user: AppUser | null } | null) => void
+
+async function fetchUser() {
+  const res = await fetch("/api/auth/me", { cache: "no-store" })
+  if (!res.ok) return null
+  const json = await res.json()
+  return (json.user as AppUser | null) || null
+}
+
+type BrowserClient = ReturnType<typeof createBrowserClient>
+let browserClient: BrowserClient | null = null
+
+function createBrowserClient() {
+  return {
+    auth: {
+      async getUser() {
+        const user = await fetchUser()
+        return { data: { user }, error: null }
+      },
+      onAuthStateChange(callback: AuthCallback) {
+        void fetchUser().then((user) => callback("INITIAL_SESSION", user ? { user } : null))
+        return {
+          data: {
+            subscription: {
+              unsubscribe() {},
+            },
+          },
+        }
+      },
+      async updateUser(params: { data?: Record<string, unknown>; password?: string }) {
+        const res = await fetch("/api/auth/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+        })
+        const json = await res.json()
+        return {
+          data: { user: (json.user as AppUser | null) || null },
+          error: res.ok ? null : { message: json.error || "Ошибка обновления пользователя" },
+        }
+      },
+      async signOut() {
+        await fetch("/api/auth/signout", { method: "POST" })
+        return { error: null }
+      },
+    },
+  }
+}
 
 export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  browserClient ||= createBrowserClient()
+  return browserClient
 }

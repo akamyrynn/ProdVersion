@@ -1,5 +1,5 @@
 import type { CollectionAfterChangeHook } from "payload"
-import { createClient } from "@supabase/supabase-js"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 interface Variant {
   id?: string
@@ -25,21 +25,13 @@ export const notifyProductRestock: CollectionAfterChangeHook = async ({
 
   if (restocked.length === 0) return doc
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.warn("[productRestock] Missing Supabase env vars, skipping notification")
-    return doc
-  }
-
   try {
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
+    const db = createAdminClient()
     const productName = doc.name as string
     const productId = String(doc.id)
 
     // Get all clients who have this product in favorites
-    const { data: favorites } = await supabase
+    const { data: favorites } = await db
       .from("favorites")
       .select("client_id")
       .eq("product_id", productId)
@@ -47,7 +39,7 @@ export const notifyProductRestock: CollectionAfterChangeHook = async ({
     if (!favorites || favorites.length === 0) return doc
 
     // Insert notifications for each client
-    const notifications = favorites.map((fav) => ({
+    const notifications = favorites.map((fav: { client_id: string }) => ({
       client_id: fav.client_id,
       type: "product_restock" as const,
       title: "Товар снова в наличии",
@@ -55,7 +47,7 @@ export const notifyProductRestock: CollectionAfterChangeHook = async ({
       data: { product_id: productId },
     }))
 
-    await supabase.from("notifications").insert(notifications)
+    await db.from("notifications").insert(notifications)
   } catch (err) {
     console.error("[productRestock] Error sending notifications:", err)
   }

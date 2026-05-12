@@ -98,11 +98,6 @@ export default function SettingsPage() {
       })
       if (authError) throw authError
 
-      // Also sync to client_profiles table
-      await supabase
-        .from("client_profiles")
-        .upsert({ id: user.id, full_name: fullName, phone }, { onConflict: "id" })
-
       toast.success("Профиль обновлён")
     } catch {
       toast.error("Ошибка при сохранении")

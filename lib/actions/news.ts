@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import type { News } from "@/types"
 
 interface NewsItemRecord {
   cover_image_id?: number | null
@@ -101,7 +102,7 @@ async function resolveMediaUrls<T extends NewsItemRecord>(items: T[]) {
   })
 }
 
-export async function getNewsPaginated(offset: number, limit: number = 10) {
+export async function getNewsPaginated(offset: number, limit: number = 10): Promise<{ items: News[]; total: number }> {
   const supabase = await createClient()
 
   const { data, count } = await supabase
@@ -114,12 +115,12 @@ export async function getNewsPaginated(offset: number, limit: number = 10) {
   const resolved = await resolveMediaUrls(data || [])
 
   return {
-    items: resolved,
+    items: resolved as unknown as News[],
     total: count || 0,
   }
 }
 
-export async function getNewsById(id: string) {
+export async function getNewsById(id: string): Promise<News | null> {
   const supabase = await createClient()
 
   const { data: item } = await supabase
@@ -132,5 +133,5 @@ export async function getNewsById(id: string) {
   if (!item) return null
 
   const [resolved] = await resolveMediaUrls([item])
-  return resolved
+  return resolved as unknown as News
 }

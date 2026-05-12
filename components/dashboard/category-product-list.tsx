@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 import { ProductCard } from "@/components/dashboard/product-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Product } from "@/types"
@@ -17,25 +16,23 @@ export function CategoryProductList({
 }: CategoryProductListProps) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("products")
-        .select("*, variants:product_variants(*)")
-        .eq("category_id", categoryId)
-        .eq("is_visible", true)
-        .order("sort_order")
-
-      if (data) {
-        setProducts(data as Product[])
+      try {
+        const res = await fetch(`/api/catalog/products?categoryId=${encodeURIComponent(categoryId)}`)
+        const json = await res.json()
+        if (json.products) {
+          setProducts(json.products as Product[])
+        }
+      } catch {
+        setProducts([])
       }
       setLoading(false)
     }
 
     load()
-  }, [categoryId, supabase])
+  }, [categoryId])
 
   if (loading) {
     return (

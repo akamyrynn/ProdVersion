@@ -594,7 +594,7 @@ export async function repeatOrder(orderId: string): Promise<{ success?: boolean;
 
     if (dbItems && dbItems.length > 0) {
       // Check if product_ids are old UUIDs (contain hyphens) vs new integer IDs
-      const hasIntegerIds = dbItems.every((r) => /^\d+$/.test(String(r.product_id)))
+      const hasIntegerIds = dbItems.every((r: { product_id: unknown }) => /^\d+$/.test(String(r.product_id)))
 
       if (hasIntegerIds) {
         let addedCount = 0

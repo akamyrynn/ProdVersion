@@ -7,9 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useCart } from "@/providers/cart-provider"
 import { createOrder } from "@/lib/actions/orders"
 import { getClientDiscountConfig } from "@/lib/actions/products"
+import { getClientCompanies } from "@/lib/actions/companies"
 import { calculateClientDiscount, type CategoryDiscountRule } from "@/lib/discounts"
 import { checkoutSchema, type CheckoutFormData } from "@/lib/utils/validators"
-import { createClient } from "@/lib/supabase/client"
 import { getQuickComments } from "@/lib/actions/client-settings"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -121,30 +121,20 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     async function loadData() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
       const [companiesResult, comments, discountConfig] = await Promise.all([
-        supabase.from("companies").select("*").eq("client_id", user.id),
+        getClientCompanies(),
         getQuickComments(),
         getClientDiscountConfig(),
       ])
 
-      if (companiesResult.data) {
-        const loadedCompanies = companiesResult.data as Company[]
-        setCompanies(loadedCompanies)
-        if (loadedCompanies.length === 1 && !form.getValues("company_id")) {
-          form.setValue("company_id", loadedCompanies[0].id, { shouldValidate: true })
-        }
-      }
+      setCompanies(companiesResult as Company[])
       if (comments.length > 0) setQuickComments(comments)
       setClientDiscount(discountConfig.discountPercent || 0)
       setCategoryDiscounts(discountConfig.categoryDiscounts)
     }
 
     loadData()
-  }, [form])
+  }, [])
 
   // Reset CDEK state when delivery method changes
   useEffect(() => {
