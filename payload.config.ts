@@ -4,6 +4,8 @@ import { postgresAdapter } from "@payloadcms/db-postgres"
 import { lexicalEditor } from "@payloadcms/richtext-lexical"
 import { s3Storage } from "@payloadcms/storage-s3"
 import { ru } from "@payloadcms/translations/languages/ru"
+import type { EmailAdapter, SendEmailOptions } from "payload"
+import nodemailer from "nodemailer"
 import sharp from "sharp"
 
 import { Categories } from "./payload/collections/Categories"
@@ -22,6 +24,28 @@ import { BlogPosts } from "./payload/collections/BlogPosts"
 import { Tags } from "./payload/collections/Tags"
 import { PriceListRequests } from "./payload/collections/PriceListRequests"
 import { SiteSettings } from "./payload/globals/SiteSettings"
+
+const smtpEmailAdapter: EmailAdapter = () => {
+  const defaultFromAddress = process.env.SMTP_EMAIL || "noreply@10coffee.ru"
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.SMTP_EMAIL,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  })
+
+  return {
+    name: "smtp",
+    defaultFromAddress,
+    defaultFromName: "10coffee",
+    sendEmail: (message: SendEmailOptions) =>
+      transporter.sendMail({
+        ...message,
+        from: message.from || `"10coffee" <${defaultFromAddress}>`,
+      }),
+  }
+}
 
 export default buildConfig({
   serverURL: process.env.NEXT_PUBLIC_SERVER_URL || "",
@@ -56,6 +80,8 @@ export default buildConfig({
   globals: [SiteSettings],
 
   editor: lexicalEditor(),
+
+  email: smtpEmailAdapter,
 
   secret: process.env.PAYLOAD_SECRET || "your-secret-key-change-this",
 
