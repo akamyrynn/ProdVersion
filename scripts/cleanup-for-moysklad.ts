@@ -1,8 +1,25 @@
-import { getPayload } from "payload"
-import configPromise from "../payload.config"
 import { dbQuery } from "../lib/db"
+import { preparePayloadRuntime } from "./payload-runtime"
 
-async function deleteCollection(payload: Awaited<ReturnType<typeof getPayload>>, collection: string) {
+interface PayloadLike {
+  find: (params: {
+    collection: string
+    limit: number
+    depth: number
+  }) => Promise<{ docs: { id: string | number }[] }>
+  delete: (params: { collection: string; id: string | number }) => Promise<unknown>
+}
+
+async function getPayloadClient() {
+  preparePayloadRuntime()
+  const [{ getPayload }, configModule] = await Promise.all([
+    import("payload"),
+    import("../payload.config"),
+  ])
+  return getPayload({ config: configModule.default })
+}
+
+async function deleteCollection(payload: PayloadLike, collection: string) {
   let deleted = 0
 
   while (true) {
@@ -62,7 +79,7 @@ async function cleanupClientAuth() {
 }
 
 async function main() {
-  const payload = await getPayload({ config: configPromise })
+  const payload = await getPayloadClient()
 
   const rawTables = [
     "public.notifications",

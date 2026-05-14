@@ -1,9 +1,13 @@
-import { getPayload } from "payload"
-import configPromise from "../payload.config"
 import { importMoyskladCatalog } from "../lib/moysklad/import-catalog"
+import { preparePayloadRuntime } from "./payload-runtime"
 
 async function main() {
-  const payload = await getPayload({ config: configPromise })
+  preparePayloadRuntime()
+  const [{ getPayload }, configModule] = await Promise.all([
+    import("payload"),
+    import("../payload.config"),
+  ])
+  const payload = await getPayload({ config: configModule.default })
   const result = await importMoyskladCatalog(payload)
   console.log(JSON.stringify(result, null, 2))
 }
