@@ -75,6 +75,8 @@ export interface MoyskladCustomerOrder extends MoyskladEntity {
   externalCode?: string
   moment?: string
   sum?: number
+  payedSum?: number
+  shippedSum?: number
   state?: MoyskladEntity
 }
 

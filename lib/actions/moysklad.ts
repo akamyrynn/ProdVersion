@@ -5,6 +5,8 @@ import configPromise from "@payload-config"
 import { getMoyskladConfig } from "@/lib/moysklad/config"
 import { extractMoyskladId, moyskladGetList } from "@/lib/moysklad/client"
 import { importMoyskladCatalog } from "@/lib/moysklad/import-catalog"
+import { setupMoyskladDeliveryService } from "@/lib/moysklad/service-setup"
+import { syncMoyskladOrderStatuses } from "@/lib/moysklad/status-sync"
 import { fetchMoyskladAssortment, fetchMoyskladProductFolders, getPrimarySalePrice } from "@/lib/moysklad/products"
 import type { MoyskladAssortment, MoyskladEntity } from "@/lib/moysklad/types"
 
@@ -207,6 +209,39 @@ export async function runMoyskladCatalogImport() {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Не удалось импортировать каталог МойСклад",
+    }
+  }
+}
+
+export async function runMoyskladOrderStatusSync() {
+  const config = getMoyskladConfig()
+  if (!config.enabled) {
+    return { ok: false, error: "MOYSKLAD_ENABLED не включен" }
+  }
+
+  try {
+    const payload = await getPayloadClient()
+    return await syncMoyskladOrderStatuses(payload)
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Не удалось синхронизировать статусы МойСклад",
+    }
+  }
+}
+
+export async function runMoyskladDeliveryServiceSetup() {
+  const config = getMoyskladConfig()
+  if (!config.enabled) {
+    return { ok: false, error: "MOYSKLAD_ENABLED не включен" }
+  }
+
+  try {
+    return await setupMoyskladDeliveryService()
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Не удалось настроить служебную доставку МойСклад",
     }
   }
 }
