@@ -86,7 +86,7 @@ export default function CheckoutPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(false)
   const [privacyAgreed, setPrivacyAgreed] = useState(false)
-  const [orderResult, setOrderResult] = useState<{ orderId: string } | null>(null)
+  const [orderResult, setOrderResult] = useState<{ orderId: string; moyskladInvoiceCreated?: boolean } | null>(null)
 
   // CDEK state
   const [cityQuery, setCityQuery] = useState("")
@@ -293,7 +293,10 @@ export default function CheckoutPage() {
       setLoading(false)
     } else {
       await clearCart()
-      setOrderResult({ orderId: result.orderId! })
+      setOrderResult({
+        orderId: result.orderId!,
+        moyskladInvoiceCreated: result.moyskladInvoiceCreated,
+      })
       setLoading(false)
     }
   }
@@ -809,16 +812,22 @@ export default function CheckoutPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button asChild className="w-full">
-              <a
-                href={`/api/invoice?orderId=${orderResult?.orderId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Скачать счёт
-              </a>
-            </Button>
+            {orderResult?.moyskladInvoiceCreated ? (
+              <div className="rounded-xl bg-neutral-50 px-4 py-3 text-center text-sm text-muted-foreground">
+                Счёт сформирован в МойСклад. Менеджер отправит корректный счёт с номером из МойСклад.
+              </div>
+            ) : (
+              <Button asChild className="w-full">
+                <a
+                  href={`/api/invoice?orderId=${orderResult?.orderId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Скачать счёт
+                </a>
+              </Button>
+            )}
             <Button
               variant="outline"
               className="w-full"

@@ -267,16 +267,23 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                     </div>
                   </div>
                   <div className="ml-auto sm:ml-0 flex items-center gap-2">
-                    <a
-                      href={`/api/invoice?orderId=${order.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="h-8 px-2.5 sm:px-3 flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 bg-neutral-100 rounded-lg hover:bg-neutral-200 hover:text-neutral-900 transition-colors"
-                    >
-                      <FileText className="h-3 w-3" />
-                      <span className="hidden sm:inline">Счёт</span>
-                    </a>
+                    {order.moysklad_invoice_out_id ? (
+                      <span className="h-8 px-2.5 sm:px-3 flex items-center gap-1.5 text-[11px] font-semibold text-green-700 bg-green-50 rounded-lg">
+                        <FileText className="h-3 w-3" />
+                        <span className="hidden sm:inline">Счёт в МойСклад</span>
+                      </span>
+                    ) : (
+                      <a
+                        href={`/api/invoice?orderId=${order.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-8 px-2.5 sm:px-3 flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 bg-neutral-100 rounded-lg hover:bg-neutral-200 hover:text-neutral-900 transition-colors"
+                      >
+                        <FileText className="h-3 w-3" />
+                        <span className="hidden sm:inline">Счёт</span>
+                      </a>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -401,15 +408,22 @@ export function OrdersList({ initialOrders }: OrdersListProps) {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <a
-                    href={`/api/invoice?orderId=${selectedOrder.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 h-9 flex items-center justify-center gap-1.5 text-xs font-semibold bg-[#5b328a] text-white rounded-lg hover:bg-[#4a2870] transition-colors"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    Скачать счёт
-                  </a>
+                  {selectedOrder.moysklad_invoice_out_id ? (
+                    <div className="flex-1 h-9 flex items-center justify-center gap-1.5 text-xs font-semibold bg-green-50 text-green-700 rounded-lg">
+                      <FileText className="h-3.5 w-3.5" />
+                      Счёт в МойСклад
+                    </div>
+                  ) : (
+                    <a
+                      href={`/api/invoice?orderId=${selectedOrder.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 h-9 flex items-center justify-center gap-1.5 text-xs font-semibold bg-[#5b328a] text-white rounded-lg hover:bg-[#4a2870] transition-colors"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Скачать счёт
+                    </a>
+                  )}
                   <button
                     onClick={() => {
                       handleRepeatOrder(selectedOrder.id)

@@ -423,7 +423,7 @@ export async function createOrder(params: {
   promoCodeId?: string
   discountAmount?: number
   deliveryCost?: number
-}): Promise<{ error?: string; success?: boolean; orderId?: string }> {
+}): Promise<{ error?: string; success?: boolean; orderId?: string; moyskladInvoiceCreated?: boolean }> {
   await ensureB2bMoyskladSchema()
 
   const supabase = await createClient()
@@ -722,7 +722,7 @@ export async function createOrder(params: {
   }
 
   revalidatePath("/dashboard")
-  return { success: true, orderId: String(doc.id) }
+  return { success: true, orderId: String(doc.id), moyskladInvoiceCreated: hasMoyskladInvoice }
 }
 
 export async function repeatOrder(orderId: string): Promise<{ success?: boolean; error?: string }> {
