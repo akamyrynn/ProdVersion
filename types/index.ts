@@ -13,6 +13,7 @@ export type OrderStatus =
   | "ready"
   | "shipped"
   | "delivered"
+  | "returned"
   | "cancelled"
 
 export type DeliveryMethod = "self_pickup" | "cdek" | "cap_2000"

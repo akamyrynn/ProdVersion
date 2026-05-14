@@ -6,9 +6,10 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   invoiced: "Счёт выставлен",
   paid: "Оплачен",
   in_production: "В производстве",
-  ready: "Готов",
+  ready: "Собран",
   shipped: "Отгружен",
   delivered: "Доставлен",
+  returned: "Возврат",
   cancelled: "Отменён",
 }
 
@@ -21,6 +22,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   ready: "bg-emerald-100 text-emerald-800",
   shipped: "bg-purple-100 text-purple-800",
   delivered: "bg-green-200 text-green-900",
+  returned: "bg-red-100 text-red-800",
   cancelled: "bg-red-100 text-red-800",
 }
 

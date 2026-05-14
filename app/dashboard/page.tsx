@@ -21,6 +21,7 @@ const STATUS_DOTS: Record<OrderStatus, string> = {
   ready: "bg-teal-400",
   shipped: "bg-violet-400",
   delivered: "bg-green-500",
+  returned: "bg-red-400",
   cancelled: "bg-neutral-300",
 }
 

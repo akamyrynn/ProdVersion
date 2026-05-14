@@ -1,5 +1,46 @@
 import type { CollectionConfig } from "payload"
+import { randomBytes } from "crypto"
+import nodemailer from "nodemailer"
 import { PROMO_PRESETS } from "../promo-presets"
+
+const smtpTransporter = nodemailer.createTransport({
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  auth: {
+    user: process.env.SMTP_EMAIL,
+    pass: process.env.SMTP_PASSWORD,
+  },
+})
+
+function createPromoSuffix() {
+  return randomBytes(3).toString("hex").toUpperCase()
+}
+
+function formatDiscount(discountType: "percentage" | "fixed_amount", discountValue: number) {
+  return discountType === "percentage"
+    ? `${discountValue}%`
+    : `${discountValue.toLocaleString("ru-RU")} ₽`
+}
+
+async function sendIssuedPromoEmail(email: string, code: string, discount: string, description?: string) {
+  await smtpTransporter.sendMail({
+    from: `"10coffee" <${process.env.SMTP_EMAIL}>`,
+    to: email,
+    subject: `Промокод от 10coffee — скидка ${discount}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+        <h2 style="margin:0 0 16px">У вас промокод!</h2>
+        <p style="color:#666;margin:0 0 24px">${description || "Используйте промокод при оформлении заказа в личном кабинете."}</p>
+        <div style="background:#f5f5f5;border-radius:12px;padding:20px;text-align:center;margin:0 0 24px">
+          <p style="margin:0 0 8px;color:#999;font-size:13px">Ваш промокод</p>
+          <p style="margin:0;font-weight:bold;font-size:28px;letter-spacing:3px;color:#5b328a">${code}</p>
+          <p style="margin:8px 0 0;font-size:14px;font-weight:bold">Скидка ${discount}</p>
+        </div>
+        <p style="color:#999;font-size:12px;margin:0">Введите промокод при оформлении заказа на сайте.</p>
+      </div>
+    `,
+  })
+}
 
 export const PromoCodes: CollectionConfig = {
   slug: "promo-codes",
@@ -25,7 +66,7 @@ export const PromoCodes: CollectionConfig = {
       method: "post",
       handler: async (req) => {
         const body = await req.json?.()
-        const { presetId, clientEmail } = body || {}
+        const { presetId, clientEmail, clientId } = body || {}
 
         if (!req.user) {
           return Response.json({ error: "Unauthorized" }, { status: 401 })
@@ -36,8 +77,17 @@ export const PromoCodes: CollectionConfig = {
           return Response.json({ error: "Preset not found" }, { status: 400 })
         }
 
-        const random = Math.random().toString(36).substring(2, 7).toUpperCase()
-        const code = `10C-${preset.id.replace("_", "").toUpperCase().slice(0, 6)}-${random}`
+        let targetEmail = typeof clientEmail === "string" ? clientEmail.trim() : ""
+        if (!targetEmail && clientId) {
+          const client = await req.payload.findByID({
+            collection: "clients",
+            id: clientId,
+            depth: 0,
+          }) as { email?: string | null }
+          targetEmail = client.email || ""
+        }
+
+        const code = `10C-${preset.id.replace("_", "").toUpperCase().slice(0, 6)}-${createPromoSuffix()}`
 
         const startsAt = new Date().toISOString()
         const expiresAt = new Date(
@@ -53,17 +103,43 @@ export const PromoCodes: CollectionConfig = {
             isSingleUse: preset.isSingleUse,
             maxUses: preset.maxUses,
             minOrderAmount: preset.minOrderAmount || 0,
-            restrictedToEmail: clientEmail || undefined,
+            restrictedToEmail: targetEmail || undefined,
             startsAt,
             expiresAt,
             isActive: true,
           },
         })
 
-        return Response.json({ success: true, promoCode })
+        let emailSent = false
+        let emailError: string | undefined
+        if (targetEmail) {
+          try {
+            await sendIssuedPromoEmail(
+              targetEmail,
+              code,
+              formatDiscount(preset.discountType, preset.discountValue),
+              preset.description
+            )
+            emailSent = true
+          } catch (error) {
+            emailError = error instanceof Error ? error.message : "Не удалось отправить письмо"
+          }
+        }
+
+        return Response.json({ success: true, promoCode, emailSent, emailError })
       },
     },
   ],
+  hooks: {
+    beforeValidate: [
+      ({ data }) => {
+        if (data?.code && typeof data.code === "string") {
+          data.code = data.code.trim().toUpperCase()
+        }
+        return data
+      },
+    ],
+  },
   fields: [
     // === Sidebar ===
     {

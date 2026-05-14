@@ -35,7 +35,7 @@ export const Orders: CollectionConfig = {
           const discountPercent = Number(data.discountPercent ?? originalDoc?.discountPercent) || 0
 
           if (discountPercent > 0) {
-            data.discountAmount = Math.round(subtotal * discountPercent) / 100
+            data.discountAmount = Math.round((subtotal * discountPercent) / 100)
           }
 
           const discountAmount = Number(data.discountAmount ?? originalDoc?.discountAmount) || 0
@@ -268,9 +268,10 @@ export const Orders: CollectionConfig = {
                     { label: "Счёт выставлен", value: "invoiced" },
                     { label: "Оплачен", value: "paid" },
                     { label: "В производстве", value: "in_production" },
-                    { label: "Готов к отгрузке", value: "ready" },
+                    { label: "Собран", value: "ready" },
                     { label: "Отгружен", value: "shipped" },
                     { label: "Доставлен", value: "delivered" },
+                    { label: "Возврат", value: "returned" },
                     { label: "Отменён", value: "cancelled" },
                   ],
                   admin: { width: "33%" },

@@ -1026,13 +1026,15 @@ export async function updateOrderStatus(
 
   // Notify client
   const statusLabels: Record<string, string> = {
+    new: "новый",
     confirmed: "подтверждён",
     invoiced: "счёт выставлен",
     paid: "оплачен",
     in_production: "в производстве",
-    ready: "готов",
+    ready: "собран",
     shipped: "отгружен",
     delivered: "доставлен",
+    returned: "возврат",
     cancelled: "отменён",
   }
 

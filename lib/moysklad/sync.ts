@@ -504,7 +504,6 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       moyskladSyncedAt: new Date().toISOString(),
     }
     if (moyskladInvoiceOutId) {
-      updateData.status = "invoiced"
       updateData.paymentStatus = "invoiced"
     }
 

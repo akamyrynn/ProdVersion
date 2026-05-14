@@ -29,7 +29,7 @@ const PROMO_PRESETS = [
 export const IssuePromoButton: React.FC = () => {
   const { id, initialData } = useDocumentInfo()
   const [loading, setLoading] = useState<string | null>(null)
-  const [result, setResult] = useState<{ code: string } | null>(null)
+  const [result, setResult] = useState<{ code: string; emailSent?: boolean; emailError?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   if (!id) return null
@@ -51,7 +51,11 @@ export const IssuePromoButton: React.FC = () => {
       })
       const data = await res.json()
       if (data.success) {
-        setResult({ code: data.promoCode.code })
+        setResult({
+          code: data.promoCode.code,
+          emailSent: data.emailSent,
+          emailError: data.emailError,
+        })
       } else {
         setError(data.error || "Ошибка при создании промокода")
       }
@@ -144,6 +148,16 @@ export const IssuePromoButton: React.FC = () => {
           </strong>
           {clientEmail && (
             <span style={{ opacity: 0.7 }}> (привязан к {clientEmail})</span>
+          )}
+          {clientEmail && result.emailSent && (
+            <div style={{ marginTop: "6px", opacity: 0.8 }}>
+              Письмо клиенту отправлено.
+            </div>
+          )}
+          {clientEmail && result.emailError && (
+            <div style={{ marginTop: "6px", color: "#991b1b" }}>
+              Промокод создан, но письмо не отправилось: {result.emailError}
+            </div>
           )}
         </div>
       )}
