@@ -459,7 +459,9 @@ export async function createOrder(params: {
     ? buildProportionalDiscountLines(cartItems, promoDiscountAmount)
     : clientDiscountResult.lines.map((line) => ({
         cartItemId: line.cartItemId,
-        discountPercent: line.discountPercent,
+        discountPercent: line.subtotal > 0
+          ? (line.discountAmount / line.subtotal) * 100
+          : line.discountPercent,
       }))
   const appliedDiscountPercent = discountAmount === clientDiscountAmount &&
     clientDiscountResult.hasBaseDiscount &&
