@@ -87,6 +87,13 @@ async function ensureB2bMoyskladSchema() {
       add column if not exists moysklad_counterparty_id text;
     create index if not exists companies_moysklad_counterparty_id_idx
       on public.companies(moysklad_counterparty_id);
+    alter table public.orders
+      add column if not exists moysklad_counterparty_id varchar,
+      add column if not exists moysklad_invoice_out_id varchar;
+    create index if not exists orders_moysklad_counterparty_id_idx
+      on public.orders(moysklad_counterparty_id);
+    create index if not exists orders_moysklad_invoice_out_id_idx
+      on public.orders(moysklad_invoice_out_id);
   `)
 }
 

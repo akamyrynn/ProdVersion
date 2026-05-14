@@ -234,6 +234,13 @@ async function ensureB2bMoyskladSchema() {
       add column if not exists moysklad_counterparty_id text;
     create index if not exists companies_moysklad_counterparty_id_idx
       on public.companies(moysklad_counterparty_id);
+    alter table public.orders
+      add column if not exists moysklad_counterparty_id varchar,
+      add column if not exists moysklad_invoice_out_id varchar;
+    create index if not exists orders_moysklad_counterparty_id_idx
+      on public.orders(moysklad_counterparty_id);
+    create index if not exists orders_moysklad_invoice_out_id_idx
+      on public.orders(moysklad_invoice_out_id);
   `)
 }
 
@@ -371,6 +378,8 @@ function transformOrder(doc: PayloadOrderDoc): Order {
 // ============================================================
 
 export async function getClientOrders(): Promise<Order[]> {
+  await ensureB2bMoyskladSchema()
+
   const userId = await getCurrentUserId()
   if (!userId) return []
 
@@ -390,6 +399,8 @@ export async function getClientOrders(): Promise<Order[]> {
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {
+  await ensureB2bMoyskladSchema()
+
   const payload = await getPayloadClient()
 
   try {
@@ -961,6 +972,8 @@ export async function deleteOrder(orderId: string): Promise<{ success?: boolean;
 // ============================================================
 
 export async function getAllOrders(): Promise<Order[]> {
+  await ensureB2bMoyskladSchema()
+
   const payload = await getPayloadClient()
 
   const { docs } = await payload.find({
