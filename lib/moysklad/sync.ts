@@ -125,6 +125,19 @@ async function updateCompanyCounterpartyId(companyId: string | undefined, counte
   )
 }
 
+async function clearCompanyCounterpartyId(companyId: string | undefined) {
+  if (!companyId) return
+  await ensureB2bMoyskladSchema()
+  await dbQuery(
+    "update public.companies set moysklad_counterparty_id = null, updated_at = now() where id = $1",
+    [companyId]
+  )
+}
+
+function normalizeInn(value?: string | null) {
+  return (value || "").trim()
+}
+
 async function findCounterpartyByEmail(email: string) {
   const filter = `email=${email}`
   const result = await moyskladGetList<MoyskladCounterparty>("entity/counterparty", {
@@ -143,24 +156,52 @@ async function findCounterpartyByInn(inn: string) {
   return result.rows[0] || null
 }
 
+async function findCounterpartyById(id: string) {
+  return moyskladRequest<MoyskladCounterparty>(`entity/counterparty/${id}`)
+}
+
 async function ensureCounterparty(payload: Payload, client: SyncClient, company?: SyncCompany | null) {
   const config = getMoyskladConfig()
   assertMoyskladReady(config)
 
-  if (company?.moyskladCounterpartyId) {
-    return company.moyskladCounterpartyId
-  }
+  if (company) {
+    if (company.moyskladCounterpartyId) {
+      const linkedCounterparty = await findCounterpartyById(company.moyskladCounterpartyId).catch(() => null)
+      const linkedInn = normalizeInn(linkedCounterparty?.inn)
+      const companyInn = normalizeInn(company.inn)
 
-  if (company?.inn) {
-    const existing = await findCounterpartyByInn(company.inn)
-    const existingId = extractMoyskladId(existing)
-    if (existingId) {
-      await updateCompanyCounterpartyId(company.id, existingId)
-      return existingId
+      if (!companyInn || linkedInn === companyInn) {
+        return company.moyskladCounterpartyId
+      }
+
+      await clearCompanyCounterpartyId(company.id)
     }
+
+    if (company.inn) {
+      const existing = await findCounterpartyByInn(company.inn)
+      const existingId = extractMoyskladId(existing)
+      if (existingId) {
+        await updateCompanyCounterpartyId(company.id, existingId)
+        return existingId
+      }
+    }
+
+    if (!config.createCounterparties) {
+      throw new Error("Контрагент не найден, а создание контрагентов отключено")
+    }
+
+    const created = await moyskladRequest<MoyskladCounterparty>("entity/counterparty", {
+      method: "POST",
+      body: JSON.stringify(buildCounterpartyPayload(client, company)),
+    })
+    const createdId = extractMoyskladId(created)
+    if (!createdId) throw new Error("МойСклад не вернул id контрагента")
+
+    await updateCompanyCounterpartyId(company.id, createdId)
+    return createdId
   }
 
-  if (!company && client.moyskladCounterpartyId) {
+  if (client.moyskladCounterpartyId) {
     return client.moyskladCounterpartyId
   }
 
@@ -190,9 +231,7 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
   const createdId = extractMoyskladId(created)
   if (!createdId) throw new Error("МойСклад не вернул id контрагента")
 
-  if (company?.id) {
-    await updateCompanyCounterpartyId(company.id, createdId)
-  } else if (client.id) {
+  if (client.id) {
     await payload.update({
       collection: "clients",
       id: client.id,

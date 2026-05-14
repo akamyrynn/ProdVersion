@@ -1,5 +1,6 @@
 import { default as default_a7a591272d1175fa6786d0420d4a2476 } from '../../../payload/components/IssuePromoButton'
 import { default as default_b29d5d4bafbb0e734603f6b3f2ac2235 } from '../../../payload/components/ProductTypeRelationshipField'
+import { default as default_c8d81c80c3d2740af2d1d7f821470379 } from '../../../payload/components/MoyskladCatalogSyncButton'
 import { RscEntryLexicalCell as RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { RscEntryLexicalField as RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { LexicalDiffComponent as LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
@@ -29,6 +30,7 @@ import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 export const importMap = {
   "/payload/components/IssuePromoButton#default": default_a7a591272d1175fa6786d0420d4a2476,
   "/payload/components/ProductTypeRelationshipField#default": default_b29d5d4bafbb0e734603f6b3f2ac2235,
+  "/payload/components/MoyskladCatalogSyncButton#default": default_c8d81c80c3d2740af2d1d7f821470379,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalField": RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#LexicalDiffComponent": LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e,

@@ -81,10 +81,27 @@ export async function updateCompany(
   formData: Partial<Company>
 ) {
   const supabase = await createClient()
+  const fieldsThatChangeCounterparty = [
+    "name",
+    "inn",
+    "kpp",
+    "ogrn",
+    "legal_address",
+    "actual_address",
+    "contact_phone",
+    "contact_email",
+  ]
+  const updateData: Partial<Company> = {
+    ...formData,
+  }
+
+  if (fieldsThatChangeCounterparty.some((field) => field in formData)) {
+    updateData.moysklad_counterparty_id = null
+  }
 
   const { error } = await supabase
     .from("companies")
-    .update(formData)
+    .update(updateData)
     .eq("id", companyId)
 
   if (error) return { error: error.message }

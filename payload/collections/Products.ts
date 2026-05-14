@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload"
+import { importMoyskladCatalog } from "@/lib/moysklad/import-catalog"
 import { notifyProductRestock } from "../hooks/productRestock"
 import { PRODUCT_DETAILS_SCHEMA_OPTIONS, getRelationshipId } from "@/lib/product-types"
 import { syncProductTypeConfig } from "../hooks/syncProductTypeConfig"
@@ -15,6 +16,27 @@ export const Products: CollectionConfig = {
     singular: "Товар",
     plural: "Товары",
   },
+  endpoints: [
+    {
+      path: "/moysklad/import",
+      method: "post",
+      handler: async (req) => {
+        if (!req.user) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 })
+        }
+
+        try {
+          const result = await importMoyskladCatalog(req.payload)
+          return Response.json(result)
+        } catch (error) {
+          return Response.json(
+            { ok: false, error: error instanceof Error ? error.message : "Не удалось синхронизировать каталог" },
+            { status: 500 }
+          )
+        }
+      },
+    },
+  ],
   fields: [
     // === ОСНОВНОЕ ===
     {
