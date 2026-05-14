@@ -133,6 +133,15 @@ export const Products: CollectionConfig = {
         position: "sidebar",
       },
     },
+    {
+      name: "moyskladId",
+      type: "text",
+      label: "ID товара в МойСклад",
+      admin: {
+        position: "sidebar",
+        description: "ID основного товара. Для заказов чаще используется ID модификации внутри варианта.",
+      },
+    },
 
     // === ВАРИАНТЫ ФАСОВКИ ===
     {
@@ -152,6 +161,25 @@ export const Products: CollectionConfig = {
           name: "sku",
           type: "text",
           label: "Артикул (SKU)",
+        },
+        {
+          name: "moyskladId",
+          type: "text",
+          label: "ID позиции в МойСклад",
+          admin: {
+            description: "ID модификации, товара или услуги, который уйдет в заказ МойСклад.",
+          },
+        },
+        {
+          name: "moyskladType",
+          type: "select",
+          label: "Тип позиции МойСклад",
+          defaultValue: "variant",
+          options: [
+            { label: "Модификация", value: "variant" },
+            { label: "Товар", value: "product" },
+            { label: "Услуга", value: "service" },
+          ],
         },
         {
           name: "price",

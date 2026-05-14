@@ -50,6 +50,15 @@ export const Clients: CollectionConfig = {
       },
     },
     {
+      name: "moyskladCounterpartyId",
+      type: "text",
+      label: "ID контрагента в МойСклад",
+      admin: {
+        position: "sidebar",
+        description: "Заполняется автоматически при первой синхронизации или вручную для привязки существующего контрагента.",
+      },
+    },
+    {
       name: "isVerified",
       type: "checkbox",
       label: "Верифицирован",

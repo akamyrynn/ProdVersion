@@ -31,6 +31,15 @@ export const ProductTypes: CollectionConfig = {
       },
     },
     {
+      name: "moyskladId",
+      type: "text",
+      label: "ID группы/типа в МойСклад",
+      admin: {
+        position: "sidebar",
+        description: "Опциональная связь с группой товаров в МойСклад.",
+      },
+    },
+    {
       name: "icon",
       type: "upload",
       label: "SVG-иконка",

@@ -15,6 +15,7 @@ import { getRelationshipId } from "@/lib/product-types"
 import { revalidatePath } from "next/cache"
 import nodemailer from "nodemailer"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
+import { syncOrderToMoysklad } from "@/lib/moysklad/sync"
 
 interface OrderEmailItem {
   productName: string
@@ -82,6 +83,10 @@ interface PayloadOrderDoc {
 
 interface PayloadClientDoc {
   id: number
+  fullName?: string
+  email?: string
+  phone?: string | null
+  moyskladCounterpartyId?: string | null
   discountPercent?: number | string
   categoryDiscounts?: {
     category?: { id?: string | number; name?: string } | string | number | null
@@ -197,6 +202,10 @@ async function getCurrentUserId(): Promise<string | null> {
 
 async function getClientDoc(supabaseUserId: string): Promise<{
   id: number
+  fullName?: string
+  email?: string
+  phone?: string | null
+  moyskladCounterpartyId?: string | null
   discountPercent: number
   categoryDiscounts: CategoryDiscountRule[]
 } | null> {
@@ -229,6 +238,10 @@ async function getClientDoc(supabaseUserId: string): Promise<{
 
     return {
       id: client.id,
+      fullName: client.fullName,
+      email: client.email,
+      phone: client.phone,
+      moyskladCounterpartyId: client.moyskladCounterpartyId,
       discountPercent: normalizeDiscountPercent(client.discountPercent),
       categoryDiscounts: normalizeCategoryDiscounts(categoryDiscounts),
     }
@@ -390,6 +403,12 @@ export async function createOrder(params: {
   let companyInn: string | undefined
   let companyKpp: string | undefined
   let companyAddress: string | undefined
+  let companyForMoysklad: {
+    name?: string
+    inn?: string
+    kpp?: string | null
+    legalAddress?: string | null
+  } | null = null
   const companyId = params.companyId?.trim()
 
   if (companyId) {
@@ -425,6 +444,13 @@ export async function createOrder(params: {
 
   if (!companyName || !companyInn) {
     return { error: "Выберите компанию для оформления заказа" }
+  }
+
+  companyForMoysklad = {
+    name: companyName,
+    inn: companyInn,
+    kpp: companyKpp || null,
+    legalAddress: companyAddress || null,
   }
 
   // Build items array for Payload
@@ -494,6 +520,30 @@ export async function createOrder(params: {
   }))
 
   await adminDb.from("order_items").insert(orderItemsRows)
+
+  await syncOrderToMoysklad({
+    payload,
+    order: {
+      id: doc.id,
+      orderId: doc.orderId,
+      subtotal,
+      discountAmount,
+      deliveryCost,
+      total,
+      deliveryMethod: params.deliveryMethod,
+      deliveryAddress: params.deliveryAddress || "",
+      comment: params.comment || "",
+    },
+    client: {
+      id: clientDocId,
+      fullName: clientDoc.fullName,
+      email: clientDoc.email || user.email || "",
+      phone: clientDoc.phone || null,
+      moyskladCounterpartyId: clientDoc.moyskladCounterpartyId || null,
+    },
+    company: companyForMoysklad,
+    cartItems,
+  })
 
   // Clear cart (now uses direct Supabase queries, no Payload transaction issues)
   await clearPayloadCart()

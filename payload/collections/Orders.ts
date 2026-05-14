@@ -174,6 +174,48 @@ export const Orders: CollectionConfig = {
       label: "Вес (г)",
       admin: { position: "sidebar" },
     },
+    {
+      name: "moyskladSyncStatus",
+      type: "select",
+      label: "МойСклад",
+      defaultValue: "disabled",
+      options: [
+        { label: "Ожидает", value: "pending" },
+        { label: "Синхронизирован", value: "synced" },
+        { label: "Ошибка", value: "error" },
+        { label: "Отключено", value: "disabled" },
+      ],
+      admin: {
+        position: "sidebar",
+      },
+    },
+    {
+      name: "moyskladCustomerOrderId",
+      type: "text",
+      label: "ID заказа в МойСклад",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+      },
+    },
+    {
+      name: "moyskladSyncedAt",
+      type: "date",
+      label: "Синхронизирован",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+      },
+    },
+    {
+      name: "moyskladSyncError",
+      type: "textarea",
+      label: "Ошибка МойСклад",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+      },
+    },
 
     // === Main content (tabs) ===
     {

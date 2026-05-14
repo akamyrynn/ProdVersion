@@ -32,6 +32,15 @@ export const Categories: CollectionConfig = {
       },
     },
     {
+      name: "moyskladId",
+      type: "text",
+      label: "ID группы товаров в МойСклад",
+      admin: {
+        position: "sidebar",
+        description: "Используется для сопоставления категории сайта с productfolder в МойСклад.",
+      },
+    },
+    {
       name: "productTypeRef",
       type: "relationship",
       label: "Тип товара",

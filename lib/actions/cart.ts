@@ -51,6 +51,8 @@ interface PayloadVariant {
   id?: string | number
   name?: string
   sku?: string | null
+  moyskladId?: string | null
+  moyskladType?: "product" | "variant" | "service" | null
   price?: number
   weightGrams?: number | null
   isAvailable?: boolean
@@ -70,6 +72,7 @@ interface PayloadProductDoc {
   detailsSchema?: ProductDetailsSchema
   name?: string
   slug?: string
+  moyskladId?: string | null
   sortOrder?: number
   isVisible?: boolean
   stickers?: (PayloadTag | string | number | null)[]
@@ -176,6 +179,8 @@ function transformVariantFromPayload(v: PayloadVariant, productId: string): Prod
     product_id: productId,
     name: v.name || "",
     sku: v.sku || null,
+    moysklad_id: v.moyskladId || null,
+    moysklad_type: v.moyskladType || null,
     price: v.price || 0,
     weight_grams: v.weightGrams ?? null,
     is_available: v.isAvailable ?? true,
@@ -200,6 +205,7 @@ function transformProductFromPayload(doc: PayloadProductDoc): Product {
     product_type_schema: resolveProductTypeSchema(doc),
     name: doc.name || "",
     slug: doc.slug || "",
+    moysklad_id: doc.moyskladId || null,
     description: null,
     description_images: [],
     sort_order: doc.sortOrder || 0,

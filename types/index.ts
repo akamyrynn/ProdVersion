@@ -151,6 +151,7 @@ export interface Product {
   product_type_schema: ProductDetailsSchema
   name: string
   slug: string
+  moysklad_id?: string | null
   description: string | null
   description_images: string[]
   sort_order: number
@@ -191,6 +192,8 @@ export interface ProductVariant {
   product_id: string
   name: string
   sku: string | null
+  moysklad_id?: string | null
+  moysklad_type?: "product" | "variant" | "service" | null
   price: number
   weight_grams: number | null
   is_available: boolean
