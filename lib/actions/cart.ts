@@ -4,6 +4,7 @@ import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getMediaUrl, type PayloadMediaRef as MediaUrlRef } from "@/lib/media"
 import { normalizeProductDetailsSchema } from "@/lib/product-types"
 import type { CartItem, Product, ProductVariant, ProductTag, ProductDetailsSchema } from "@/types"
 
@@ -168,7 +169,7 @@ function extractImageUrls(images: { image?: PayloadMediaRef }[] | undefined | nu
     .map((entry) => {
       const img = entry?.image
       if (!isPayloadMedia(img)) return null
-      return img.url || img.sizes?.card?.url || img.sizes?.full?.url || null
+      return getMediaUrl(img as MediaUrlRef, ["full", "card", "thumbnail"])
     })
     .filter(isDefined)
 }

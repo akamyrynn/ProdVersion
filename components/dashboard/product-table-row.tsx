@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Heart, Plus, Minus, Coffee } from "lucide-react"
 import { useCart } from "@/providers/cart-provider"
 import { toggleFavorite } from "@/lib/actions/products"
@@ -46,9 +47,9 @@ export function ProductTableRow({
       {/* ── DESKTOP: single row — image + name + variants + heart ── */}
       <div className="hidden sm:flex items-center gap-3">
         {/* Thumbnail */}
-        <div className="h-10 w-10 rounded-lg bg-neutral-100 shrink-0 overflow-hidden flex items-center justify-center">
+        <div className="relative h-10 w-10 rounded-lg bg-neutral-100 shrink-0 overflow-hidden flex items-center justify-center">
           {imageUrl ? (
-            <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" />
+            <Image src={imageUrl} alt={product.name} fill sizes="40px" className="object-cover" />
           ) : (
             <Coffee className="h-4 w-4 text-neutral-300" />
           )}
@@ -113,9 +114,9 @@ export function ProductTableRow({
       {/* ── MOBILE: header + variant rows below ── */}
       <div className="sm:hidden">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-neutral-100 shrink-0 overflow-hidden flex items-center justify-center">
+          <div className="relative h-10 w-10 rounded-lg bg-neutral-100 shrink-0 overflow-hidden flex items-center justify-center">
             {imageUrl ? (
-              <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" />
+              <Image src={imageUrl} alt={product.name} fill sizes="40px" className="object-cover" />
             ) : (
               <Coffee className="h-4 w-4 text-neutral-300" />
             )}

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 
 export const dynamic = "force-dynamic"
 
@@ -191,11 +192,13 @@ export default async function DashboardPage() {
                 className="flex gap-4 bg-white rounded-xl border border-black/[0.04] p-4 hover:shadow-sm transition-all group"
               >
                 {item.cover_image && (
-                  <div className="h-16 w-20 rounded-lg bg-neutral-100 shrink-0 overflow-hidden">
-                    <img
+                  <div className="relative h-16 w-20 rounded-lg bg-neutral-100 shrink-0 overflow-hidden">
+                    <Image
                       src={item.cover_image}
                       alt=""
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="80px"
+                      className="object-cover"
                     />
                   </div>
                 )}

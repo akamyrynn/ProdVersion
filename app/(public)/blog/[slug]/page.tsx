@@ -1,8 +1,10 @@
-import { getBlogPost, getBlogPosts } from "@/lib/actions/blog"
+import { getBlogPost } from "@/lib/actions/blog"
 import SiteHeader from "@/components/landing/SiteHeader"
 import LandingFooter from "@/components/landing/LandingFooter"
+import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { getMediaUrl, type PayloadMediaRef } from "@/lib/media"
 import styles from "./article.module.css"
 
 interface Props {
@@ -10,12 +12,7 @@ interface Props {
 }
 
 function getImageUrl(coverImage: unknown): string | null {
-  if (!coverImage) return null
-  if (typeof coverImage === "string") return coverImage
-  const img = coverImage as { url?: string; filename?: string }
-  if (img.url) return img.url
-  if (img.filename) return `/api/media/file/${img.filename}`
-  return null
+  return getMediaUrl(coverImage as PayloadMediaRef | string | null, ["full", "card", "thumbnail"])
 }
 
 function formatDate(dateStr: string) {
@@ -40,6 +37,7 @@ interface LexicalNode {
     url?: string
     filename?: string
     alt?: string
+    sizes?: PayloadMediaRef["sizes"]
   }
 }
 
@@ -81,10 +79,16 @@ function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
       )
     case "upload": {
       const val = node.value
-      const uploadSrc = node.src || val?.url || (val?.filename ? `/api/media/file/${val.filename}` : null)
+      const uploadSrc = node.src || getMediaUrl(val as PayloadMediaRef | null, ["full", "card", "thumbnail"])
       return uploadSrc ? (
         <figure key={i} className={styles.contentImage}>
-          <img src={uploadSrc} alt={node.altText || val?.alt || ""} />
+          <Image
+            src={uploadSrc}
+            alt={node.altText || val?.alt || ""}
+            width={1200}
+            height={800}
+            sizes="(min-width: 900px) 800px, 100vw"
+          />
         </figure>
       ) : null
     }
@@ -149,12 +153,17 @@ export default async function BlogArticlePage({ params }: Props) {
       <article>
         <header
           className={styles.hero}
-          style={
-            imageUrl
-              ? { backgroundImage: `url(${imageUrl})` }
-              : undefined
-          }
         >
+          {imageUrl && (
+            <Image
+              src={imageUrl}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className={styles.heroImage}
+            />
+          )}
           <div className={styles.heroOverlay} />
           <div className={styles.heroContent}>
             {post.publishedAt && (

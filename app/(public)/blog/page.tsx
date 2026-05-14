@@ -1,7 +1,9 @@
 import { getBlogPosts } from "@/lib/actions/blog"
 import SiteHeader from "@/components/landing/SiteHeader"
 import LandingFooter from "@/components/landing/LandingFooter"
+import Image from "next/image"
 import Link from "next/link"
+import { getMediaUrl, type PayloadMediaRef } from "@/lib/media"
 import styles from "./blog.module.css"
 
 export const metadata = {
@@ -18,12 +20,7 @@ function formatDate(dateStr: string) {
 }
 
 function getImageUrl(coverImage: unknown): string | null {
-  if (!coverImage) return null
-  if (typeof coverImage === "string") return coverImage
-  const img = coverImage as { url?: string; filename?: string }
-  if (img.url) return img.url
-  if (img.filename) return `/api/media/file/${img.filename}`
-  return null
+  return getMediaUrl(coverImage as PayloadMediaRef | string | null, ["card", "full", "thumbnail"])
 }
 
 export default async function BlogPage({
@@ -68,7 +65,13 @@ export default async function BlogPage({
                   >
                     <div className={styles.cardImage}>
                       {imageUrl ? (
-                        <img src={imageUrl} alt={post.title as string} />
+                        <Image
+                          src={imageUrl}
+                          alt={post.title as string}
+                          fill
+                          sizes="(min-width: 1200px) 30vw, (min-width: 700px) 50vw, 100vw"
+                          className={styles.cardImg}
+                        />
                       ) : (
                         <div className={styles.cardPlaceholder}>
                           <span>10</span>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react"
 import { Heart, Coffee, Loader2 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { toggleFavorite, getFavoriteProducts } from "@/lib/actions/products"
 import type { Product } from "@/types"
@@ -62,9 +63,9 @@ export default function FavoritesPage() {
               key={product.id}
               className="flex items-center gap-4 p-4 border rounded-xl hover:bg-muted/50 transition-colors"
             >
-              <div className="h-12 w-12 rounded-lg bg-[#faead5] flex items-center justify-center shrink-0 overflow-hidden">
+              <div className="relative h-12 w-12 rounded-lg bg-[#faead5] flex items-center justify-center shrink-0 overflow-hidden">
                 {product.images && product.images.length > 0 ? (
-                  <img src={product.images[0]} alt={product.name} className="h-full w-full object-cover" />
+                  <Image src={product.images[0]} alt={product.name} fill sizes="48px" className="object-cover" />
                 ) : (
                   <Coffee className="h-5 w-5 text-[#5b328a]/30" />
                 )}

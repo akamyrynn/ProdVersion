@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import {
   ArrowLeft,
   Heart,
@@ -107,10 +108,13 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
           {/* Main image */}
           <div className="aspect-square rounded-2xl bg-gradient-to-br bg-[#faead5] overflow-hidden relative group">
             {product.images && product.images.length > 0 ? (
-              <img
+              <Image
                 src={product.images[activeImage] || product.images[0]}
                 alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                fill
+                priority
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -166,13 +170,13 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
                   key={i}
                   onClick={() => setActiveImage(i)}
                   className={cn(
-                    "w-16 h-16 rounded-xl overflow-hidden border-2 transition-all",
+                    "relative w-16 h-16 rounded-xl overflow-hidden border-2 transition-all",
                     activeImage === i
                       ? "border-[#5b328a] shadow-md"
                       : "border-transparent opacity-60 hover:opacity-100"
                   )}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <Image src={img} alt="" fill sizes="64px" className="object-cover" />
                 </button>
               ))}
             </div>
@@ -356,11 +360,13 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
                   className="bg-white border border-neutral-100 rounded-2xl p-5 hover:shadow-lg hover:shadow-[#faead5]/50 transition-all duration-300 group"
                 >
                   {method.image_url && (
-                    <div className="aspect-video rounded-xl overflow-hidden mb-4 bg-neutral-50">
-                      <img
+                    <div className="relative aspect-video rounded-xl overflow-hidden mb-4 bg-neutral-50">
+                      <Image
                         src={method.image_url}
                         alt={method.method}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        fill
+                        sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     </div>
                   )}
@@ -394,11 +400,13 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
                   className="bg-white border border-neutral-100 rounded-2xl p-5 hover:shadow-lg hover:shadow-[#faead5]/50 transition-all duration-300 group"
                 >
                   {instr.image_url && (
-                    <div className="aspect-video rounded-xl overflow-hidden mb-4 bg-neutral-50">
-                      <img
+                    <div className="relative aspect-video rounded-xl overflow-hidden mb-4 bg-neutral-50">
+                      <Image
                         src={instr.image_url}
                         alt={instr.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        fill
+                        sizes="(min-width: 768px) 50vw, 100vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     </div>
                   )}

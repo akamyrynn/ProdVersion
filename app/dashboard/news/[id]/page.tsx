@@ -2,6 +2,7 @@ import { getNewsById } from "@/lib/actions/news"
 import { notFound } from "next/navigation"
 import { formatDate } from "@/lib/utils/format"
 import { ArrowLeft } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import type { News } from "@/types"
 
@@ -64,7 +65,14 @@ function renderLexicalNode(node: LexicalNode, i: number): React.ReactNode {
       const uploadSrc = node.src || val?.url || (val?.filename ? `/api/media/file/${val.filename}` : null)
       return uploadSrc ? (
         <figure key={i} className="my-4">
-          <img src={uploadSrc} alt={node.altText || val?.alt || ""} className="rounded-lg max-w-full" />
+          <Image
+            src={uploadSrc}
+            alt={node.altText || val?.alt || ""}
+            width={1200}
+            height={800}
+            sizes="(min-width: 900px) 768px, 100vw"
+            className="rounded-lg h-auto w-full"
+          />
         </figure>
       ) : null
     }
@@ -131,11 +139,14 @@ export default async function NewsDetailPage({ params }: Props) {
 
       {/* Cover */}
       {news.cover_image && (
-        <div className="aspect-video w-full overflow-hidden rounded-2xl bg-neutral-100">
-          <img
+        <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-neutral-100">
+          <Image
             src={news.cover_image}
             alt={news.title}
-            className="w-full h-full object-cover"
+            fill
+            priority
+            sizes="(min-width: 900px) 768px, 100vw"
+            className="object-cover"
           />
         </div>
       )}

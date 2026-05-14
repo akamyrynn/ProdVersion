@@ -4,6 +4,7 @@ import { useState } from "react"
 import { getNewsPaginated } from "@/lib/actions/news"
 import { formatDate } from "@/lib/utils/format"
 import { Loader2 } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import type { News } from "@/types"
 
@@ -37,11 +38,13 @@ export function NewsLoadMore({ initialItems, total }: NewsLoadMoreProps) {
             className="flex gap-4 bg-white rounded-xl border border-black/[0.04] p-4 hover:shadow-sm transition-all group"
           >
             {item.cover_image && (
-              <div className="h-20 w-24 rounded-lg bg-neutral-100 shrink-0 overflow-hidden">
-                <img
+              <div className="relative h-20 w-24 rounded-lg bg-neutral-100 shrink-0 overflow-hidden">
+                <Image
                   src={item.cover_image}
                   alt=""
-                  className="h-full w-full object-cover"
+                  fill
+                  sizes="96px"
+                  className="object-cover"
                 />
               </div>
             )}

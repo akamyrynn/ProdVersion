@@ -2,8 +2,9 @@
 
 import { getPayload } from "payload"
 import configPromise from "@payload-config"
+import { unstable_cache } from "next/cache"
 
-export async function getBlogPosts(page = 1, limit = 9) {
+const getCachedBlogPosts = unstable_cache(async (page = 1, limit = 9) => {
   const payload = await getPayload({ config: configPromise })
 
   const result = await payload.find({
@@ -23,9 +24,13 @@ export async function getBlogPosts(page = 1, limit = 9) {
     page: result.page || 1,
     totalDocs: result.totalDocs,
   }
+}, ["blog-posts"], { revalidate: 300 })
+
+export async function getBlogPosts(page = 1, limit = 9) {
+  return getCachedBlogPosts(page, limit)
 }
 
-export async function getBlogPost(slug: string) {
+const getCachedBlogPost = unstable_cache(async (slug: string) => {
   const payload = await getPayload({ config: configPromise })
 
   const result = await payload.find({
@@ -39,4 +44,8 @@ export async function getBlogPost(slug: string) {
   })
 
   return result.docs[0] || null
+}, ["blog-post"], { revalidate: 300 })
+
+export async function getBlogPost(slug: string) {
+  return getCachedBlogPost(slug)
 }

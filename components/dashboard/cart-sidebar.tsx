@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Trash2, Send, Minus, Plus, FileText, ShoppingBag, X, Coffee, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { formatPrice, formatWeight } from "@/lib/utils/format"
@@ -163,12 +164,14 @@ export function CartSidebar({
                 <div key={item.id} className="group rounded-xl p-3 hover:bg-[#faead5]/40 transition-colors">
                   <div className="flex items-start gap-3">
                     {/* Image */}
-                    <div className="h-14 w-14 rounded-xl bg-gradient-to-br bg-[#faead5] flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="relative h-14 w-14 rounded-xl bg-gradient-to-br bg-[#faead5] flex items-center justify-center shrink-0 overflow-hidden">
                       {item.product?.images?.[0] ? (
-                        <img
+                        <Image
                           src={item.product.images[0]}
                           alt={item.product?.name || ""}
-                          className="h-full w-full object-cover"
+                          fill
+                          sizes="56px"
+                          className="object-cover"
                         />
                       ) : (
                         <Coffee className="h-5 w-5 text-[#e6610d]/30" />

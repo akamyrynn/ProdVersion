@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { useAuth } from "@/providers/auth-provider"
 import { useCart } from "@/providers/cart-provider"
@@ -518,9 +519,9 @@ function FavoritesContent({ favorites, loading, onClose }: { favorites: Product[
             onClick={onClose}
             className="flex items-center gap-4 p-3 rounded-xl hover:bg-neutral-50 transition-colors group"
           >
-            <div className="h-14 w-14 rounded-xl bg-[#faead5] flex items-center justify-center shrink-0 overflow-hidden">
+            <div className="relative h-14 w-14 rounded-xl bg-[#faead5] flex items-center justify-center shrink-0 overflow-hidden">
               {imageUrl ? (
-                <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                <Image src={imageUrl} alt={product.name} fill sizes="56px" className="object-cover" />
               ) : (
                 <Coffee className="h-5 w-5 text-[#e6610d]/30" />
               )}

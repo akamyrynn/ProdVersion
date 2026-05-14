@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -26,12 +26,20 @@ export function AuthModal({ announcement }: AuthModalProps) {
   const authParam = searchParams.get("auth") as AuthView | null
   const urlOpen = authParam === "login" || authParam === "register" || authParam === "forgot"
 
-  // Local close marker keeps the dialog snappy without syncing state in an effect.
+  // Keep the dialog responsive even before the URL state finishes updating.
   const [closedAuthParam, setClosedAuthParam] = useState<AuthView | null>(null)
+  const [activeView, setActiveView] = useState<AuthView>(authParam ?? "login")
   const open = urlOpen && closedAuthParam !== authParam
+
+  useEffect(() => {
+    if (urlOpen) {
+      setActiveView(authParam)
+    }
+  }, [authParam, urlOpen])
 
   function switchView(view: AuthView) {
     setClosedAuthParam(null)
+    setActiveView(view)
     const params = new URLSearchParams(searchParams.toString())
     params.set("auth", view)
     router.replace(`/?${params.toString()}`, { scroll: false })
@@ -50,7 +58,7 @@ export function AuthModal({ announcement }: AuthModalProps) {
       <DialogContent className="sm:max-w-[420px] rounded-2xl border-0 p-6 gap-0 shadow-2xl">
         <VisuallyHidden>
           <DialogTitle>
-            {authParam === "register" ? "Регистрация" : authParam === "forgot" ? "Восстановление пароля" : "Вход"}
+            {activeView === "register" ? "Регистрация" : activeView === "forgot" ? "Восстановление пароля" : "Вход"}
           </DialogTitle>
         </VisuallyHidden>
 
@@ -62,16 +70,16 @@ export function AuthModal({ announcement }: AuthModalProps) {
           </div>
         )}
 
-        {(authParam ?? "login") === "login" && (
+        {activeView === "login" && (
           <LoginForm
             onSwitchToRegister={() => switchView("register")}
             onSwitchToForgot={() => switchView("forgot")}
           />
         )}
-        {authParam === "register" && (
+        {activeView === "register" && (
           <RegisterForm onSwitchToLogin={() => switchView("login")} />
         )}
-        {authParam === "forgot" && (
+        {activeView === "forgot" && (
           <ForgotPasswordForm onSwitchToLogin={() => switchView("login")} />
         )}
       </DialogContent>

@@ -3,6 +3,7 @@
 import { getPayload, type Where } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
+import { getMediaUrl, type PayloadMediaRef as MediaUrlRef } from "@/lib/media"
 import { getRelationshipId, normalizeProductDetailsSchema } from "@/lib/product-types"
 import {
   EMPTY_CLIENT_DISCOUNT_CONFIG,
@@ -198,7 +199,7 @@ function extractImageUrls(images: { image?: PayloadMediaRef }[] | undefined | nu
     .map((entry) => {
       const img = entry?.image
       if (!isPayloadMedia(img)) return null
-      return img.url || img.sizes?.card?.url || img.sizes?.full?.url || null
+      return getMediaUrl(img as MediaUrlRef, ["full", "card", "thumbnail"])
     })
     .filter(isDefined)
 }
@@ -221,7 +222,7 @@ function transformVariant(v: PayloadVariant, productId: string): ProductVariant 
 
 function extractMediaUrl(media: PayloadMediaRef): string | null {
   if (!isPayloadMedia(media)) return null
-  return media.url || media.sizes?.card?.url || media.sizes?.full?.url || null
+  return getMediaUrl(media as MediaUrlRef, ["card", "full", "thumbnail"])
 }
 
 function resolveProductType(doc: { productTypeRef?: PayloadProductTypeDoc | string | number | null }): ProductType {

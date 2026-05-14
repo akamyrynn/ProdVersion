@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getMediaUrl, type PayloadMediaRef } from "@/lib/media"
+import { unstable_cache } from "next/cache"
 import type { News } from "@/types"
 
 interface NewsItemRecord {
@@ -19,10 +21,8 @@ interface LexicalNode {
   children?: LexicalNode[]
 }
 
-interface MediaRecord {
+interface MediaRecord extends PayloadMediaRef {
   id: number
-  url?: string | null
-  filename?: string | null
 }
 
 function isLexicalNode(node: LexicalNode | null | undefined): node is LexicalNode {
@@ -61,11 +61,11 @@ async function resolveMediaUrls<T extends NewsItemRecord>(items: T[]) {
   const admin = createAdminClient()
   const { data: mediaItems } = await admin
     .from("media")
-    .select("id, url, filename")
+    .select("*")
     .in("id", allIds)
 
   const mediaMap = new Map(
-    ((mediaItems || []) as MediaRecord[]).map((m) => [m.id, m.url || `/api/media/file/${m.filename}`])
+    ((mediaItems || []) as MediaRecord[]).map((m) => [m.id, getMediaUrl(m, ["card", "full", "thumbnail"])])
   )
 
   // Patch upload nodes in Lexical content with resolved src
@@ -103,6 +103,10 @@ async function resolveMediaUrls<T extends NewsItemRecord>(items: T[]) {
 }
 
 export async function getNewsPaginated(offset: number, limit: number = 10): Promise<{ items: News[]; total: number }> {
+  return getCachedNewsPaginated(offset, limit)
+}
+
+const getCachedNewsPaginated = unstable_cache(async (offset: number, limit: number = 10): Promise<{ items: News[]; total: number }> => {
   const supabase = await createClient()
 
   const { data, count } = await supabase
@@ -118,9 +122,13 @@ export async function getNewsPaginated(offset: number, limit: number = 10): Prom
     items: resolved as unknown as News[],
     total: count || 0,
   }
-}
+}, ["news-paginated"], { revalidate: 60 })
 
 export async function getNewsById(id: string): Promise<News | null> {
+  return getCachedNewsById(id)
+}
+
+const getCachedNewsById = unstable_cache(async (id: string): Promise<News | null> => {
   const supabase = await createClient()
 
   const { data: item } = await supabase
@@ -134,4 +142,4 @@ export async function getNewsById(id: string): Promise<News | null> {
 
   const [resolved] = await resolveMediaUrls([item])
   return resolved as unknown as News
-}
+}, ["news-by-id"], { revalidate: 60 })

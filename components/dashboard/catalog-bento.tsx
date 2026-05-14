@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import {
   Heart,
   Plus,
@@ -297,10 +298,12 @@ export function CatalogBento({ categories, favoriteIds, activeType, productTypes
                 >
                   {catImageUrl ? (
                     <>
-                      <img
+                      <Image
                         src={catImageUrl}
                         alt={cat.name}
-                        className="absolute inset-0 w-full h-full object-cover opacity-75 group-hover:opacity-85 group-hover:scale-105 transition-all duration-500"
+                        fill
+                        sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw"
+                        className="object-cover opacity-75 group-hover:opacity-85 group-hover:scale-105 transition-all duration-500"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
                       <div className="relative mt-auto p-6">
@@ -543,10 +546,12 @@ function ProdCard({ product, idx }: { product: Product; idx: number }) {
     >
       <div className="aspect-square bg-gradient-to-br bg-[#faead5] flex items-center justify-center overflow-hidden relative">
         {imageUrl ? (
-          <img
+          <Image
             src={imageUrl}
             alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            fill
+            sizes="(min-width: 1280px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <Coffee className="h-10 w-10 text-neutral-200" />

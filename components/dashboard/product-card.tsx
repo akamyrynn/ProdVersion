@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Heart, Plus, Minus, ShoppingCart, Coffee, Check, Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -90,10 +91,12 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
       <Link href={`/dashboard/product/${product.id}`} className="relative block">
         <div className="relative aspect-[4/3] bg-gradient-to-br bg-[#faead5] overflow-hidden">
           {product.images && product.images.length > 0 ? (
-            <img
+            <Image
               src={product.images[0]}
               alt={product.name}
-              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
+              fill
+              sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, (min-width: 640px) 50vw, 100vw"
+              className="object-cover transition-all duration-700 group-hover:scale-105"
             />
           ) : (
             <div className="flex items-center justify-center h-full">

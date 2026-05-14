@@ -38,11 +38,23 @@ function toUser(row: UserRow): AppUser {
   }
 }
 
+export function shouldUseSecureCookies() {
+  const explicit = process.env.AUTH_COOKIE_SECURE?.trim().toLowerCase()
+  if (explicit === "true") return true
+  if (explicit === "false") return false
+
+  return [
+    process.env.NEXT_PUBLIC_SERVER_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.COOLIFY_URL,
+  ].some((url) => url?.trim().startsWith("https://"))
+}
+
 function cookieOptions(maxAge = SESSION_TTL_SECONDS) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookies(),
     path: "/",
     maxAge,
   }
