@@ -11,8 +11,14 @@ export interface MoyskladConfig {
   storeId?: string
   deliveryServiceId?: string
   defaultOrderStateId?: string
+  salesChannelId?: string
+  salesChannelName: string
+  projectId?: string
+  contractId?: string
   syncOrdersOnCreate: boolean
+  createInvoiceOnOrder: boolean
   createCounterparties: boolean
+  createSalesChannel: boolean
   vatEnabled: boolean
   vatIncluded: boolean
   defaultVat: number
@@ -48,8 +54,14 @@ export function getMoyskladConfig(): MoyskladConfig {
     storeId: process.env.MOYSKLAD_STORE_ID,
     deliveryServiceId: process.env.MOYSKLAD_DELIVERY_SERVICE_ID,
     defaultOrderStateId: process.env.MOYSKLAD_ORDER_STATE_NEW_ID,
+    salesChannelId: process.env.MOYSKLAD_SALES_CHANNEL_ID,
+    salesChannelName: process.env.MOYSKLAD_SALES_CHANNEL_NAME || "Сайт 10coffee",
+    projectId: process.env.MOYSKLAD_PROJECT_ID,
+    contractId: process.env.MOYSKLAD_CONTRACT_ID,
     syncOrdersOnCreate: readBoolean(process.env.MOYSKLAD_SYNC_ORDERS_ON_CREATE, true),
+    createInvoiceOnOrder: readBoolean(process.env.MOYSKLAD_CREATE_INVOICE_ON_ORDER, true),
     createCounterparties: readBoolean(process.env.MOYSKLAD_CREATE_COUNTERPARTIES, true),
+    createSalesChannel: readBoolean(process.env.MOYSKLAD_CREATE_SALES_CHANNEL, true),
     vatEnabled: readBoolean(process.env.MOYSKLAD_VAT_ENABLED, false),
     vatIncluded: readBoolean(process.env.MOYSKLAD_VAT_INCLUDED, true),
     defaultVat: readNumber(process.env.MOYSKLAD_DEFAULT_VAT, 0),

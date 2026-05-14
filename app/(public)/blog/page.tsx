@@ -11,6 +11,8 @@ export const metadata = {
   description: "Статьи о кофе, обжарке, оборудовании и индустрии от команды 10coffee",
 }
 
+export const revalidate = 300
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("ru-RU", {
     day: "numeric",

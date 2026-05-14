@@ -1,11 +1,14 @@
 import type { Payload } from "payload"
+import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig, assertMoyskladReady } from "./config"
 import { extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
 import type {
   MoyskladCounterparty,
   MoyskladCustomerOrder,
+  MoyskladInvoiceOut,
   MoyskladOrderPositionPayload,
+  MoyskladSalesChannel,
 } from "./types"
 import type { CartItem, DeliveryMethod } from "@/types"
 
@@ -18,10 +21,16 @@ interface SyncClient {
 }
 
 interface SyncCompany {
+  id?: string
   name?: string
   inn?: string
   kpp?: string | null
+  ogrn?: string | null
   legalAddress?: string | null
+  actualAddress?: string | null
+  contactEmail?: string | null
+  contactPhone?: string | null
+  moyskladCounterpartyId?: string | null
 }
 
 interface SyncOrder {
@@ -42,6 +51,12 @@ interface SyncOrderParams {
   client: SyncClient
   company?: SyncCompany | null
   cartItems: CartItem[]
+  discountLines?: MoyskladDiscountLine[]
+}
+
+interface MoyskladDiscountLine {
+  cartItemId: string
+  discountPercent: number
 }
 
 function rubToKopecks(value: number) {
@@ -66,20 +81,41 @@ function formatMoment(date = new Date()) {
   ].join("")
 }
 
+async function ensureB2bMoyskladSchema() {
+  await dbQuery(`
+    alter table public.companies
+      add column if not exists moysklad_counterparty_id text;
+    create index if not exists companies_moysklad_counterparty_id_idx
+      on public.companies(moysklad_counterparty_id);
+  `)
+}
+
 function buildCounterpartyPayload(client: SyncClient, company?: SyncCompany | null) {
   const name = company?.name || client.fullName || client.email || "Клиент 10coffee"
   const result: Record<string, unknown> = {
     name,
-    email: client.email || undefined,
-    phone: client.phone || undefined,
+    email: company?.contactEmail || client.email || undefined,
+    phone: company?.contactPhone || client.phone || undefined,
     description: "Создано автоматически с сайта 10coffee",
   }
 
   if (company?.inn) result.inn = company.inn
   if (company?.kpp) result.kpp = company.kpp
+  if (company?.ogrn) result.ogrn = company.ogrn
   if (company?.legalAddress) result.legalAddress = company.legalAddress
+  if (company?.actualAddress) result.actualAddress = company.actualAddress
+  if (company?.name) result.legalTitle = company.name
 
   return result
+}
+
+async function updateCompanyCounterpartyId(companyId: string | undefined, counterpartyId: string) {
+  if (!companyId) return
+  await ensureB2bMoyskladSchema()
+  await dbQuery(
+    "update public.companies set moysklad_counterparty_id = $1, updated_at = now() where id = $2",
+    [counterpartyId, companyId]
+  )
 }
 
 async function findCounterpartyByEmail(email: string) {
@@ -91,11 +127,33 @@ async function findCounterpartyByEmail(email: string) {
   return result.rows[0] || null
 }
 
+async function findCounterpartyByInn(inn: string) {
+  const filter = `inn=${inn}`
+  const result = await moyskladGetList<MoyskladCounterparty>("entity/counterparty", {
+    filter,
+    limit: 1,
+  })
+  return result.rows[0] || null
+}
+
 async function ensureCounterparty(payload: Payload, client: SyncClient, company?: SyncCompany | null) {
   const config = getMoyskladConfig()
   assertMoyskladReady(config)
 
-  if (client.moyskladCounterpartyId) {
+  if (company?.moyskladCounterpartyId) {
+    return company.moyskladCounterpartyId
+  }
+
+  if (company?.inn) {
+    const existing = await findCounterpartyByInn(company.inn)
+    const existingId = extractMoyskladId(existing)
+    if (existingId) {
+      await updateCompanyCounterpartyId(company.id, existingId)
+      return existingId
+    }
+  }
+
+  if (!company && client.moyskladCounterpartyId) {
     return client.moyskladCounterpartyId
   }
 
@@ -125,7 +183,9 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
   const createdId = extractMoyskladId(created)
   if (!createdId) throw new Error("МойСклад не вернул id контрагента")
 
-  if (client.id) {
+  if (company?.id) {
+    await updateCompanyCounterpartyId(company.id, createdId)
+  } else if (client.id) {
     await payload.update({
       collection: "clients",
       id: client.id,
@@ -134,6 +194,37 @@ async function ensureCounterparty(payload: Payload, client: SyncClient, company?
   }
 
   return createdId
+}
+
+async function findSalesChannelByName(name: string) {
+  const result = await moyskladGetList<MoyskladSalesChannel>("entity/saleschannel", {
+    filter: `name=${name}`,
+    limit: 1,
+  })
+  return result.rows[0] || null
+}
+
+async function ensureSalesChannel() {
+  const config = getMoyskladConfig()
+  if (config.salesChannelId) return config.salesChannelId
+  if (!config.salesChannelName) return null
+
+  const existing = await findSalesChannelByName(config.salesChannelName)
+  const existingId = extractMoyskladId(existing)
+  if (existingId) return existingId
+
+  if (!config.createSalesChannel) return null
+
+  const created = await moyskladRequest<MoyskladSalesChannel>("entity/saleschannel", {
+    method: "POST",
+    body: JSON.stringify({
+      name: config.salesChannelName,
+      type: "ECOMMERCE",
+      description: "Автоматически создано для заказов сайта 10coffee",
+    }),
+  })
+
+  return extractMoyskladId(created)
 }
 
 function buildOrderDescription(order: SyncOrder, company?: SyncCompany | null) {
@@ -177,14 +268,16 @@ function resolveAssortment(item: CartItem) {
 
 function buildPositions(
   cartItems: CartItem[],
-  discountAmount: number,
-  subtotal: number,
-  deliveryCost: number
+  deliveryCost: number,
+  discountLines: MoyskladDiscountLine[] = []
 ) {
   const config = getMoyskladConfig()
-  const discount = subtotal > 0 && discountAmount > 0
-    ? Math.min(100, Math.round((discountAmount / subtotal) * 10000) / 100)
-    : 0
+  const discountByItem = new Map(
+    discountLines.map((line) => [
+      line.cartItemId,
+      Math.max(0, Math.min(100, Math.round(line.discountPercent * 100) / 100)),
+    ])
+  )
 
   const skipped: CartItem[] = []
   const positions: MoyskladOrderPositionPayload[] = []
@@ -204,6 +297,7 @@ function buildPositions(
       },
     }
 
+    const discount = discountByItem.get(item.id) || 0
     if (discount > 0) position.discount = discount
     if (config.defaultVat > 0) position.vat = config.defaultVat
 
@@ -230,6 +324,73 @@ function buildPositions(
   return { positions, skipped }
 }
 
+function buildDocumentRefs(params: {
+  counterpartyId: string
+  positions: MoyskladOrderPositionPayload[]
+  description: string
+  shipmentAddress?: string | null
+  salesChannelId?: string | null
+}) {
+  const config = getMoyskladConfig()
+  const body: Record<string, unknown> = {
+    moment: formatMoment(),
+    applicable: true,
+    vatEnabled: config.vatEnabled,
+    vatIncluded: config.vatIncluded,
+    organization: {
+      meta: moyskladMeta("organization", config.organizationId!),
+    },
+    agent: {
+      meta: moyskladMeta("counterparty", params.counterpartyId),
+    },
+    positions: params.positions,
+    description: params.description,
+  }
+
+  if (config.storeId) body.store = { meta: moyskladMeta("store", config.storeId) }
+  if (config.projectId) body.project = { meta: moyskladMeta("project", config.projectId) }
+  if (config.contractId) body.contract = { meta: moyskladMeta("contract", config.contractId) }
+  if (params.salesChannelId) body.salesChannel = { meta: moyskladMeta("saleschannel", params.salesChannelId) }
+  if (params.shipmentAddress) body.shipmentAddress = params.shipmentAddress
+
+  return body
+}
+
+async function createInvoiceOut(params: {
+  order: SyncOrder
+  counterpartyId: string
+  moyskladOrderId: string
+  positions: MoyskladOrderPositionPayload[]
+  description: string
+  shipmentAddress?: string | null
+  salesChannelId?: string | null
+}) {
+  const invoiceBody = {
+    ...buildDocumentRefs({
+      counterpartyId: params.counterpartyId,
+      positions: params.positions,
+      description: params.description,
+      shipmentAddress: params.shipmentAddress,
+      salesChannelId: params.salesChannelId,
+    }),
+    externalCode: `${params.order.orderId || params.order.id}-invoice`,
+    customerOrder: {
+      meta: moyskladMeta("customerorder", params.moyskladOrderId),
+    },
+  }
+
+  const created = await moyskladRequest<MoyskladInvoiceOut>("entity/invoiceout", {
+    method: "POST",
+    body: JSON.stringify(invoiceBody),
+  })
+
+  return {
+    invoice: created,
+    invoiceId: extractMoyskladId(created),
+    payload: invoiceBody,
+  }
+}
+
 export async function syncOrderToMoysklad(params: SyncOrderParams) {
   const config = getMoyskladConfig()
   if (!config.enabled || !config.syncOrdersOnCreate) {
@@ -237,6 +398,9 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
   }
 
   const orderId = params.order.id
+  let counterpartyIdForUpdate: string | null = null
+  let moyskladOrderIdForUpdate: string | null = null
+  let moyskladInvoiceOutIdForUpdate: string | null = null
 
   try {
     assertMoyskladReady(config)
@@ -250,12 +414,15 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       },
     })
 
+    await ensureB2bMoyskladSchema()
+
     const counterpartyId = await ensureCounterparty(params.payload, params.client, params.company)
+    counterpartyIdForUpdate = counterpartyId
+    const salesChannelId = await ensureSalesChannel()
     const { positions, skipped } = buildPositions(
       params.cartItems,
-      Number(params.order.discountAmount) || 0,
-      Number(params.order.subtotal) || 0,
-      Number(params.order.deliveryCost) || 0
+      Number(params.order.deliveryCost) || 0,
+      params.discountLines || []
     )
 
     if (skipped.length > 0) {
@@ -267,25 +434,17 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       throw new Error("Нет позиций для отправки в МойСклад")
     }
 
+    const description = buildOrderDescription(params.order, params.company)
     const body: Record<string, unknown> = {
+      ...buildDocumentRefs({
+        counterpartyId,
+        positions,
+        description,
+        shipmentAddress: params.order.deliveryAddress,
+        salesChannelId,
+      }),
       name: params.order.orderId || String(orderId),
       externalCode: String(orderId),
-      moment: formatMoment(),
-      applicable: true,
-      vatEnabled: config.vatEnabled,
-      vatIncluded: config.vatIncluded,
-      organization: {
-        meta: moyskladMeta("organization", config.organizationId!),
-      },
-      agent: {
-        meta: moyskladMeta("counterparty", counterpartyId),
-      },
-      positions,
-      description: buildOrderDescription(params.order, params.company),
-    }
-
-    if (config.storeId) {
-      body.store = { meta: moyskladMeta("store", config.storeId) }
     }
 
     if (config.defaultOrderStateId) {
@@ -297,17 +456,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       body: JSON.stringify(body),
     })
     const moyskladOrderId = extractMoyskladId(created)
-
-    await params.payload.update({
-      collection: "orders",
-      id: orderId,
-      data: {
-        moyskladCustomerOrderId: moyskladOrderId,
-        moyskladSyncStatus: "synced",
-        moyskladSyncError: "",
-        moyskladSyncedAt: new Date().toISOString(),
-      },
-    })
+    moyskladOrderIdForUpdate = moyskladOrderId
 
     await writeMoyskladLog({
       entityType: "order",
@@ -319,17 +468,73 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       response: created,
     })
 
-    return { success: true as const, moyskladOrderId }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Ошибка синхронизации с МойСклад"
+    let moyskladInvoiceOutId: string | null = null
+    let invoiceResponse: MoyskladInvoiceOut | null = null
+    let invoicePayload: Record<string, unknown> | null = null
+
+    if (config.createInvoiceOnOrder && moyskladOrderId) {
+      const invoiceResult = await createInvoiceOut({
+        order: params.order,
+        counterpartyId,
+        moyskladOrderId,
+        positions,
+        description,
+        shipmentAddress: params.order.deliveryAddress,
+        salesChannelId,
+      })
+      moyskladInvoiceOutId = invoiceResult.invoiceId
+      moyskladInvoiceOutIdForUpdate = moyskladInvoiceOutId
+      invoiceResponse = invoiceResult.invoice
+      invoicePayload = invoiceResult.payload
+    }
+
+    const updateData: Record<string, unknown> = {
+      moyskladCounterpartyId: counterpartyId,
+      moyskladCustomerOrderId: moyskladOrderId,
+      moyskladInvoiceOutId,
+      moyskladSyncStatus: "synced",
+      moyskladSyncError: "",
+      moyskladSyncedAt: new Date().toISOString(),
+    }
+    if (moyskladInvoiceOutId) {
+      updateData.status = "invoiced"
+      updateData.paymentStatus = "invoiced"
+    }
 
     await params.payload.update({
       collection: "orders",
       id: orderId,
-      data: {
-        moyskladSyncStatus: "error",
-        moyskladSyncError: message,
-      },
+      data: updateData,
+    })
+
+    if (moyskladInvoiceOutId) {
+      await writeMoyskladLog({
+        entityType: "invoice",
+        localId: orderId,
+        moyskladId: moyskladInvoiceOutId,
+        direction: "site_to_moysklad",
+        status: "success",
+        payload: invoicePayload || undefined,
+        response: invoiceResponse || undefined,
+      })
+    }
+
+    return { success: true as const, moyskladOrderId, moyskladInvoiceOutId }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Ошибка синхронизации с МойСклад"
+
+    const errorData: Record<string, unknown> = {
+      moyskladSyncStatus: "error",
+      moyskladSyncError: message,
+    }
+    if (counterpartyIdForUpdate) errorData.moyskladCounterpartyId = counterpartyIdForUpdate
+    if (moyskladOrderIdForUpdate) errorData.moyskladCustomerOrderId = moyskladOrderIdForUpdate
+    if (moyskladInvoiceOutIdForUpdate) errorData.moyskladInvoiceOutId = moyskladInvoiceOutIdForUpdate
+
+    await params.payload.update({
+      collection: "orders",
+      id: orderId,
+      data: errorData,
     })
 
     await writeMoyskladLog({

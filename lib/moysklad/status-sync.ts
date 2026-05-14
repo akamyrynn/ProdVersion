@@ -51,9 +51,11 @@ export function mapMoyskladStateToOrderStatus(stateName?: string | null): OrderS
 function mapMoyskladPaymentStatus(order: MoyskladCustomerOrder, status: OrderStatus): PaymentStatus {
   const sum = Number(order.sum) || 0
   const payedSum = Number(order.payedSum) || 0
+  const invoicedSum = Number(order.invoicedSum) || 0
 
   if (sum > 0 && payedSum >= sum) return "paid"
   if (payedSum > 0) return "partial"
+  if (invoicedSum > 0) return "invoiced"
   if (status === "invoiced") return "invoiced"
 
   return "pending"
@@ -92,8 +94,11 @@ export async function syncMoyskladOrderStatuses(
 
     try {
       const moyskladOrder = await fetchMoyskladOrder(moyskladCustomerOrderId)
-      const nextStatus = mapMoyskladStateToOrderStatus(moyskladOrder.state?.name)
+      let nextStatus = mapMoyskladStateToOrderStatus(moyskladOrder.state?.name)
       const nextPaymentStatus = mapMoyskladPaymentStatus(moyskladOrder, nextStatus)
+      if (nextStatus === "new" && nextPaymentStatus === "invoiced") {
+        nextStatus = "invoiced"
+      }
 
       await payload.update({
         collection: "orders",

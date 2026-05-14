@@ -97,6 +97,7 @@ export interface Company {
   contact_person: string | null
   contact_phone: string | null
   contact_email: string | null
+  moysklad_counterparty_id: string | null
   created_at: string
   updated_at: string
 }
@@ -246,6 +247,12 @@ export interface Order {
   admin_notes: string | null
   cdek_tracking_number: string | null
   cap_2000_tracking_number: string | null
+  moysklad_counterparty_id?: string | null
+  moysklad_customer_order_id?: string | null
+  moysklad_invoice_out_id?: string | null
+  moysklad_sync_status?: string | null
+  moysklad_sync_error?: string | null
+  moysklad_synced_at?: string | null
   created_at: string
   updated_at: string
 

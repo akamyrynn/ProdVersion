@@ -136,7 +136,7 @@ function renderContent(content: unknown) {
   return null
 }
 
-export const dynamic = "force-dynamic"
+export const revalidate = 300
 
 export default async function BlogArticlePage({ params }: Props) {
   const { slug } = await params

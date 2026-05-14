@@ -3,11 +3,15 @@ export type MoyskladEntityType =
   | "store"
   | "counterparty"
   | "customerorder"
+  | "invoiceout"
   | "product"
   | "variant"
   | "service"
   | "productfolder"
   | "state"
+  | "saleschannel"
+  | "project"
+  | "contract"
 
 export interface MoyskladMeta {
   href: string
@@ -77,7 +81,18 @@ export interface MoyskladCustomerOrder extends MoyskladEntity {
   sum?: number
   payedSum?: number
   shippedSum?: number
+  invoicedSum?: number
   state?: MoyskladEntity
+}
+
+export interface MoyskladInvoiceOut extends MoyskladEntity {
+  externalCode?: string
+  moment?: string
+  sum?: number
+}
+
+export interface MoyskladSalesChannel extends MoyskladEntity {
+  type?: "ECOMMERCE" | "RETAIL_SALES" | string
 }
 
 export interface MoyskladOrderPositionPayload {

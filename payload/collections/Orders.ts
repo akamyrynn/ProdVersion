@@ -190,9 +190,27 @@ export const Orders: CollectionConfig = {
       },
     },
     {
+      name: "moyskladCounterpartyId",
+      type: "text",
+      label: "ID контрагента в МойСклад",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+      },
+    },
+    {
       name: "moyskladCustomerOrderId",
       type: "text",
       label: "ID заказа в МойСклад",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+      },
+    },
+    {
+      name: "moyskladInvoiceOutId",
+      type: "text",
+      label: "ID счёта в МойСклад",
       admin: {
         position: "sidebar",
         readOnly: true,

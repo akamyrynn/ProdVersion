@@ -4,6 +4,7 @@ import { getPayload } from "payload"
 import configPromise from "@payload-config"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { dbQuery } from "@/lib/db"
 import { getCartItems, clearCart as clearPayloadCart } from "@/lib/actions/cart"
 import {
   calculateClientDiscount,
@@ -76,6 +77,12 @@ interface PayloadOrderDoc {
   adminNotes?: string | null
   cdekTrackingNumber?: string | null
   cap2000TrackingNumber?: string | null
+  moyskladCounterpartyId?: string | null
+  moyskladCustomerOrderId?: string | null
+  moyskladInvoiceOutId?: string | null
+  moyskladSyncStatus?: string | null
+  moyskladSyncError?: string | null
+  moyskladSyncedAt?: string | null
   createdAt?: string
   updatedAt?: string
   items?: PayloadOrderItem[]
@@ -99,8 +106,12 @@ interface SupabaseCompanyRow {
   name: string | null
   inn: string | null
   kpp?: string | null
+  ogrn?: string | null
   legal_address?: string | null
   actual_address?: string | null
+  contact_phone?: string | null
+  contact_email?: string | null
+  moysklad_counterparty_id?: string | null
 }
 
 const smtpTransporter = nodemailer.createTransport({
@@ -125,6 +136,33 @@ const INVOICE_SELLER = {
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat("ru-RU").format(n) + " ₽"
+}
+
+function buildProportionalDiscountLines(cartItems: Awaited<ReturnType<typeof getCartItems>>, discountAmount: number) {
+  const subtotal = cartItems.reduce((sum, item) => {
+    return sum + (item.variant?.price ?? 0) * item.quantity
+  }, 0)
+
+  if (subtotal <= 0 || discountAmount <= 0) return []
+
+  let distributed = 0
+  return cartItems
+    .map((item, index) => {
+      const lineSubtotal = (item.variant?.price ?? 0) * item.quantity
+      if (lineSubtotal <= 0) return null
+
+      const lineDiscount = index === cartItems.length - 1
+        ? Math.max(0, discountAmount - distributed)
+        : Math.round((discountAmount * lineSubtotal) / subtotal)
+
+      distributed += lineDiscount
+
+      return {
+        cartItemId: item.id,
+        discountPercent: Math.min(100, (lineDiscount / lineSubtotal) * 100),
+      }
+    })
+    .filter((line): line is { cartItemId: string; discountPercent: number } => Boolean(line))
 }
 
 async function sendOrderEmail(email: string, order: OrderEmailSummary, items: OrderEmailItem[], pdfBuffer?: Uint8Array) {
@@ -188,6 +226,15 @@ async function sendStatusEmail(email: string, orderId: string, status: string, s
 
 async function getPayloadClient() {
   return getPayload({ config: configPromise })
+}
+
+async function ensureB2bMoyskladSchema() {
+  await dbQuery(`
+    alter table public.companies
+      add column if not exists moysklad_counterparty_id text;
+    create index if not exists companies_moysklad_counterparty_id_idx
+      on public.companies(moysklad_counterparty_id);
+  `)
 }
 
 async function getCurrentUserId(): Promise<string | null> {
@@ -299,6 +346,12 @@ function transformOrder(doc: PayloadOrderDoc): Order {
     admin_notes: doc.adminNotes || null,
     cdek_tracking_number: doc.cdekTrackingNumber || null,
     cap_2000_tracking_number: doc.cap2000TrackingNumber || null,
+    moysklad_counterparty_id: doc.moyskladCounterpartyId || null,
+    moysklad_customer_order_id: doc.moyskladCustomerOrderId || null,
+    moysklad_invoice_out_id: doc.moyskladInvoiceOutId || null,
+    moysklad_sync_status: doc.moyskladSyncStatus || null,
+    moysklad_sync_error: doc.moyskladSyncError || null,
+    moysklad_synced_at: doc.moyskladSyncedAt || null,
     created_at: doc.createdAt || "",
     updated_at: doc.updatedAt || "",
     items: (doc.items || []).map(transformOrderItem),
@@ -360,6 +413,8 @@ export async function createOrder(params: {
   discountAmount?: number
   deliveryCost?: number
 }): Promise<{ error?: string; success?: boolean; orderId?: string }> {
+  await ensureB2bMoyskladSchema()
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Не авторизован" }
@@ -389,6 +444,12 @@ export async function createOrder(params: {
   const clientDiscountAmount = clientDiscountResult.amount
   const promoDiscountAmount = params.discountAmount ?? 0
   const discountAmount = Math.max(clientDiscountAmount, promoDiscountAmount)
+  const discountLines = promoDiscountAmount > clientDiscountAmount
+    ? buildProportionalDiscountLines(cartItems, promoDiscountAmount)
+    : clientDiscountResult.lines.map((line) => ({
+        cartItemId: line.cartItemId,
+        discountPercent: line.discountPercent,
+      }))
   const appliedDiscountPercent = discountAmount === clientDiscountAmount &&
     clientDiscountResult.hasBaseDiscount &&
     !clientDiscountResult.hasCategoryDiscount
@@ -404,17 +465,23 @@ export async function createOrder(params: {
   let companyKpp: string | undefined
   let companyAddress: string | undefined
   let companyForMoysklad: {
+    id?: string
     name?: string
     inn?: string
     kpp?: string | null
+    ogrn?: string | null
     legalAddress?: string | null
+    actualAddress?: string | null
+    contactPhone?: string | null
+    contactEmail?: string | null
+    moyskladCounterpartyId?: string | null
   } | null = null
   const companyId = params.companyId?.trim()
 
   if (companyId) {
     const { data: company } = await adminDb
       .from("companies")
-      .select("id, name, inn, kpp, legal_address, actual_address")
+      .select("id, name, inn, kpp, ogrn, legal_address, actual_address, contact_phone, contact_email, moysklad_counterparty_id")
       .eq("id", companyId)
       .eq("client_id", user.id)
       .maybeSingle<SupabaseCompanyRow>()
@@ -424,11 +491,23 @@ export async function createOrder(params: {
       companyInn = company.inn || undefined
       companyKpp = company.kpp || undefined
       companyAddress = company.legal_address || company.actual_address || undefined
+      companyForMoysklad = {
+        id: company.id,
+        name: companyName,
+        inn: companyInn,
+        kpp: companyKpp || null,
+        ogrn: company.ogrn || null,
+        legalAddress: company.legal_address || null,
+        actualAddress: company.actual_address || null,
+        contactPhone: company.contact_phone || null,
+        contactEmail: company.contact_email || null,
+        moyskladCounterpartyId: company.moysklad_counterparty_id || null,
+      }
     }
   } else {
     const { data: companies } = await adminDb
       .from("companies")
-      .select("id, name, inn, kpp, legal_address, actual_address")
+      .select("id, name, inn, kpp, ogrn, legal_address, actual_address, contact_phone, contact_email, moysklad_counterparty_id")
       .eq("client_id", user.id)
       .order("created_at", { ascending: false })
       .limit(2)
@@ -439,18 +518,23 @@ export async function createOrder(params: {
       companyInn = companies[0].inn || undefined
       companyKpp = companies[0].kpp || undefined
       companyAddress = companies[0].legal_address || companies[0].actual_address || undefined
+      companyForMoysklad = {
+        id: companies[0].id,
+        name: companyName,
+        inn: companyInn,
+        kpp: companyKpp || null,
+        ogrn: companies[0].ogrn || null,
+        legalAddress: companies[0].legal_address || null,
+        actualAddress: companies[0].actual_address || null,
+        contactPhone: companies[0].contact_phone || null,
+        contactEmail: companies[0].contact_email || null,
+        moyskladCounterpartyId: companies[0].moysklad_counterparty_id || null,
+      }
     }
   }
 
   if (!companyName || !companyInn) {
     return { error: "Выберите компанию для оформления заказа" }
-  }
-
-  companyForMoysklad = {
-    name: companyName,
-    inn: companyInn,
-    kpp: companyKpp || null,
-    legalAddress: companyAddress || null,
   }
 
   // Build items array for Payload
@@ -521,7 +605,7 @@ export async function createOrder(params: {
 
   await adminDb.from("order_items").insert(orderItemsRows)
 
-  await syncOrderToMoysklad({
+  const moyskladSyncResult = await syncOrderToMoysklad({
     payload,
     order: {
       id: doc.id,
@@ -543,7 +627,9 @@ export async function createOrder(params: {
     },
     company: companyForMoysklad,
     cartItems,
+    discountLines,
   })
+  const hasMoyskladInvoice = "moyskladInvoiceOutId" in moyskladSyncResult && Boolean(moyskladSyncResult.moyskladInvoiceOutId)
 
   // Clear cart (now uses direct Supabase queries, no Payload transaction issues)
   await clearPayloadCart()
@@ -593,10 +679,12 @@ export async function createOrder(params: {
       companyInn,
     }
     let pdfBuffer: Uint8Array | undefined
-    try {
-      pdfBuffer = await generateInvoicePDF(orderForInvoice)
-    } catch (pdfErr) {
-      console.error("Failed to generate invoice PDF:", pdfErr)
+    if (!hasMoyskladInvoice) {
+      try {
+        pdfBuffer = await generateInvoicePDF(orderForInvoice)
+      } catch (pdfErr) {
+        console.error("Failed to generate invoice PDF:", pdfErr)
+      }
     }
     await sendOrderEmail(user.email!, orderForInvoice, items, pdfBuffer)
   } catch (emailErr) {
