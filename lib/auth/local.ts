@@ -118,7 +118,6 @@ export async function createAuthUser(params: {
         email,
         encrypted_password,
         email_confirmed_at,
-        confirmed_at,
         raw_app_meta_data,
         raw_user_meta_data,
         created_at,
@@ -126,7 +125,7 @@ export async function createAuthUser(params: {
         is_sso_user,
         is_anonymous
       )
-      values ($1, 'authenticated', 'authenticated', $2, $3, now(), now(), $4::jsonb, $5::jsonb, now(), now(), false, false)
+      values ($1, 'authenticated', 'authenticated', $2, $3, now(), $4::jsonb, $5::jsonb, now(), now(), false, false)
       returning id, email, encrypted_password, raw_user_meta_data, raw_app_meta_data`,
     [
       id,
