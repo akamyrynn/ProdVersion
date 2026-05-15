@@ -114,18 +114,18 @@ function schemaForName(name: string): ProductDetailsSchema {
   return "generic"
 }
 
-function getProductTypeSortOrder(name: string, slug: string) {
+function getPinnedProductTypeSortOrder(name: string, slug: string) {
   const normalized = `${name} ${slug}`.toLowerCase()
-  if (normalized.includes("кофе") || normalized.includes("coffee")) return 10
-  if (normalized.includes("чай") || normalized.includes("tea")) return 20
+  if (normalized.includes("кофе") || normalized.includes("coffee")) return 1
+  if (normalized.includes("чай") || normalized.includes("tea")) return 2
   if (
     normalized.includes("аксессуар") ||
     normalized.includes("аксесуар") ||
     normalized.includes("accessor")
   ) {
-    return 30
+    return 3
   }
-  return 100
+  return null
 }
 
 function getFolderRootName(folder: MoyskladProductFolder) {
@@ -207,6 +207,25 @@ async function findBySlug<T extends { id: Id }>(
   return (result.docs[0] as T | undefined) || null
 }
 
+async function getNextProductTypeSortOrder(payload: Payload) {
+  const result = await payload.find({
+    collection: "product-types",
+    limit: 200,
+    depth: 0,
+  })
+  const used = new Set(
+    (result.docs as PayloadProductTypeDoc[])
+      .map((doc) => Number(doc.sortOrder))
+      .filter((value) => Number.isFinite(value) && value >= 4)
+  )
+
+  for (let order = 4; order < 1000; order += 1) {
+    if (!used.has(order)) return order
+  }
+
+  return used.size + 4
+}
+
 async function upsertProductType(
   payload: Payload,
   folder: MoyskladProductFolder,
@@ -221,7 +240,6 @@ async function upsertProductType(
     moyskladId,
     detailsSchema: schemaForName(rootName),
     isVisible: true,
-    sortOrder: getProductTypeSortOrder(rootName, slug),
   }
 
   const existing = moyskladId
@@ -238,9 +256,13 @@ async function upsertProductType(
     return updated as PayloadProductTypeDoc
   }
 
+  const pinnedSortOrder = getPinnedProductTypeSortOrder(rootName, slug)
   const created = await payload.create({
     collection: "product-types",
-    data,
+    data: {
+      ...data,
+      sortOrder: pinnedSortOrder ?? (await getNextProductTypeSortOrder(payload)),
+    },
   })
   stats.productTypesCreated += 1
   return created as PayloadProductTypeDoc

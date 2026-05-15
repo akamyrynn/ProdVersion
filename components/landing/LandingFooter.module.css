@@ -193,25 +193,6 @@
   pointer-events: all;
 }
 
-.postcards {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  pointer-events: none;
-}
-
-.postcard {
-  position: absolute;
-  width: clamp(360px, 40vw, 620px);
-  overflow: hidden;
-  border-radius: 0.35rem;
-  aspect-ratio: 5 / 7;
-  will-change: transform;
-}
-
 /* ===== Bottom Bar ===== */
 .bar {
   position: relative;
@@ -312,10 +293,6 @@
     height: auto;
     min-height: 70svh;
     padding: 4rem 0;
-  }
-
-  .postcards {
-    display: none;
   }
 
   /* Bar */

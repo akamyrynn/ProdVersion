@@ -12,9 +12,16 @@ import styles from "./ProductImages.module.css";
 gsap.registerPlugin(ScrollTrigger);
 
 const PRODUCTS = [
-  { name: "Гондурас", image: "/Ассортимент/Мокап Гондурас.png", thumb: "/Ассортимент/Мокап Гондурас.png" },
-  { name: "Колумбия 036", image: "/Ассортимент/Мокап Колумбия 036.png", thumb: "/Ассортимент/Мокап Колумбия 036.png" },
-  { name: "Колумбия Декаф", image: "/Ассортимент/Мокап Колумбия Декаф.png", thumb: "/Ассортимент/Мокап Колумбия Декаф.png" },
+  { name: "Colombia Popayan", image: "/landing/assortment/untitled-2.png", thumb: "/landing/assortment/thumbs/untitled-2.png" },
+  { name: "Ассортимент 2", image: "/landing/assortment/untitled-3.png", thumb: "/landing/assortment/thumbs/untitled-3.png" },
+  { name: "Ассортимент 3", image: "/landing/assortment/untitled-4.png", thumb: "/landing/assortment/thumbs/untitled-4.png" },
+  { name: "Ассортимент 4", image: "/landing/assortment/untitled-5.png", thumb: "/landing/assortment/thumbs/untitled-5.png" },
+  { name: "Акация", image: "/landing/assortment/acacia.png", thumb: "/landing/assortment/thumbs/acacia.png" },
+  { name: "Гондурас", image: "/landing/assortment/honduras.png", thumb: "/landing/assortment/thumbs/honduras.png" },
+  { name: "Новый продукт ББ", image: "/landing/assortment/np-bb.png", thumb: "/landing/assortment/thumbs/np-bb.png" },
+  { name: "Новый продукт", image: "/landing/assortment/np-back.png", thumb: "/landing/assortment/thumbs/np-back.png" },
+  { name: "Иргачиф", image: "/landing/assortment/np-irgacheffe.png", thumb: "/landing/assortment/thumbs/np-irgacheffe.png" },
+  { name: "Чичу", image: "/landing/assortment/np-chichu.png", thumb: "/landing/assortment/thumbs/np-chichu.png" },
 ];
 
 export default function ProductImages() {
@@ -24,6 +31,8 @@ export default function ProductImages() {
   const [showPriceModal, setShowPriceModal] = useState(false);
 
   const active = PRODUCTS[activeIndex];
+  const isFirstSlide = activeIndex === 0;
+  const isLastSlide = activeIndex === PRODUCTS.length - 1;
 
   const animateTransition = useCallback((newIndex: number) => {
     const img = imageRef.current;
@@ -47,13 +56,13 @@ export default function ProductImages() {
   }, []);
 
   const handlePrev = () => {
-    const idx = activeIndex === 0 ? PRODUCTS.length - 1 : activeIndex - 1;
-    animateTransition(idx);
+    if (isFirstSlide) return;
+    animateTransition(activeIndex - 1);
   };
 
   const handleNext = () => {
-    const idx = activeIndex === PRODUCTS.length - 1 ? 0 : activeIndex + 1;
-    animateTransition(idx);
+    if (isLastSlide) return;
+    animateTransition(activeIndex + 1);
   };
 
   useEffect(() => {
@@ -92,9 +101,10 @@ export default function ProductImages() {
 
         <div className={`${styles.slider} ${styles.fadeIn}`}>
           <button
-            className={`${styles.arrowBtn} ${styles.arrowPrev}`}
+            className={`${styles.arrowBtn} ${isFirstSlide ? styles.arrowDisabled : ""}`}
             onClick={handlePrev}
             aria-label="Предыдущий"
+            disabled={isFirstSlide}
           >
             <ArrowLeft className={styles.arrowIcon} />
           </button>
@@ -104,9 +114,10 @@ export default function ProductImages() {
           </div>
 
           <button
-            className={`${styles.arrowBtn} ${styles.arrowNext}`}
+            className={`${styles.arrowBtn} ${isLastSlide ? styles.arrowDisabled : ""}`}
             onClick={handleNext}
             aria-label="Следующий"
+            disabled={isLastSlide}
           >
             <ArrowRight className={styles.arrowIcon} />
           </button>
@@ -127,7 +138,6 @@ export default function ProductImages() {
         </div>
 
         <div className={`${styles.bottomRow} ${styles.fadeIn}`}>
-          <p className={styles.productName}>{active.name}</p>
           <AnimatedButton href="#" onClick={(e) => { e.preventDefault(); setShowPriceModal(true); }}>
             Получить прайс-лист
           </AnimatedButton>

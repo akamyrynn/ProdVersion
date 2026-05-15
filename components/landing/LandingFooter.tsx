@@ -11,16 +11,6 @@ import styles from "./LandingFooter.module.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const MOBILE_BREAKPOINT = 1000;
-
-const POSTCARDS = [
-  { image: "/landing/footer/footer-1.jpg", rotation: -8, x: "-25%" },
-  { image: "/landing/footer/footer-2.jpg", rotation: 6, x: "20%" },
-  { image: "/landing/footer/footer-3.jpg", rotation: -4, x: "-15%" },
-  { image: "/landing/footer/footer-4.jpg", rotation: 10, x: "25%" },
-  { image: "/landing/footer/footer-5.jpg", rotation: -12, x: "-10%" },
-];
-
 const FOOTER_LINKS = [
   { label: "О нас", href: "/o-nas" },
   { label: "Контакты", href: "/kontakty" },
@@ -36,7 +26,6 @@ const SOCIALS = [
 
 export default function LandingFooter() {
   const sectionRef = useRef<HTMLElement>(null);
-  const buttonRef = useRef<HTMLAnchorElement>(null);
   const buttonContainerRef = useRef<HTMLDivElement>(null);
   const [showPriceModal, setShowPriceModal] = useState(false);
   const circleButtonRef = useRef<HTMLDivElement>(null);
@@ -60,39 +49,6 @@ export default function LandingFooter() {
     });
 
     return () => st.kill();
-  }, []);
-
-  // Postcard hover
-  useEffect(() => {
-    const section = sectionRef.current;
-    const button = buttonRef.current;
-    if (!section || !button) return;
-
-    const cards = gsap.utils.toArray(`.${styles.postcard}`) as HTMLElement[];
-    const postcardsContainer = section.querySelector(`.${styles.postcards}`) as HTMLElement;
-    if (!cards.length || !postcardsContainer) return;
-
-    const tl = gsap.timeline({ paused: true });
-    cards.forEach((card, i) => {
-      const d = POSTCARDS[i];
-      tl.fromTo(card,
-        { yPercent: 250, xPercent: 0, rotation: 0 },
-        { yPercent: 55, xPercent: parseFloat(d.x), rotation: d.rotation, duration: 0.8, ease: "power3.out" },
-        i * 0.07,
-      );
-    });
-
-    const enter = () => tl.play();
-    const leave = () => tl.reverse();
-    let active = false;
-
-    const enable = () => { if (active) return; button.addEventListener("mouseenter", enter); button.addEventListener("mouseleave", leave); postcardsContainer.style.display = ""; active = true; };
-    const disable = () => { if (!active) return; button.removeEventListener("mouseenter", enter); button.removeEventListener("mouseleave", leave); tl.pause(0); postcardsContainer.style.display = "none"; active = false; };
-    const resize = () => { window.innerWidth < MOBILE_BREAKPOINT ? disable() : enable(); };
-
-    resize();
-    window.addEventListener("resize", resize);
-    return () => { disable(); window.removeEventListener("resize", resize); };
   }, []);
 
   // Circle button scroll + hover
@@ -198,7 +154,7 @@ export default function LandingFooter() {
             </Copy>
           </div>
           <div className={styles.buttonContainer} ref={buttonContainerRef} style={{ ["--btn-bg" as string]: "#ffffff", ["--btn-fg" as string]: "#1d1d1b" }}>
-            <AnimatedButton href="#price-list-form" ref={buttonRef} onClick={(e) => {
+            <AnimatedButton href="#price-list-form" onClick={(e) => {
               if (!document.getElementById("price-list-form")) {
                 e.preventDefault();
                 setShowPriceModal(true);
@@ -207,13 +163,6 @@ export default function LandingFooter() {
               Получить прайс-лист
             </AnimatedButton>
           </div>
-        </div>
-        <div className={styles.postcards}>
-          {POSTCARDS.map((card, i) => (
-            <div className={styles.postcard} key={i}>
-              <img src={card.image} alt="10coffee" />
-            </div>
-          ))}
         </div>
       </section>
 

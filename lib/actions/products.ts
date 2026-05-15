@@ -292,20 +292,6 @@ function transformProductType(doc: PayloadProductTypeDoc): ProductTypeOption | n
   }
 }
 
-function getProductTypePriority(type: ProductTypeOption) {
-  const normalized = `${type.name} ${type.slug}`.toLowerCase()
-  if (normalized.includes("кофе") || normalized.includes("coffee")) return 10
-  if (normalized.includes("чай") || normalized.includes("tea")) return 20
-  if (
-    normalized.includes("аксессуар") ||
-    normalized.includes("аксесуар") ||
-    normalized.includes("accessor")
-  ) {
-    return 30
-  }
-  return 100 + type.sort_order
-}
-
 function serializeLexical(node: LexicalNode | string | null | undefined): string {
   if (!node) return ""
   if (typeof node === "string") return node
@@ -490,7 +476,7 @@ export async function getProductTypes(): Promise<ProductTypeOption[]> {
   return withCounts
     .filter((type): type is ProductTypeOption => type !== null)
     .filter((type) => type.product_count > 0)
-    .sort((a, b) => getProductTypePriority(a) - getProductTypePriority(b) || a.name.localeCompare(b.name, "ru"))
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "ru"))
 }
 
 export async function getCategories(productType?: ProductType): Promise<CatalogCategoryDoc[]> {

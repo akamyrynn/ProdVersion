@@ -63,29 +63,27 @@
   border: none;
   cursor: pointer;
   flex-shrink: 0;
+  background: #1d1d1b;
+  color: #ffffff;
   transition: transform 0.2s, opacity 0.3s;
 }
 
-.arrowBtn:active {
+.arrowBtn:not(:disabled):active {
   transform: scale(0.88);
 }
 
-.arrowPrev {
+.arrowBtn:not(:disabled):hover {
+  background: #333333;
+}
+
+.arrowDisabled {
   background: #e5e5e5;
   color: #1d1d1b;
+  cursor: default;
 }
 
-.arrowPrev:hover {
+.arrowDisabled:hover {
   background: #d5d5d5;
-}
-
-.arrowNext {
-  background: #1d1d1b;
-  color: #ffffff;
-}
-
-.arrowNext:hover {
-  background: #333333;
 }
 
 .arrowIcon {
@@ -133,18 +131,11 @@
 .bottomRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   width: 100%;
   max-width: 1100px;
   margin-top: 0.25rem;
   padding: 0 1rem;
-}
-
-.productName {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1d1d1b;
-  letter-spacing: 0.02em;
 }
 
 /* ── GSAP entrance ── */
@@ -194,7 +185,4 @@
     align-items: center;
   }
 
-  .productName {
-    font-size: 1.15rem;
-  }
 }

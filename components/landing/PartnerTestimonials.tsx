@@ -198,14 +198,15 @@ export default function PartnerTestimonials() {
                 <p>{t.text}</p>
               </div>
               <div className={styles.author}>
-                <div className={styles.authorImg}>
-                  <img src={t.image} alt={t.name} />
+                <div className={styles.authorLogo}>
+                  {t.logo ? (
+                    <img src={t.logo} alt={t.company} />
+                  ) : (
+                    <span>{t.company}</span>
+                  )}
                 </div>
                 <div className={styles.authorInfo}>
-                  <span className={styles.authorName}>{t.name}</span>
-                  <span className={styles.authorRole}>
-                    {t.role}, {t.company}
-                  </span>
+                  <span className={styles.authorName}>{t.company}</span>
                 </div>
               </div>
             </div>
