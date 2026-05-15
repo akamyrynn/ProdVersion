@@ -1,4 +1,41 @@
 import type { CollectionConfig } from "payload"
+import { dbQuery } from "@/lib/db"
+
+async function generateSequentialOrderId() {
+  await dbQuery(`
+    create sequence if not exists public.order_number_seq
+      as integer
+      start with 1
+      increment by 1;
+  `)
+
+  const maxResult = await dbQuery<{ max_number: number }>(`
+    select coalesce(max(substring(order_id from '^10C-(\\d+)$')::int), 0) as max_number
+    from public.orders
+    where order_id ~ '^10C-\\d+$';
+  `)
+  const maxNumber = Number(maxResult.rows[0]?.max_number) || 0
+
+  if (maxNumber > 0) {
+    await dbQuery(
+      `
+        select setval(
+          'public.order_number_seq',
+          greatest($1::int, (select last_value::int from public.order_number_seq)),
+          true
+        );
+      `,
+      [maxNumber]
+    )
+  }
+
+  const nextResult = await dbQuery<{ next_number: number }>(
+    "select nextval('public.order_number_seq')::int as next_number;"
+  )
+  const nextNumber = Number(nextResult.rows[0]?.next_number) || 1
+
+  return `10C-${String(nextNumber).padStart(5, "0")}`
+}
 
 export const Orders: CollectionConfig = {
   slug: "orders",
@@ -25,9 +62,7 @@ export const Orders: CollectionConfig = {
     beforeChange: [
       async ({ data, operation, req, originalDoc }) => {
         if (operation === "create" && data && !data.orderId) {
-          const timestamp = Date.now().toString(36).toUpperCase()
-          const random = Math.random().toString(36).substring(2, 5).toUpperCase()
-          data.orderId = `10C-${timestamp}-${random}`
+          data.orderId = await generateSequentialOrderId()
         }
 
         if (data) {

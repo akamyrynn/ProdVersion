@@ -23,6 +23,7 @@ interface PayloadProductTypeDoc {
   name?: string
   slug?: string
   moyskladId?: string | null
+  sortOrder?: number | null
 }
 
 interface PayloadCategoryDoc {
@@ -30,6 +31,7 @@ interface PayloadCategoryDoc {
   name?: string
   slug?: string
   moyskladId?: string | null
+  sortOrder?: number | null
 }
 
 interface PayloadProductDoc {
@@ -37,6 +39,8 @@ interface PayloadProductDoc {
   name?: string
   slug?: string
   moyskladId?: string | null
+  detailsSchema?: ProductDetailsSchema
+  sortOrder?: number | null
 }
 
 interface ImportStats {
@@ -108,6 +112,20 @@ function schemaForName(name: string): ProductDetailsSchema {
   if (lower.includes("кофе") || lower.includes("эспрессо") || lower.includes("дрип")) return "coffee"
   if (lower.includes("чай")) return "tea"
   return "generic"
+}
+
+function getProductTypeSortOrder(name: string, slug: string) {
+  const normalized = `${name} ${slug}`.toLowerCase()
+  if (normalized.includes("кофе") || normalized.includes("coffee")) return 10
+  if (normalized.includes("чай") || normalized.includes("tea")) return 20
+  if (
+    normalized.includes("аксессуар") ||
+    normalized.includes("аксесуар") ||
+    normalized.includes("accessor")
+  ) {
+    return 30
+  }
+  return 100
 }
 
 function getFolderRootName(folder: MoyskladProductFolder) {
@@ -203,7 +221,7 @@ async function upsertProductType(
     moyskladId,
     detailsSchema: schemaForName(rootName),
     isVisible: true,
-    sortOrder: 0,
+    sortOrder: getProductTypeSortOrder(rootName, slug),
   }
 
   const existing = moyskladId
@@ -247,7 +265,6 @@ async function upsertCategory(params: {
     productTypeRef: params.productType.id,
     parent: params.parent?.id || null,
     isVisible: true,
-    sortOrder: 0,
   }
 
   const existing = moyskladId
@@ -266,7 +283,10 @@ async function upsertCategory(params: {
 
   const created = await params.payload.create({
     collection: "categories",
-    data,
+    data: {
+      ...data,
+      sortOrder: 0,
+    },
   })
   params.stats.categoriesCreated += 1
   return created as PayloadCategoryDoc
@@ -313,16 +333,13 @@ async function upsertProduct(params: {
   const variants = variantItems.map((item) => variantPayloadFromMoysklad(item, params.product.name || "Товар"))
   const slug = slugify(params.product.name || "product", `product-${shortId(productId)}`)
   const detailsSchema = schemaForName(`${params.productType.name || ""} ${params.product.name || ""}`)
-  const data = {
+  const accountingData = {
     name: params.product.name || "Товар",
     slug,
     moyskladId: productId,
     productTypeRef: params.productType.id,
-    detailsSchema,
     category: params.category.id,
-    description: params.product.description || "",
     isVisible: !params.product.archived,
-    sortOrder: 0,
     variants,
   }
 
@@ -331,7 +348,7 @@ async function upsertProduct(params: {
     const updated = await params.payload.update({
       collection: "products",
       id: existing.id,
-      data,
+      data: accountingData,
     })
     params.stats.productsUpdated += 1
     params.stats.variantsImported += variants.length
@@ -343,7 +360,10 @@ async function upsertProduct(params: {
     const updated = await params.payload.update({
       collection: "products",
       id: bySlug.id,
-      data,
+      data: {
+        ...accountingData,
+        moyskladId: productId,
+      },
     })
     params.stats.productsUpdated += 1
     params.stats.variantsImported += variants.length
@@ -352,7 +372,11 @@ async function upsertProduct(params: {
 
   const created = await params.payload.create({
     collection: "products",
-    data,
+    data: {
+      ...accountingData,
+      detailsSchema,
+      sortOrder: 0,
+    },
   })
   params.stats.productsCreated += 1
   params.stats.variantsImported += variants.length

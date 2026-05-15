@@ -151,12 +151,12 @@ export function CompanyForm({ mode, companyId, defaultValues }: CompanyFormProps
               <CardTitle className="text-base">Основные данные</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                 <FormField
                   control={form.control}
                   name="inn"
                   render={({ field }) => (
-                    <FormItem className="flex-1">
+                    <FormItem className="min-w-0">
                       <FormLabel>ИНН</FormLabel>
                       <FormControl>
                         <Input placeholder="1234567890" {...field} />
@@ -165,12 +165,13 @@ export function CompanyForm({ mode, companyId, defaultValues }: CompanyFormProps
                     </FormItem>
                   )}
                 />
-                <div className="pt-8">
+                <div className="sm:pt-8">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={searchByInn}
                     disabled={searchingInn}
+                    className="w-full sm:w-auto"
                   >
                     {searchingInn ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
