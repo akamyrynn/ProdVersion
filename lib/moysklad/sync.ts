@@ -321,7 +321,7 @@ function buildPositions(
   const discountByItem = new Map(
     discountLines.map((line) => [
       line.cartItemId,
-      Math.max(0, Math.min(100, Math.round(line.discountPercent * 1_000_000) / 1_000_000)),
+      Math.max(0, Math.min(100, Math.round(line.discountPercent))),
     ])
   )
 
