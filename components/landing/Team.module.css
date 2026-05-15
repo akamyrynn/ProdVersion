@@ -4,15 +4,15 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  min-height: 100svh;
-  padding: 8rem 2.5rem;
+  min-height: auto;
+  padding: 6rem 2.5rem 4rem;
   overflow: hidden;
   background-color: #ffffff;
 }
 
 .heading {
   text-align: center;
-  margin-bottom: 5rem;
+  margin-bottom: 3rem;
 }
 
 .heading h3 {
@@ -22,7 +22,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 2.5rem 2rem;
+  gap: 2rem;
   max-width: 900px;
   width: 100%;
 }
@@ -72,15 +72,13 @@
 }
 
 .footer {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
+  position: static;
   display: flex;
   justify-content: space-between;
   width: 100%;
-  max-width: 2000px;
-  padding: 2.5rem;
-  transform: translateX(-50%);
+  max-width: 900px;
+  margin-top: 3rem;
+  padding: 0;
 }
 
 .footer p {
@@ -89,12 +87,12 @@
 
 @media (max-width: 999px) {
   .section {
-    padding: 5rem 1.5rem;
+    padding: 4.5rem 1.5rem 3rem;
     min-height: auto;
   }
 
   .heading {
-    margin-bottom: 3rem;
+    margin-bottom: 2.5rem;
   }
 
   .grid {
@@ -103,7 +101,8 @@
   }
 
   .footer {
-    padding: 1.5rem;
+    margin-top: 2.5rem;
+    padding: 0;
   }
 }
 
