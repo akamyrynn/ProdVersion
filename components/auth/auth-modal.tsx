@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -26,20 +26,12 @@ export function AuthModal({ announcement }: AuthModalProps) {
   const authParam = searchParams.get("auth") as AuthView | null
   const urlOpen = authParam === "login" || authParam === "register" || authParam === "forgot"
 
-  // Keep the dialog responsive even before the URL state finishes updating.
   const [closedAuthParam, setClosedAuthParam] = useState<AuthView | null>(null)
-  const [activeView, setActiveView] = useState<AuthView>(authParam ?? "login")
+  const activeView = authParam ?? "login"
   const open = urlOpen && closedAuthParam !== authParam
-
-  useEffect(() => {
-    if (urlOpen) {
-      setActiveView(authParam)
-    }
-  }, [authParam, urlOpen])
 
   function switchView(view: AuthView) {
     setClosedAuthParam(null)
-    setActiveView(view)
     const params = new URLSearchParams(searchParams.toString())
     params.set("auth", view)
     router.replace(`/?${params.toString()}`, { scroll: false })
