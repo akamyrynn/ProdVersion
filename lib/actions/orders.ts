@@ -228,7 +228,26 @@ async function getPayloadClient() {
   return getPayload({ config: configPromise })
 }
 
+async function ensureOrderDeliveryMethodEnum() {
+  const result = await dbQuery<{ exists: boolean }>(`
+    select exists (
+      select 1
+      from pg_type
+      where typname = 'enum_orders_delivery_method'
+    ) as "exists";
+  `)
+
+  if (!result.rows[0]?.exists) return
+
+  await dbQuery(`
+    alter type public.enum_orders_delivery_method
+      add value if not exists 'sochi_delivery';
+  `)
+}
+
 async function ensureB2bMoyskladSchema() {
+  await ensureOrderDeliveryMethodEnum()
+
   await dbQuery(`
     alter table public.companies
       add column if not exists moysklad_counterparty_id text;

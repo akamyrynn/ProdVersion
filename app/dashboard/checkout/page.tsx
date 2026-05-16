@@ -278,25 +278,30 @@ export default function CheckoutPage() {
     }
 
     setLoading(true)
-    const result = await createOrder({
-      companyId: data.company_id,
-      deliveryMethod: data.delivery_method as DeliveryMethod,
-      deliveryAddress: address,
-      comment: data.comment,
-      promoCodeId: appliedPromo?.promoCodeId,
-      discountAmount: promoDiscount || undefined,
-      deliveryCost: deliveryCost || undefined,
-    })
-
-    if (result.error) {
-      toast.error(result.error)
-      setLoading(false)
-    } else {
-      await clearCart()
-      setOrderResult({
-        orderId: result.orderId!,
-        moyskladInvoiceCreated: result.moyskladInvoiceCreated,
+    try {
+      const result = await createOrder({
+        companyId: data.company_id,
+        deliveryMethod: data.delivery_method as DeliveryMethod,
+        deliveryAddress: address,
+        comment: data.comment,
+        promoCodeId: appliedPromo?.promoCodeId,
+        discountAmount: promoDiscount || undefined,
+        deliveryCost: deliveryCost || undefined,
       })
+
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        await clearCart()
+        setOrderResult({
+          orderId: result.orderId!,
+          moyskladInvoiceCreated: result.moyskladInvoiceCreated,
+        })
+      }
+    } catch (error) {
+      console.error("Order creation failed:", error)
+      toast.error("Не удалось оформить заказ. Попробуйте ещё раз.")
+    } finally {
       setLoading(false)
     }
   }
