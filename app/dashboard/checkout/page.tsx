@@ -812,11 +812,7 @@ export default function CheckoutPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
-            {orderResult?.moyskladInvoiceCreated ? (
-              <div className="rounded-xl bg-neutral-50 px-4 py-3 text-center text-sm text-muted-foreground">
-                Счёт сформирован в МойСклад. Менеджер отправит корректный счёт с номером из МойСклад.
-              </div>
-            ) : (
+            {!orderResult?.moyskladInvoiceCreated && (
               <Button asChild className="w-full">
                 <a
                   href={`/api/invoice?orderId=${orderResult?.orderId}`}
