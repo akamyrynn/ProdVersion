@@ -32,11 +32,11 @@ function getVariantGrindOptions(variant: ProductVariant) {
 
 function cleanVariantPackageName(name: string) {
   return name
-    .replace(/\bв\s*з[её]рнах\b/gi, "")
-    .replace(/\bз[её]рнах\b/gi, "")
-    .replace(/\bз[её]рна\b/gi, "")
-    .replace(/\bзерно\b/gi, "")
-    .replace(/\bмолот(?:ый|ая|ое|ого)?\b/gi, "")
+    .replace(/в\s*з[её]рнах/gi, "")
+    .replace(/з[её]рнах/gi, "")
+    .replace(/з[её]рна/gi, "")
+    .replace(/зерно/gi, "")
+    .replace(/молот(?:ый|ая|ое|ого)?/gi, "")
     .replace(/[()[\]]/g, "")
     .replace(/\s*[,;|/+-]\s*/g, " ")
     .replace(/\s{2,}/g, " ")
