@@ -22,9 +22,16 @@ function inferGrindOptionFromName(name: string) {
   return ""
 }
 
+function compareGrindOptions(a?: string, b?: string) {
+  const order = { beans: 0, ground: 1 } as Record<string, number>
+  const aKey = normalizeGrindOption(a)
+  const bKey = normalizeGrindOption(b)
+  return (order[aKey] ?? 99) - (order[bKey] ?? 99) || (a || "").localeCompare(b || "", "ru")
+}
+
 function getVariantGrindOptions(variant: ProductVariant) {
   const explicit = variant.grind_options || []
-  if (explicit.length > 0) return explicit
+  if (explicit.length > 0) return [...explicit].sort(compareGrindOptions)
 
   const inferred = inferGrindOptionFromName(variant.name)
   return inferred ? [inferred] : []
@@ -244,7 +251,7 @@ export function ProductTableRow({
             {variants.flatMap((variant) => {
               const hasMultipleGrinds = variant.grind_options && variant.grind_options.length > 1
               if (hasMultipleGrinds) {
-                return variant.grind_options!.map((grind) => (
+                return getVariantGrindOptions(variant).map((grind) => (
                   <MobileVariantRow
                     key={`${variant.id}-${grind}`}
                     variant={variant}

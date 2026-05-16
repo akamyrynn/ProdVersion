@@ -56,10 +56,16 @@ function inferGrindOptionFromName(name: string) {
   return ""
 }
 
+function compareGrindOptions(a?: string, b?: string) {
+  const aKey = normalizeGrindOption(a || "")
+  const bKey = normalizeGrindOption(b || "")
+  return (GRIND_ORDER[aKey] ?? 99) - (GRIND_ORDER[bKey] ?? 99) || (a || "").localeCompare(b || "", "ru")
+}
+
 function getVariantGrindOptions(variant: ProductVariant | null | undefined) {
   if (!variant) return []
   const explicit = variant.grind_options || []
-  if (explicit.length > 0) return explicit
+  if (explicit.length > 0) return [...explicit].sort(compareGrindOptions)
 
   const inferred = inferGrindOptionFromName(variant.name)
   return inferred ? [inferred] : []
@@ -106,7 +112,7 @@ function compareVariantsByPackage(a: ProductVariant, b: ProductVariant) {
   if (aWeight !== null && bWeight === null) return -1
   if (aWeight === null && bWeight !== null) return 1
 
-  return aName.localeCompare(bName, "ru")
+  return compareGrindOptions(getVariantGrindOptions(a)[0], getVariantGrindOptions(b)[0]) || aName.localeCompare(bName, "ru")
 }
 
 function getProductGrindOptions(variants: ProductVariant[]) {
@@ -146,7 +152,9 @@ function pickVariantForGrind(
 
 export function ProductDetail({ product, isFavorite: initialFav }: ProductDetailProps) {
   const { addItem } = useCart()
-  const initialVariant = product.variants?.[0] || null
+  const variants = product.variants || []
+  const sortedVariants = [...variants].sort(compareVariantsByPackage)
+  const initialVariant = sortedVariants[0] || null
   const [isFavorite, setIsFavorite] = useState(initialFav)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(initialVariant)
   const [quantity, setQuantity] = useState(1)
@@ -154,7 +162,6 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
   const [isPending, startTransition] = useTransition()
   const [activeImage, setActiveImage] = useState(0)
   const [added, setAdded] = useState(false)
-  const variants = product.variants || []
   const grindOptions = getProductGrindOptions(variants)
   const variantsForSelectedGrind = grind
     ? variants.filter((variant) => variantSupportsGrind(variant, grind))
