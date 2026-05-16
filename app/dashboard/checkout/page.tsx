@@ -262,7 +262,7 @@ export default function CheckoutPage() {
       }
     }
 
-    if (data.delivery_method === "cap_2000" && !data.delivery_address?.trim()) {
+    if (["cap_2000", "sochi_delivery"].includes(data.delivery_method) && !data.delivery_address?.trim()) {
       toast.error("Введите адрес доставки")
       return
     }
@@ -662,7 +662,7 @@ export default function CheckoutPage() {
                 </>
               )}
 
-              {deliveryMethod === "cap_2000" && (
+              {["cap_2000", "sochi_delivery"].includes(deliveryMethod) && (
                 <FormField
                   control={form.control}
                   name="delivery_address"
@@ -670,7 +670,12 @@ export default function CheckoutPage() {
                     <FormItem>
                       <FormLabel>Адрес доставки</FormLabel>
                       <FormControl>
-                        <AddressInput placeholder="Город, улица, дом" value={field.value} onChange={field.onChange} />
+                        <AddressInput
+                          placeholder={deliveryMethod === "sochi_delivery" ? "Сочи, улица, дом, квартира" : "Город, улица, дом"}
+                          value={field.value}
+                          onChange={field.onChange}
+                          city={deliveryMethod === "sochi_delivery" ? "Сочи" : undefined}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -752,7 +757,7 @@ export default function CheckoutPage() {
               )}
               {deliveryCost > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Доставка СДЭК</span>
+                  <span className="text-muted-foreground">{DELIVERY_METHOD_LABELS[deliveryMethod]}</span>
                   <span>{formatPrice(deliveryCost)}</span>
                 </div>
               )}

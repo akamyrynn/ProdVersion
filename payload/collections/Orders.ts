@@ -355,6 +355,7 @@ export const Orders: CollectionConfig = {
                         { label: "Самовывоз", value: "self_pickup" },
                         { label: "СДЭК", value: "cdek" },
                         { label: "ЦАП 2000", value: "cap_2000" },
+                        { label: "Доставка по Сочи", value: "sochi_delivery" },
                       ],
                       admin: { width: "40%" },
                     },

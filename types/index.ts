@@ -16,7 +16,7 @@ export type OrderStatus =
   | "returned"
   | "cancelled"
 
-export type DeliveryMethod = "self_pickup" | "cdek" | "cap_2000"
+export type DeliveryMethod = "self_pickup" | "cdek" | "cap_2000" | "sochi_delivery"
 
 export type ProductType = "coffee" | "tea" | "accessory" | (string & {})
 export type ProductDetailsSchema = "generic" | "coffee" | "tea"

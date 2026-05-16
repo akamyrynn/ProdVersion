@@ -30,6 +30,7 @@ export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
   self_pickup: "Самовывоз",
   cdek: "СДЭК",
   cap_2000: "ЦАП 2000",
+  sochi_delivery: "Доставка по Сочи",
 }
 
 export function getTagBgClass(color?: string): string {

@@ -3,6 +3,7 @@ import { dbQuery } from "@/lib/db"
 import { getMoyskladConfig, assertMoyskladReady } from "./config"
 import { extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
+import { DELIVERY_METHOD_LABELS } from "@/lib/utils/constants"
 import type {
   MoyskladCounterparty,
   MoyskladCustomerOrder,
@@ -274,11 +275,14 @@ async function ensureSalesChannel() {
 }
 
 function buildOrderDescription(order: SyncOrder, company?: SyncCompany | null) {
+  const deliveryMethodLabel = order.deliveryMethod
+    ? DELIVERY_METHOD_LABELS[order.deliveryMethod] || order.deliveryMethod
+    : ""
   const rows = [
     `Заказ сайта: ${order.orderId || order.id}`,
     company?.name ? `Компания: ${company.name}` : "",
     company?.inn ? `ИНН: ${company.inn}` : "",
-    order.deliveryMethod ? `Доставка: ${order.deliveryMethod}` : "",
+    deliveryMethodLabel ? `Доставка: ${deliveryMethodLabel}` : "",
     order.deliveryAddress ? `Адрес: ${order.deliveryAddress}` : "",
     order.comment ? `Комментарий: ${order.comment}` : "",
   ].filter(Boolean)

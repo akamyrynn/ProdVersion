@@ -128,7 +128,7 @@ export const promoCodeSchema = z.object({
 
 export const checkoutSchema = z.object({
   company_id: z.string().min(1, "Выберите компанию для оформления заказа"),
-  delivery_method: z.enum(["self_pickup", "cdek", "cap_2000"]),
+  delivery_method: z.enum(["self_pickup", "cdek", "cap_2000", "sochi_delivery"]),
   delivery_address: z.string().optional(),
   comment: z.string().optional(),
 })
