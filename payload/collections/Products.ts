@@ -11,6 +11,9 @@ export const Products: CollectionConfig = {
     group: "Каталог",
     description: "Товары каталога",
     defaultColumns: ["name", "productTypeRef", "category", "isVisible", "stickers"],
+    components: {
+      beforeList: ["/payload/components/MoyskladCatalogSyncButton"],
+    },
   },
   labels: {
     singular: "Товар",

@@ -84,6 +84,31 @@ function getVariantPackageName(variant: ProductVariant) {
     : variant.name
 }
 
+function inferPackageWeight(name: string) {
+  const kg = name.match(/(\d+(?:[.,]\d+)?)\s*(?:кг|kg)/i)
+  if (kg) return Number(kg[1].replace(",", ".")) * 1000
+
+  const grams = name.match(/(\d+(?:[.,]\d+)?)\s*(?:г|гр|g)\b/i)
+  if (grams) return Number(grams[1].replace(",", "."))
+
+  return null
+}
+
+function compareVariantsByPackage(a: ProductVariant, b: ProductVariant) {
+  const aName = getVariantPackageName(a)
+  const bName = getVariantPackageName(b)
+  const aWeight = inferPackageWeight(aName)
+  const bWeight = inferPackageWeight(bName)
+
+  if (aWeight !== null && bWeight !== null && aWeight !== bWeight) {
+    return bWeight - aWeight
+  }
+  if (aWeight !== null && bWeight === null) return -1
+  if (aWeight === null && bWeight !== null) return 1
+
+  return aName.localeCompare(bName, "ru")
+}
+
 function getProductGrindOptions(variants: ProductVariant[]) {
   const byKey = new Map<string, string>()
 
@@ -134,7 +159,8 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
   const variantsForSelectedGrind = grind
     ? variants.filter((variant) => variantSupportsGrind(variant, grind))
     : variants
-  const visibleVariants = variantsForSelectedGrind.length > 0 ? variantsForSelectedGrind : variants
+  const visibleVariants = [...(variantsForSelectedGrind.length > 0 ? variantsForSelectedGrind : variants)]
+    .sort(compareVariantsByPackage)
 
   function handleFavorite() {
     setIsFavorite(!isFavorite)

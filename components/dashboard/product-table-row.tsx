@@ -63,6 +63,29 @@ function grindLabel(value?: string) {
   return value
 }
 
+function inferPackageWeight(name: string) {
+  const kg = name.match(/(\d+(?:[.,]\d+)?)\s*(?:кг|kg)/i)
+  if (kg) return Number(kg[1].replace(",", ".")) * 1000
+
+  const grams = name.match(/(\d+(?:[.,]\d+)?)\s*(?:г|гр|g)\b/i)
+  if (grams) return Number(grams[1].replace(",", "."))
+
+  return null
+}
+
+function comparePackageNames(a: string, b: string) {
+  const aWeight = inferPackageWeight(a)
+  const bWeight = inferPackageWeight(b)
+
+  if (aWeight !== null && bWeight !== null && aWeight !== bWeight) {
+    return bWeight - aWeight
+  }
+  if (aWeight !== null && bWeight === null) return -1
+  if (aWeight === null && bWeight !== null) return 1
+
+  return a.localeCompare(b, "ru")
+}
+
 function buildVariantCells(variants: ProductVariant[]) {
   const grouped = new Map<string, ProductVariant[]>()
 
@@ -73,15 +96,17 @@ function buildVariantCells(variants: ProductVariant[]) {
     grouped.set(key, rows)
   }
 
-  return [...grouped.entries()].map(([packageName, rows]) => ({
-    packageName,
-    variants: rows.sort((a, b) => {
-      const aGrind = normalizeGrindOption(getVariantGrindOptions(a)[0])
-      const bGrind = normalizeGrindOption(getVariantGrindOptions(b)[0])
-      const order = { beans: 0, ground: 1 } as Record<string, number>
-      return (order[aGrind] ?? 99) - (order[bGrind] ?? 99) || a.name.localeCompare(b.name, "ru")
-    }),
-  }))
+  return [...grouped.entries()]
+    .sort(([a], [b]) => comparePackageNames(a, b))
+    .map(([packageName, rows]) => ({
+      packageName,
+      variants: rows.sort((a, b) => {
+        const aGrind = normalizeGrindOption(getVariantGrindOptions(a)[0])
+        const bGrind = normalizeGrindOption(getVariantGrindOptions(b)[0])
+        const order = { beans: 0, ground: 1 } as Record<string, number>
+        return (order[aGrind] ?? 99) - (order[bGrind] ?? 99) || a.name.localeCompare(b.name, "ru")
+      }),
+    }))
 }
 
 export function ProductTableRow({

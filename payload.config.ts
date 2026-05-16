@@ -56,9 +56,6 @@ export default buildConfig({
       titleSuffix: " — 10coffee",
       description: "Панель управления 10coffee",
     },
-    components: {
-      beforeDashboard: ["/payload/components/MoyskladCatalogSyncButton"],
-    },
     dateFormat: "dd.MM.yyyy HH:mm",
   },
 
