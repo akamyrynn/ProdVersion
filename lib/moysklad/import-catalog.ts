@@ -327,7 +327,7 @@ function variantPayloadFromMoysklad(item: MoyskladVariant | MoyskladProduct, pro
     moyskladType: item.meta?.type === "variant" ? "variant" : "product",
     price: getPrimarySalePrice(item),
     weightGrams: inferWeightGrams(item.name || name),
-    isAvailable: typeof item.stock === "number" ? item.stock > 0 : true,
+    isAvailable: true,
     grindOptions: inferGrindOptions(item.name || ""),
   }
 }

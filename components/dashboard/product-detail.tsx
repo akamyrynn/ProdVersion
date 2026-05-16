@@ -37,17 +37,104 @@ interface ProductDetailProps {
   isFavorite: boolean
 }
 
+const GRIND_ORDER: Record<string, number> = {
+  beans: 0,
+  ground: 1,
+}
+
+function normalizeGrindOption(value: string) {
+  const normalized = value.toLowerCase().trim()
+  if (normalized === "beans" || normalized.includes("зерн")) return "beans"
+  if (normalized === "ground" || normalized.includes("молот")) return "ground"
+  return normalized
+}
+
+function inferGrindOptionFromName(name: string) {
+  const normalized = name.toLowerCase()
+  if (normalized.includes("зерн")) return "В зёрнах"
+  if (normalized.includes("молот")) return "Молотый"
+  return ""
+}
+
+function getVariantGrindOptions(variant: ProductVariant | null | undefined) {
+  if (!variant) return []
+  const explicit = variant.grind_options || []
+  if (explicit.length > 0) return explicit
+
+  const inferred = inferGrindOptionFromName(variant.name)
+  return inferred ? [inferred] : []
+}
+
+function cleanVariantPackageName(name: string) {
+  return name
+    .replace(/\bв\s*з[её]рнах\b/gi, "")
+    .replace(/\bз[её]рнах\b/gi, "")
+    .replace(/\bз[её]рна\b/gi, "")
+    .replace(/\bзерно\b/gi, "")
+    .replace(/\bмолот(?:ый|ая|ое|ого)?\b/gi, "")
+    .replace(/[()[\]]/g, "")
+    .replace(/\s*[,;|/+-]\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim() || name
+}
+
+function getVariantPackageName(variant: ProductVariant) {
+  return getVariantGrindOptions(variant).length > 0
+    ? cleanVariantPackageName(variant.name)
+    : variant.name
+}
+
+function getProductGrindOptions(variants: ProductVariant[]) {
+  const byKey = new Map<string, string>()
+
+  for (const variant of variants) {
+    for (const option of getVariantGrindOptions(variant)) {
+      const key = normalizeGrindOption(option)
+      if (!byKey.has(key)) byKey.set(key, option)
+    }
+  }
+
+  return [...byKey.entries()]
+    .sort(([a], [b]) => (GRIND_ORDER[a] ?? 99) - (GRIND_ORDER[b] ?? 99) || a.localeCompare(b))
+    .map(([, label]) => label)
+}
+
+function variantSupportsGrind(variant: ProductVariant, grindOption: string) {
+  const key = normalizeGrindOption(grindOption)
+  return getVariantGrindOptions(variant).some((option) => normalizeGrindOption(option) === key)
+}
+
+function pickVariantForGrind(
+  variants: ProductVariant[],
+  grindOption: string,
+  currentVariant: ProductVariant | null
+) {
+  const matching = variants.filter((variant) => variantSupportsGrind(variant, grindOption))
+  if (matching.length === 0) return currentVariant
+
+  const currentPackage = currentVariant ? getVariantPackageName(currentVariant) : ""
+  return (
+    matching.find((variant) => getVariantPackageName(variant) === currentPackage) ||
+    matching[0]
+  )
+}
+
 export function ProductDetail({ product, isFavorite: initialFav }: ProductDetailProps) {
   const { addItem } = useCart()
+  const initialVariant = product.variants?.[0] || null
   const [isFavorite, setIsFavorite] = useState(initialFav)
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    product.variants?.[0] || null
-  )
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(initialVariant)
   const [quantity, setQuantity] = useState(1)
-  const [grind, setGrind] = useState<string>(selectedVariant?.grind_options?.[0] || "")
+  const [grind, setGrind] = useState<string>(getVariantGrindOptions(initialVariant)[0] || "")
   const [isPending, startTransition] = useTransition()
   const [activeImage, setActiveImage] = useState(0)
   const [added, setAdded] = useState(false)
+  const variants = product.variants || []
+  const grindOptions = getProductGrindOptions(variants)
+  const variantsForSelectedGrind = grind
+    ? variants.filter((variant) => variantSupportsGrind(variant, grind))
+    : variants
+  const visibleVariants = variantsForSelectedGrind.length > 0 ? variantsForSelectedGrind : variants
 
   function handleFavorite() {
     setIsFavorite(!isFavorite)
@@ -223,23 +310,27 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Фасовка</h3>
               <div className="flex gap-2">
-                {product.variants.map((v) => (
+                {visibleVariants.map((v) => (
                   <button
                     key={v.id}
                     onClick={() => {
                       setSelectedVariant(v)
-                      setGrind(v.grind_options?.[0] || "")
+                      const variantGrinds = getVariantGrindOptions(v)
+                      const keepsCurrentGrind = variantGrinds.some(
+                        (opt) => normalizeGrindOption(opt) === normalizeGrindOption(grind)
+                      )
+                      if (variantGrinds.length > 0 && !keepsCurrentGrind) {
+                        setGrind(variantGrinds[0])
+                      }
                     }}
-                    disabled={!v.is_available}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-semibold transition-all",
                       selectedVariant?.id === v.id
                         ? "bg-[#5b328a] text-white shadow-lg shadow-[#5b328a]/20"
-                        : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200",
-                      !v.is_available && "opacity-40 cursor-not-allowed line-through"
+                        : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
                     )}
                   >
-                    <span className="block">{v.name}</span>
+                    <span className="block">{getVariantPackageName(v)}</span>
                     <span className={cn(
                       "block text-[13px] mt-0.5",
                       selectedVariant?.id === v.id ? "text-white/70" : "text-neutral-400"
@@ -253,14 +344,17 @@ export function ProductDetail({ product, isFavorite: initialFav }: ProductDetail
           )}
 
           {/* Grind selector */}
-          {selectedVariant && selectedVariant.grind_options && selectedVariant.grind_options.length > 0 && (
+          {grindOptions.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Помол</h3>
               <div className="flex gap-2">
-                {selectedVariant.grind_options.map((opt) => (
+                {grindOptions.map((opt) => (
                   <button
                     key={opt}
-                    onClick={() => setGrind(opt)}
+                    onClick={() => {
+                      setGrind(opt)
+                      setSelectedVariant(pickVariantForGrind(variants, opt, selectedVariant))
+                    }}
                     className={cn(
                       "px-4 py-2.5 rounded-xl text-sm font-medium transition-all",
                       grind === opt

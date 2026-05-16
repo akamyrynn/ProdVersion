@@ -15,6 +15,75 @@ interface ProductTableRowProps {
   isFavorite: boolean
 }
 
+function inferGrindOptionFromName(name: string) {
+  const normalized = name.toLowerCase()
+  if (normalized.includes("зерн")) return "В зёрнах"
+  if (normalized.includes("молот")) return "Молотый"
+  return ""
+}
+
+function getVariantGrindOptions(variant: ProductVariant) {
+  const explicit = variant.grind_options || []
+  if (explicit.length > 0) return explicit
+
+  const inferred = inferGrindOptionFromName(variant.name)
+  return inferred ? [inferred] : []
+}
+
+function cleanVariantPackageName(name: string) {
+  return name
+    .replace(/\bв\s*з[её]рнах\b/gi, "")
+    .replace(/\bз[её]рнах\b/gi, "")
+    .replace(/\bз[её]рна\b/gi, "")
+    .replace(/\bзерно\b/gi, "")
+    .replace(/\bмолот(?:ый|ая|ое|ого)?\b/gi, "")
+    .replace(/[()[\]]/g, "")
+    .replace(/\s*[,;|/+-]\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim() || name
+}
+
+function getVariantPackageName(variant: ProductVariant) {
+  return getVariantGrindOptions(variant).length > 0
+    ? cleanVariantPackageName(variant.name)
+    : variant.name
+}
+
+function normalizeGrindOption(value?: string) {
+  const normalized = (value || "").toLowerCase().trim()
+  if (normalized === "beans" || normalized.includes("зерн")) return "beans"
+  if (normalized === "ground" || normalized.includes("молот")) return "ground"
+  return normalized
+}
+
+function grindLabel(value?: string) {
+  const normalized = normalizeGrindOption(value)
+  if (normalized === "beans") return "зёрна"
+  if (normalized === "ground") return "молотый"
+  return value
+}
+
+function buildVariantCells(variants: ProductVariant[]) {
+  const grouped = new Map<string, ProductVariant[]>()
+
+  for (const variant of variants) {
+    const key = getVariantPackageName(variant)
+    const rows = grouped.get(key) || []
+    rows.push(variant)
+    grouped.set(key, rows)
+  }
+
+  return [...grouped.entries()].map(([packageName, rows]) => ({
+    packageName,
+    variants: rows.sort((a, b) => {
+      const aGrind = normalizeGrindOption(getVariantGrindOptions(a)[0])
+      const bGrind = normalizeGrindOption(getVariantGrindOptions(b)[0])
+      const order = { beans: 0, ground: 1 } as Record<string, number>
+      return (order[aGrind] ?? 99) - (order[bGrind] ?? 99) || a.name.localeCompare(b.name, "ru")
+    }),
+  }))
+}
+
 export function ProductTableRow({
   product,
   isFavorite: initialFav,
@@ -25,6 +94,7 @@ export function ProductTableRow({
 
   const imageUrl = product.images?.[0] || null
   const variants = product.variants ?? []
+  const variantCells = buildVariantCells(variants)
 
   function handleFavorite() {
     const newState = !isFavorite
@@ -99,10 +169,11 @@ export function ProductTableRow({
 
         {/* Variant cells — inline */}
         <div className="flex items-center gap-2 flex-wrap flex-1 justify-end">
-          {variants.map((variant) => (
+          {variantCells.map((cell) => (
             <VariantCell
-              key={variant.id}
-              variant={variant}
+              key={cell.packageName}
+              packageName={cell.packageName}
+              variants={cell.variants}
               productId={product.id}
               onAdd={addItem}
             />
@@ -247,11 +318,13 @@ function MobileVariantRow({
 
 // ── Desktop variant cell ──
 function VariantCell({
-  variant,
+  packageName,
+  variants,
   productId,
   onAdd,
 }: {
-  variant: ProductVariant
+  packageName: string
+  variants: ProductVariant[]
   productId: string
   onAdd: (params: {
     productId: string
@@ -260,26 +333,40 @@ function VariantCell({
     grindOption?: string
   }) => Promise<void>
 }) {
-  const hasMultipleGrinds = variant.grind_options && variant.grind_options.length > 1
+  const firstVariant = variants[0]
 
   return (
     <div className="flex items-center gap-2 bg-neutral-50 rounded-xl px-3 py-2 border border-neutral-100">
       <div className="text-center min-w-[50px]">
-        <div className="text-[10px] font-medium text-neutral-400 leading-none">{variant.name}</div>
+        <div className="text-[10px] font-medium text-neutral-400 leading-none">{packageName}</div>
         <div className="text-[13px] font-bold text-neutral-900 tabular-nums mt-0.5">
-          {variant.price > 0 ? `${Math.round(variant.price)}₽` : "—"}
+          {firstVariant?.price > 0 ? `${Math.round(firstVariant.price)}₽` : "—"}
         </div>
       </div>
 
-      {variant.price > 0 && (
+      {firstVariant?.price > 0 && (
         <div className="flex items-center gap-1.5">
-          {hasMultipleGrinds ? (
-            <>
-              <AddButton variant={variant} productId={productId} grindOption="В зёрнах" label="зёрна" onAdd={onAdd} />
-              <AddButton variant={variant} productId={productId} grindOption="Молотый" label="молотый" onAdd={onAdd} />
-            </>
+          {variants.length > 1 || getVariantGrindOptions(firstVariant).length > 1 ? (
+            variants.flatMap((variant) => {
+              const options = getVariantGrindOptions(variant)
+              return (options.length > 0 ? options : [undefined]).map((option) => (
+                <AddButton
+                  key={`${variant.id}-${option || "default"}`}
+                  variant={variant}
+                  productId={productId}
+                  grindOption={option}
+                  label={grindLabel(option)}
+                  onAdd={onAdd}
+                />
+              ))
+            })
           ) : (
-            <AddButton variant={variant} productId={productId} grindOption={variant.grind_options?.[0]} onAdd={onAdd} />
+            <AddButton
+              variant={firstVariant}
+              productId={productId}
+              grindOption={getVariantGrindOptions(firstVariant)[0]}
+              onAdd={onAdd}
+            />
           )}
         </div>
       )}
