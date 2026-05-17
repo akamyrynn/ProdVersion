@@ -171,7 +171,7 @@ function inferWeightGrams(name: string) {
 }
 
 function inferGrindOptions(name: string) {
-  const lower = name.toLowerCase()
+  const lower = name.toLowerCase().replace(/ё/g, "е")
   if (lower.includes("молот")) return ["ground"]
   if (lower.includes("зерн")) return ["beans"]
   return []

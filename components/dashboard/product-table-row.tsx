@@ -16,7 +16,7 @@ interface ProductTableRowProps {
 }
 
 function inferGrindOptionFromName(name: string) {
-  const normalized = name.toLowerCase()
+  const normalized = name.toLowerCase().replace(/ё/g, "е")
   if (normalized.includes("зерн")) return "В зёрнах"
   if (normalized.includes("молот")) return "Молотый"
   return ""
@@ -57,7 +57,7 @@ function getVariantPackageName(variant: ProductVariant) {
 }
 
 function normalizeGrindOption(value?: string) {
-  const normalized = (value || "").toLowerCase().trim()
+  const normalized = (value || "").toLowerCase().replace(/ё/g, "е").trim()
   if (normalized === "beans" || normalized.includes("зерн")) return "beans"
   if (normalized === "ground" || normalized.includes("молот")) return "ground"
   return normalized
