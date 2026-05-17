@@ -28,10 +28,11 @@ interface ProductCardProps {
 
 export function ProductCard({ product, isFavorite: initialFav, index = 0 }: ProductCardProps) {
   const { items, addItem, updateQuantity, removeItem } = useCart()
+  const variants = (product.variants || []).filter((variant) => variant.is_available !== false)
   const [isFavorite, setIsFavorite] = useState(initialFav)
   const [isPending, startTransition] = useTransition()
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    product.variants?.[0] || null
+    variants[0] || null
   )
   const [quantity, setQuantity] = useState(1)
   const [grind, setGrind] = useState<string>(
@@ -180,11 +181,11 @@ export function ProductCard({ product, isFavorite: initialFav, index = 0 }: Prod
         <div className="flex-1" />
 
         {/* Variants selector */}
-        {product.variants && product.variants.length > 0 && (
+        {variants.length > 0 && (
           <div className="mt-3 space-y-2.5">
             {/* Variant pills - sleek */}
             <div className="flex flex-wrap gap-1.5">
-              {product.variants.map((v) => (
+              {variants.map((v) => (
                 <button
                   key={v.id}
                   onClick={(e) => {

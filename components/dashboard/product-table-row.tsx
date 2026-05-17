@@ -65,7 +65,7 @@ function normalizeGrindOption(value?: string) {
 
 function grindLabel(value?: string) {
   const normalized = normalizeGrindOption(value)
-  if (normalized === "beans") return "зёрна"
+  if (normalized === "beans") return "В зёрнах"
   if (normalized === "ground") return "молотый"
   return value
 }
@@ -125,7 +125,7 @@ export function ProductTableRow({
   const [isPending, startTransition] = useTransition()
 
   const imageUrl = product.images?.[0] || null
-  const variants = product.variants ?? []
+  const variants = (product.variants ?? []).filter((variant) => variant.is_available !== false)
   const variantCells = buildVariantCells(variants)
 
   function handleFavorite() {

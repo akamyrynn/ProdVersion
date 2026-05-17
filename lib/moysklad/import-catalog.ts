@@ -48,9 +48,12 @@ interface ImportStats {
   productTypesUpdated: number
   categoriesCreated: number
   categoriesUpdated: number
+  categoriesHidden: number
   productsCreated: number
   productsUpdated: number
+  productsHidden: number
   variantsImported: number
+  variantsHidden: number
   skippedProducts: string[]
 }
 
@@ -136,6 +139,25 @@ function getFolderRootName(folder: MoyskladProductFolder) {
 
 function getFolderFullName(folder: MoyskladProductFolder) {
   return folder.pathName ? `${folder.pathName}/${folder.name}` : folder.name || ""
+}
+
+function getFolderDepth(folder: MoyskladProductFolder) {
+  const fullName = getFolderFullName(folder)
+  if (!fullName) return 0
+  return fullName.split(/\s*\/\s*|\s*>\s*/).filter(Boolean).length - 1
+}
+
+function getFolderId(folder?: MoyskladProductFolder | null) {
+  return folder?.id || extractMoyskladId(folder)
+}
+
+function getEntityId(entity?: MoyskladAssortment | MoyskladProduct | MoyskladVariant | null) {
+  return entity?.id || extractMoyskladId(entity)
+}
+
+function getAssortmentStock(item?: MoyskladAssortment | MoyskladProduct | MoyskladVariant | null) {
+  const stock = Number(item?.stock ?? 0)
+  return Number.isFinite(stock) ? stock : 0
 }
 
 function inferWeightGrams(name: string) {
@@ -314,8 +336,120 @@ async function upsertCategory(params: {
   return created as PayloadCategoryDoc
 }
 
+async function hideObsoleteCategories(
+  payload: Payload,
+  activeCategoryFolderIds: Set<string>,
+  stats: ImportStats
+) {
+  const result = await payload.find({
+    collection: "categories",
+    where: { isVisible: { equals: true } },
+    limit: 500,
+    depth: 0,
+  })
+
+  for (const category of result.docs as PayloadCategoryDoc[]) {
+    if (!category.moyskladId) continue
+    if (activeCategoryFolderIds.has(category.moyskladId)) continue
+
+    await payload.update({
+      collection: "categories",
+      id: category.id,
+      data: { isVisible: false },
+    })
+    stats.categoriesHidden += 1
+  }
+}
+
+async function hideEmptyCategories(payload: Payload, stats: ImportStats) {
+  const [categoryResult, productResult] = await Promise.all([
+    payload.find({
+      collection: "categories",
+      limit: 500,
+      depth: 0,
+    }),
+    payload.find({
+      collection: "products",
+      where: { isVisible: { equals: true } },
+      limit: 1000,
+      depth: 0,
+    }),
+  ])
+
+  const categories = categoryResult.docs as (PayloadCategoryDoc & {
+    parent?: PayloadCategoryDoc | string | number | null
+  })[]
+  const products = productResult.docs as { category?: PayloadCategoryDoc | string | number | null }[]
+  const directProductCounts = new Map<string, number>()
+  const childIdsByParent = new Map<string, string[]>()
+
+  for (const product of products) {
+    const categoryId = typeof product.category === "object" && product.category !== null
+      ? product.category.id
+      : product.category
+    if (categoryId === undefined || categoryId === null) continue
+    const key = String(categoryId)
+    directProductCounts.set(key, (directProductCounts.get(key) || 0) + 1)
+  }
+
+  for (const category of categories) {
+    const parentId = typeof category.parent === "object" && category.parent !== null
+      ? category.parent.id
+      : category.parent
+    if (parentId === undefined || parentId === null) continue
+    const key = String(parentId)
+    const rows = childIdsByParent.get(key) || []
+    rows.push(String(category.id))
+    childIdsByParent.set(key, rows)
+  }
+
+  const hasVisibleProducts = new Map<string, boolean>()
+  const resolveHasProducts = (categoryId: string): boolean => {
+    if (hasVisibleProducts.has(categoryId)) return hasVisibleProducts.get(categoryId) || false
+
+    const hasDirectProducts = (directProductCounts.get(categoryId) || 0) > 0
+    const hasChildProducts = (childIdsByParent.get(categoryId) || []).some(resolveHasProducts)
+    const value = hasDirectProducts || hasChildProducts
+    hasVisibleProducts.set(categoryId, value)
+    return value
+  }
+
+  for (const category of categories) {
+    if (!category.moyskladId) continue
+    if (resolveHasProducts(String(category.id))) continue
+
+    await payload.update({
+      collection: "categories",
+      id: category.id,
+      data: { isVisible: false },
+    })
+    stats.categoriesHidden += 1
+  }
+}
+
+async function hideObsoleteProducts(payload: Payload, activeProductIds: Set<string>, stats: ImportStats) {
+  const result = await payload.find({
+    collection: "products",
+    where: { isVisible: { equals: true } },
+    limit: 1000,
+    depth: 0,
+  })
+
+  for (const product of result.docs as PayloadProductDoc[]) {
+    if (!product.moyskladId) continue
+    if (activeProductIds.has(product.moyskladId)) continue
+
+    await payload.update({
+      collection: "products",
+      id: product.id,
+      data: { isVisible: false },
+    })
+    stats.productsHidden += 1
+  }
+}
+
 function variantPayloadFromMoysklad(item: MoyskladVariant | MoyskladProduct, productName: string) {
-  const moyskladId = item.id || extractMoyskladId(item)
+  const moyskladId = getEntityId(item)
   const name = item.meta?.type === "variant"
     ? cleanVariantName(productName, item.name || "Вариант")
     : "1 шт"
@@ -327,9 +461,31 @@ function variantPayloadFromMoysklad(item: MoyskladVariant | MoyskladProduct, pro
     moyskladType: item.meta?.type === "variant" ? "variant" : "product",
     price: getPrimarySalePrice(item),
     weightGrams: inferWeightGrams(item.name || name),
-    isAvailable: true,
+    isAvailable: getAssortmentStock(item) > 0,
     grindOptions: inferGrindOptions(item.name || ""),
   }
+}
+
+function getVariantGrindSortOrder(variant: ReturnType<typeof variantPayloadFromMoysklad>) {
+  const grind = variant.grindOptions[0] || ""
+  if (grind === "beans") return 0
+  if (grind === "ground") return 1
+  return 99
+}
+
+function compareImportedVariants(
+  a: ReturnType<typeof variantPayloadFromMoysklad>,
+  b: ReturnType<typeof variantPayloadFromMoysklad>
+) {
+  const aWeight = a.weightGrams ?? -1
+  const bWeight = b.weightGrams ?? -1
+
+  if (aWeight !== bWeight) return bWeight - aWeight
+
+  const grindOrder = getVariantGrindSortOrder(a) - getVariantGrindSortOrder(b)
+  if (grindOrder !== 0) return grindOrder
+
+  return a.name.localeCompare(b.name, "ru")
 }
 
 async function upsertProduct(params: {
@@ -352,7 +508,10 @@ async function upsertProduct(params: {
     ? params.variants.map((variant) => params.assortmentById.get(variant.id || "") || variant)
     : [assortmentProduct]
 
-  const variants = variantItems.map((item) => variantPayloadFromMoysklad(item, params.product.name || "Товар"))
+  const variants = variantItems
+    .map((item) => variantPayloadFromMoysklad(item, params.product.name || "Товар"))
+    .sort(compareImportedVariants)
+  const hasAvailableStock = variants.some((variant) => variant.isAvailable)
   const slug = slugify(params.product.name || "product", `product-${shortId(productId)}`)
   const detailsSchema = schemaForName(`${params.productType.name || ""} ${params.product.name || ""}`)
   const accountingData = {
@@ -361,7 +520,7 @@ async function upsertProduct(params: {
     moyskladId: productId,
     productTypeRef: params.productType.id,
     category: params.category.id,
-    isVisible: !params.product.archived,
+    isVisible: !params.product.archived && hasAvailableStock,
     variants,
   }
 
@@ -374,6 +533,8 @@ async function upsertProduct(params: {
     })
     params.stats.productsUpdated += 1
     params.stats.variantsImported += variants.length
+    if (!hasAvailableStock) params.stats.productsHidden += 1
+    params.stats.variantsHidden += variants.filter((variant) => !variant.isAvailable).length
     return updated
   }
 
@@ -389,6 +550,8 @@ async function upsertProduct(params: {
     })
     params.stats.productsUpdated += 1
     params.stats.variantsImported += variants.length
+    if (!hasAvailableStock) params.stats.productsHidden += 1
+    params.stats.variantsHidden += variants.filter((variant) => !variant.isAvailable).length
     return updated
   }
 
@@ -402,6 +565,8 @@ async function upsertProduct(params: {
   })
   params.stats.productsCreated += 1
   params.stats.variantsImported += variants.length
+  if (!hasAvailableStock) params.stats.productsHidden += 1
+  params.stats.variantsHidden += variants.filter((variant) => !variant.isAvailable).length
   return created
 }
 
@@ -416,9 +581,12 @@ export async function importMoyskladCatalog(payload: Payload) {
     productTypesUpdated: 0,
     categoriesCreated: 0,
     categoriesUpdated: 0,
+    categoriesHidden: 0,
     productsCreated: 0,
     productsUpdated: 0,
+    productsHidden: 0,
     variantsImported: 0,
+    variantsHidden: 0,
     skippedProducts: [],
   }
 
@@ -430,9 +598,27 @@ export async function importMoyskladCatalog(payload: Payload) {
   ])
 
   const activeFolders = folders.filter((folder) => !folder.archived && folder.name)
-  const folderById = new Map(activeFolders.map((folder) => [folder.id || extractMoyskladId(folder), folder]))
+  const sortedFolders = [...activeFolders].sort((a, b) => {
+    return getFolderDepth(a) - getFolderDepth(b) || getFolderFullName(a).localeCompare(getFolderFullName(b), "ru")
+  })
+  const folderById = new Map(activeFolders.map((folder) => [getFolderId(folder), folder]))
   const folderByFullName = new Map(activeFolders.map((folder) => [getFolderFullName(folder), folder]))
   const rootFolders = activeFolders.filter((folder) => !folder.pathName)
+  const rootFolderIds = new Set(rootFolders.map(getFolderId).filter(Boolean) as string[])
+  const activeProductIds = new Set(
+    products
+      .filter((item) => !item.archived)
+      .map((product) => getEntityId(product))
+      .filter(Boolean) as string[]
+  )
+  const activeCategoryFolderIds = new Set(
+    activeFolders
+      .map((folder) => getFolderId(folder))
+      .filter((folderId): folderId is string => {
+        if (!folderId) return false
+        return !rootFolderIds.has(folderId)
+      })
+  )
   const rootTypeByName = new Map<string, PayloadProductTypeDoc>()
   const categoryByFolderId = new Map<string, PayloadCategoryDoc>()
 
@@ -442,9 +628,10 @@ export async function importMoyskladCatalog(payload: Payload) {
     rootTypeByName.set(rootName, type)
   }
 
-  for (const folder of activeFolders) {
-    const folderId = folder.id || extractMoyskladId(folder)
+  for (const folder of sortedFolders) {
+    const folderId = getFolderId(folder)
     if (!folderId) continue
+    if (!activeCategoryFolderIds.has(folderId)) continue
 
     const rootName = getFolderRootName(folder)
     let productType = rootTypeByName.get(rootName)
@@ -457,8 +644,8 @@ export async function importMoyskladCatalog(payload: Payload) {
     if (folder.pathName) {
       const parentPath = folder.pathName
       const parentFolder = folderByFullName.get(parentPath)
-      const parentId = parentFolder?.id || extractMoyskladId(parentFolder)
-      if (parentId) parent = categoryByFolderId.get(parentId) || null
+      const parentId = getFolderId(parentFolder)
+      if (parentId && !rootFolderIds.has(parentId)) parent = categoryByFolderId.get(parentId) || null
     }
 
     const category = await upsertCategory({
@@ -470,6 +657,9 @@ export async function importMoyskladCatalog(payload: Payload) {
     })
     categoryByFolderId.set(folderId, category)
   }
+
+  await hideObsoleteCategories(payload, activeCategoryFolderIds, stats)
+  await hideObsoleteProducts(payload, activeProductIds, stats)
 
   const assortmentById = new Map(
     assortment
@@ -486,10 +676,6 @@ export async function importMoyskladCatalog(payload: Payload) {
     variantsByProductId.set(productId, rows)
   }
 
-  const fallbackRoot = rootFolders[0]
-  let fallbackType: PayloadProductTypeDoc | undefined
-  let fallbackCategory: PayloadCategoryDoc | undefined
-
   for (const product of products.filter((item) => !item.archived)) {
     const productFolderId = extractMoyskladId(product.productFolder)
     const folder = productFolderId ? folderById.get(productFolderId) : null
@@ -503,14 +689,8 @@ export async function importMoyskladCatalog(payload: Payload) {
     }
 
     if (!productType || !category) {
-      if (!fallbackRoot) {
-        stats.skippedProducts.push(`${product.name || product.id}: нет категории`)
-        continue
-      }
-
-      fallbackType ||= rootTypeByName.get(fallbackRoot.name || "Каталог")
-      const fallbackRootId = fallbackRoot.id || extractMoyskladId(fallbackRoot)
-      fallbackCategory ||= fallbackRootId ? categoryByFolderId.get(fallbackRootId) : undefined
+      stats.skippedProducts.push(`${product.name || product.id}: нет подгруппы МойСклад`)
+      continue
     }
 
     await upsertProduct({
@@ -518,11 +698,13 @@ export async function importMoyskladCatalog(payload: Payload) {
       product,
       variants: variantsByProductId.get(product.id || "") || [],
       assortmentById,
-      productType: productType || fallbackType!,
-      category: category || fallbackCategory!,
+      productType,
+      category,
       stats,
     })
   }
+
+  await hideEmptyCategories(payload, stats)
 
   return {
     ok: true as const,

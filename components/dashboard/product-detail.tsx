@@ -152,7 +152,7 @@ function pickVariantForGrind(
 
 export function ProductDetail({ product, isFavorite: initialFav }: ProductDetailProps) {
   const { addItem } = useCart()
-  const variants = product.variants || []
+  const variants = (product.variants || []).filter((variant) => variant.is_available !== false)
   const sortedVariants = [...variants].sort(compareVariantsByPackage)
   const initialVariant = sortedVariants[0] || null
   const [isFavorite, setIsFavorite] = useState(initialFav)

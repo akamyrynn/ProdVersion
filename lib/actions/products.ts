@@ -220,6 +220,14 @@ function transformVariant(v: PayloadVariant, productId: string): ProductVariant 
   }
 }
 
+function isAvailableVariant(variant: ProductVariant) {
+  return variant.is_available !== false
+}
+
+function hasAvailablePayloadVariant(product: PayloadProductDoc) {
+  return (product.variants || []).some((variant) => variant.isAvailable !== false)
+}
+
 function extractMediaUrl(media: PayloadMediaRef): string | null {
   if (!isPayloadMedia(media)) return null
   return getMediaUrl(media as MediaUrlRef, ["card", "full", "thumbnail"])
@@ -435,7 +443,9 @@ function transformProduct(doc: PayloadProductDoc): Product {
     updated_at: doc.updatedAt || "",
 
     // Relations
-    variants: (doc.variants || []).map((v) => transformVariant(v, productId)),
+    variants: (doc.variants || [])
+      .map((v) => transformVariant(v, productId))
+      .filter(isAvailableVariant),
   }
 }
 
@@ -483,12 +493,14 @@ export async function getCategories(productType?: ProductType): Promise<CatalogC
   const payload = await getPayloadClient()
 
   let where: Where = { isVisible: { equals: true } }
+  let productTypeId: string | number | undefined
   if (productType) {
     const typeDoc = await findProductTypeBySlug(payload, productType)
+    productTypeId = getProductTypeId(typeDoc || undefined)
     where = {
       and: [
         { isVisible: { equals: true } },
-        buildProductTypeWhere(getProductTypeId(typeDoc || undefined)),
+        buildProductTypeWhere(productTypeId),
       ],
     }
   }
@@ -502,6 +514,32 @@ export async function getCategories(productType?: ProductType): Promise<CatalogC
   })
 
   const all = docs as PayloadCategoryDoc[]
+  const visibleProductsResult = await payload.find({
+    collection: "products",
+    where: productTypeId === undefined
+      ? { isVisible: { equals: true } }
+      : {
+          and: [
+            { isVisible: { equals: true } },
+            buildProductTypeWhere(productTypeId),
+          ],
+        },
+    limit: 1000,
+    depth: 0,
+  })
+
+  const categoryIdsWithProducts = new Set(
+    (visibleProductsResult.docs as PayloadProductDoc[])
+      .filter(hasAvailablePayloadVariant)
+      .map((product) => {
+        const categoryId = typeof product.category === "object" && product.category !== null
+          ? product.category.id
+          : product.category
+        return categoryId === undefined || categoryId === null ? null : String(categoryId)
+      })
+      .filter((id): id is string => Boolean(id))
+  )
+
   const roots = all.filter((c) => !c.parent)
   const childMap = new Map<number, PayloadCategoryDoc[]>()
 
@@ -515,11 +553,19 @@ export async function getCategories(productType?: ProductType): Promise<CatalogC
     }
   })
 
-  roots.forEach((root) => {
-    root.children = childMap.get(root.id) || []
-  })
+  const hasProducts = (category: PayloadCategoryDoc): boolean => {
+    if (categoryIdsWithProducts.has(String(category.id))) return true
+    return (childMap.get(category.id) || []).some(hasProducts)
+  }
 
-  return roots.map(transformCategory)
+  const visibleRoots = roots
+    .map((root) => ({
+      ...root,
+      children: (childMap.get(root.id) || []).filter(hasProducts),
+    }))
+    .filter(hasProducts)
+
+  return visibleRoots.map(transformCategory)
 }
 
 export async function getProductsByCategory(categoryId: number | string): Promise<Product[]> {
@@ -536,7 +582,9 @@ export async function getProductsByCategory(categoryId: number | string): Promis
     depth: 2,
   })
 
-  return (docs as PayloadProductDoc[]).map(transformProduct)
+  return (docs as PayloadProductDoc[])
+    .map(transformProduct)
+    .filter((product) => product.variants?.some(isAvailableVariant))
 }
 
 export async function getProductById(id: number | string): Promise<Product | null> {
@@ -548,7 +596,9 @@ export async function getProductById(id: number | string): Promise<Product | nul
       id: id,
       depth: 2,
     })
-    return transformProduct(doc as PayloadProductDoc)
+    const product = transformProduct(doc as PayloadProductDoc)
+    if (!product.is_visible || !product.variants?.some(isAvailableVariant)) return null
+    return product
   } catch {
     return null
   }
@@ -565,7 +615,9 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
   })
 
   if (!docs[0]) return null
-  return transformProduct(docs[0] as PayloadProductDoc)
+  const product = transformProduct(docs[0] as PayloadProductDoc)
+  if (!product.is_visible || !product.variants?.some(isAvailableVariant)) return null
+  return product
 }
 
 export async function searchProducts(query: string): Promise<Product[]> {
@@ -582,7 +634,9 @@ export async function searchProducts(query: string): Promise<Product[]> {
     depth: 2,
   })
 
-  return (docs as PayloadProductDoc[]).map(transformProduct)
+  return (docs as PayloadProductDoc[])
+    .map(transformProduct)
+    .filter((product) => product.variants?.some(isAvailableVariant))
 }
 
 // ============================================================
@@ -672,7 +726,7 @@ export async function getFavoriteProducts(): Promise<Product[]> {
       const raw = typeof d.product === "object" ? d.product : null
       return raw ? transformProduct(raw as PayloadProductDoc) : null
     })
-    .filter(Boolean) as Product[]
+    .filter((product): product is Product => Boolean(product?.is_visible && product.variants?.some(isAvailableVariant)))
 }
 
 export async function toggleFavorite(productId: string): Promise<{ isFavorite: boolean }> {
