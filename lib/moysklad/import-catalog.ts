@@ -32,6 +32,7 @@ interface PayloadCategoryDoc {
   slug?: string
   moyskladId?: string | null
   sortOrder?: number | null
+  parent?: Id | PayloadCategoryDoc | null
 }
 
 interface PayloadProductDoc {
@@ -46,12 +47,14 @@ interface PayloadProductDoc {
 interface ImportStats {
   productTypesCreated: number
   productTypesUpdated: number
+  productTypesDeleted: number
   categoriesCreated: number
   categoriesUpdated: number
-  categoriesHidden: number
+  categoriesDeleted: number
   productsCreated: number
   productsUpdated: number
   productsHidden: number
+  productsDeleted: number
   variantsImported: number
   variantsHidden: number
   skippedProducts: string[]
@@ -158,6 +161,11 @@ function getEntityId(entity?: MoyskladAssortment | MoyskladProduct | MoyskladVar
 function getAssortmentStock(item?: MoyskladAssortment | MoyskladProduct | MoyskladVariant | null) {
   const stock = Number(item?.stock ?? 0)
   return Number.isFinite(stock) ? stock : 0
+}
+
+function getSyncedMoyskladId(doc: { moyskladId?: string | null }) {
+  const id = doc.moyskladId?.trim()
+  return id || null
 }
 
 function inferWeightGrams(name: string) {
@@ -336,115 +344,79 @@ async function upsertCategory(params: {
   return created as PayloadCategoryDoc
 }
 
-async function hideObsoleteCategories(
+async function deleteObsoleteCategories(
   payload: Payload,
   activeCategoryFolderIds: Set<string>,
   stats: ImportStats
 ) {
   const result = await payload.find({
     collection: "categories",
-    where: { isVisible: { equals: true } },
     limit: 500,
     depth: 0,
   })
 
-  for (const category of result.docs as PayloadCategoryDoc[]) {
-    if (!category.moyskladId) continue
-    if (activeCategoryFolderIds.has(category.moyskladId)) continue
+  const categories = (result.docs as PayloadCategoryDoc[])
+    .filter((category) => {
+      const moyskladId = getSyncedMoyskladId(category)
+      return !moyskladId || !activeCategoryFolderIds.has(moyskladId)
+    })
+    .sort((a, b) => {
+      const aHasParent = a.parent !== undefined && a.parent !== null
+      const bHasParent = b.parent !== undefined && b.parent !== null
+      return Number(bHasParent) - Number(aHasParent) || Number(b.id) - Number(a.id)
+    })
 
-    await payload.update({
+  for (const category of categories) {
+    const moyskladId = getSyncedMoyskladId(category)
+    if (moyskladId && activeCategoryFolderIds.has(moyskladId)) continue
+
+    await payload.delete({
       collection: "categories",
       id: category.id,
-      data: { isVisible: false },
     })
-    stats.categoriesHidden += 1
+    stats.categoriesDeleted += 1
   }
 }
 
-async function hideEmptyCategories(payload: Payload, stats: ImportStats) {
-  const [categoryResult, productResult] = await Promise.all([
-    payload.find({
-      collection: "categories",
-      limit: 500,
-      depth: 0,
-    }),
-    payload.find({
-      collection: "products",
-      where: { isVisible: { equals: true } },
-      limit: 1000,
-      depth: 0,
-    }),
-  ])
-
-  const categories = categoryResult.docs as (PayloadCategoryDoc & {
-    parent?: PayloadCategoryDoc | string | number | null
-  })[]
-  const products = productResult.docs as { category?: PayloadCategoryDoc | string | number | null }[]
-  const directProductCounts = new Map<string, number>()
-  const childIdsByParent = new Map<string, string[]>()
-
-  for (const product of products) {
-    const categoryId = typeof product.category === "object" && product.category !== null
-      ? product.category.id
-      : product.category
-    if (categoryId === undefined || categoryId === null) continue
-    const key = String(categoryId)
-    directProductCounts.set(key, (directProductCounts.get(key) || 0) + 1)
-  }
-
-  for (const category of categories) {
-    const parentId = typeof category.parent === "object" && category.parent !== null
-      ? category.parent.id
-      : category.parent
-    if (parentId === undefined || parentId === null) continue
-    const key = String(parentId)
-    const rows = childIdsByParent.get(key) || []
-    rows.push(String(category.id))
-    childIdsByParent.set(key, rows)
-  }
-
-  const hasVisibleProducts = new Map<string, boolean>()
-  const resolveHasProducts = (categoryId: string): boolean => {
-    if (hasVisibleProducts.has(categoryId)) return hasVisibleProducts.get(categoryId) || false
-
-    const hasDirectProducts = (directProductCounts.get(categoryId) || 0) > 0
-    const hasChildProducts = (childIdsByParent.get(categoryId) || []).some(resolveHasProducts)
-    const value = hasDirectProducts || hasChildProducts
-    hasVisibleProducts.set(categoryId, value)
-    return value
-  }
-
-  for (const category of categories) {
-    if (!category.moyskladId) continue
-    if (resolveHasProducts(String(category.id))) continue
-
-    await payload.update({
-      collection: "categories",
-      id: category.id,
-      data: { isVisible: false },
-    })
-    stats.categoriesHidden += 1
-  }
-}
-
-async function hideObsoleteProducts(payload: Payload, activeProductIds: Set<string>, stats: ImportStats) {
+async function deleteObsoleteProducts(payload: Payload, validProductIds: Set<string>, stats: ImportStats) {
   const result = await payload.find({
     collection: "products",
-    where: { isVisible: { equals: true } },
     limit: 1000,
     depth: 0,
   })
 
   for (const product of result.docs as PayloadProductDoc[]) {
-    if (!product.moyskladId) continue
-    if (activeProductIds.has(product.moyskladId)) continue
+    const moyskladId = getSyncedMoyskladId(product)
+    if (moyskladId && validProductIds.has(moyskladId)) continue
 
-    await payload.update({
+    await payload.delete({
       collection: "products",
       id: product.id,
-      data: { isVisible: false },
     })
-    stats.productsHidden += 1
+    stats.productsDeleted += 1
+  }
+}
+
+async function deleteObsoleteProductTypes(
+  payload: Payload,
+  activeRootFolderIds: Set<string>,
+  stats: ImportStats
+) {
+  const result = await payload.find({
+    collection: "product-types",
+    limit: 500,
+    depth: 0,
+  })
+
+  for (const productType of result.docs as PayloadProductTypeDoc[]) {
+    const moyskladId = getSyncedMoyskladId(productType)
+    if (moyskladId && activeRootFolderIds.has(moyskladId)) continue
+
+    await payload.delete({
+      collection: "product-types",
+      id: productType.id,
+    })
+    stats.productTypesDeleted += 1
   }
 }
 
@@ -579,12 +551,14 @@ export async function importMoyskladCatalog(payload: Payload) {
   const stats: ImportStats = {
     productTypesCreated: 0,
     productTypesUpdated: 0,
+    productTypesDeleted: 0,
     categoriesCreated: 0,
     categoriesUpdated: 0,
-    categoriesHidden: 0,
+    categoriesDeleted: 0,
     productsCreated: 0,
     productsUpdated: 0,
     productsHidden: 0,
+    productsDeleted: 0,
     variantsImported: 0,
     variantsHidden: 0,
     skippedProducts: [],
@@ -605,12 +579,6 @@ export async function importMoyskladCatalog(payload: Payload) {
   const folderByFullName = new Map(activeFolders.map((folder) => [getFolderFullName(folder), folder]))
   const rootFolders = activeFolders.filter((folder) => !folder.pathName)
   const rootFolderIds = new Set(rootFolders.map(getFolderId).filter(Boolean) as string[])
-  const activeProductIds = new Set(
-    products
-      .filter((item) => !item.archived)
-      .map((product) => getEntityId(product))
-      .filter(Boolean) as string[]
-  )
   const activeCategoryFolderIds = new Set(
     activeFolders
       .map((folder) => getFolderId(folder))
@@ -658,9 +626,6 @@ export async function importMoyskladCatalog(payload: Payload) {
     categoryByFolderId.set(folderId, category)
   }
 
-  await hideObsoleteCategories(payload, activeCategoryFolderIds, stats)
-  await hideObsoleteProducts(payload, activeProductIds, stats)
-
   const assortmentById = new Map(
     assortment
       .map((item) => [item.id || extractMoyskladId(item), item] as const)
@@ -676,7 +641,10 @@ export async function importMoyskladCatalog(payload: Payload) {
     variantsByProductId.set(productId, rows)
   }
 
+  const validProductIds = new Set<string>()
+
   for (const product of products.filter((item) => !item.archived)) {
+    const productId = getEntityId(product)
     const productFolderId = extractMoyskladId(product.productFolder)
     const folder = productFolderId ? folderById.get(productFolderId) : null
 
@@ -693,6 +661,8 @@ export async function importMoyskladCatalog(payload: Payload) {
       continue
     }
 
+    if (productId) validProductIds.add(productId)
+
     await upsertProduct({
       payload,
       product,
@@ -704,7 +674,9 @@ export async function importMoyskladCatalog(payload: Payload) {
     })
   }
 
-  await hideEmptyCategories(payload, stats)
+  await deleteObsoleteProducts(payload, validProductIds, stats)
+  await deleteObsoleteCategories(payload, activeCategoryFolderIds, stats)
+  await deleteObsoleteProductTypes(payload, rootFolderIds, stats)
 
   return {
     ok: true as const,
