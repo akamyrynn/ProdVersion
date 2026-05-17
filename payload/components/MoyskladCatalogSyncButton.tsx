@@ -7,9 +7,12 @@ interface SyncStats {
   productTypesUpdated?: number
   categoriesCreated?: number
   categoriesUpdated?: number
+  categoriesDeleted?: number
   productsCreated?: number
   productsUpdated?: number
+  productsDeleted?: number
   variantsImported?: number
+  clientCategoryDiscountsDeleted?: number
   skippedProducts?: string[]
 }
 
@@ -60,7 +63,7 @@ export default function MoyskladCatalogSyncButton() {
         <div>
           <h2 style={{ margin: "0 0 6px", fontSize: "18px" }}>МойСклад: каталог</h2>
           <p style={{ margin: 0, color: "#666", fontSize: "13px" }}>
-            Автоматическая синхронизация идет раз в час. Кнопка запускает обновление сразу.
+            Автоматическая синхронизация идет раз в сутки в 00:00 МСК. Кнопка запускает обновление сразу.
           </p>
         </div>
         <button
@@ -98,6 +101,8 @@ export default function MoyskladCatalogSyncButton() {
               Готово: типов {stats?.productTypesCreated || 0}/{stats?.productTypesUpdated || 0}, категорий{" "}
               {stats?.categoriesCreated || 0}/{stats?.categoriesUpdated || 0}, товаров{" "}
               {stats?.productsCreated || 0}/{stats?.productsUpdated || 0}, вариантов {stats?.variantsImported || 0}.
+              Удалено: категорий {stats?.categoriesDeleted || 0}, товаров {stats?.productsDeleted || 0}, скидок на
+              удаленные категории {stats?.clientCategoryDiscountsDeleted || 0}.
             </span>
           ) : (
             <span>{result.error || "Ошибка синхронизации"}</span>

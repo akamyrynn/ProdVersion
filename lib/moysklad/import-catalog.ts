@@ -8,6 +8,7 @@ import {
   fetchMoyskladVariants,
   getPrimarySalePrice,
 } from "./products"
+import { getRelationshipId } from "@/lib/product-types"
 import type {
   MoyskladAssortment,
   MoyskladProduct,
@@ -44,6 +45,15 @@ interface PayloadProductDoc {
   sortOrder?: number | null
 }
 
+interface PayloadClientDoc {
+  id: Id
+  categoryDiscounts?: {
+    id?: Id
+    category?: Id | PayloadCategoryDoc | null
+    discountPercent?: number | null
+  }[] | null
+}
+
 interface ImportStats {
   productTypesCreated: number
   productTypesUpdated: number
@@ -57,6 +67,7 @@ interface ImportStats {
   productsDeleted: number
   variantsImported: number
   variantsHidden: number
+  clientCategoryDiscountsDeleted: number
   skippedProducts: string[]
 }
 
@@ -366,6 +377,12 @@ async function deleteObsoleteCategories(
       return Number(bHasParent) - Number(aHasParent) || Number(b.id) - Number(a.id)
     })
 
+  await cleanupClientCategoryDiscounts(
+    payload,
+    new Set(categories.map((category) => String(category.id))),
+    stats
+  )
+
   for (const category of categories) {
     const moyskladId = getSyncedMoyskladId(category)
     if (moyskladId && activeCategoryFolderIds.has(moyskladId)) continue
@@ -375,6 +392,39 @@ async function deleteObsoleteCategories(
       id: category.id,
     })
     stats.categoriesDeleted += 1
+  }
+}
+
+async function cleanupClientCategoryDiscounts(
+  payload: Payload,
+  obsoleteCategoryIds: Set<string>,
+  stats: ImportStats
+) {
+  if (obsoleteCategoryIds.size === 0) return
+
+  const result = await payload.find({
+    collection: "clients",
+    limit: 1000,
+    depth: 0,
+  })
+
+  for (const client of result.docs as PayloadClientDoc[]) {
+    const discounts = client.categoryDiscounts || []
+    if (discounts.length === 0) continue
+
+    const filteredDiscounts = discounts.filter((discount) => {
+      const categoryId = getRelationshipId(discount.category)
+      return !categoryId || !obsoleteCategoryIds.has(String(categoryId))
+    })
+
+    if (filteredDiscounts.length === discounts.length) continue
+
+    await payload.update({
+      collection: "clients",
+      id: client.id,
+      data: { categoryDiscounts: filteredDiscounts },
+    })
+    stats.clientCategoryDiscountsDeleted += discounts.length - filteredDiscounts.length
   }
 }
 
@@ -561,6 +611,7 @@ export async function importMoyskladCatalog(payload: Payload) {
     productsDeleted: 0,
     variantsImported: 0,
     variantsHidden: 0,
+    clientCategoryDiscountsDeleted: 0,
     skippedProducts: [],
   }
 
