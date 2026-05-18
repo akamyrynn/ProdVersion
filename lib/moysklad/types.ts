@@ -7,12 +7,14 @@ export type MoyskladEntityType =
   | "loss"
   | "product"
   | "variant"
+  | "bundle"
   | "service"
   | "productfolder"
   | "state"
   | "saleschannel"
   | "project"
   | "contract"
+  | "uom"
 
 export interface MoyskladMeta {
   href: string

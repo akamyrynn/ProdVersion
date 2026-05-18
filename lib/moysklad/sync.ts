@@ -65,18 +65,37 @@ interface MoyskladProductUomResponse {
   uom?: {
     name?: string
   }
-  packs?: MoyskladProductPack[]
-}
-
-interface MoyskladProductPack {
-  id?: string
-  quantity?: number
-  uom?: {
+  productFolder?: {
     meta?: {
       href?: string
     }
-    name?: string
   }
+}
+
+interface MoyskladSalePrice {
+  value?: number
+  priceType?: {
+    id?: string
+    name?: string
+    meta?: {
+      href?: string
+      type?: string
+      mediaType?: string
+    }
+  }
+}
+
+interface MoyskladVariantForBundle {
+  id?: string
+  name?: string
+  code?: string
+  article?: string
+  salePrices?: MoyskladSalePrice[]
+}
+
+interface MoyskladBundleForOrder {
+  id?: string
+  name?: string
 }
 
 export interface MoyskladStockLossLine {
@@ -105,8 +124,8 @@ interface PayloadOrderForStockLoss {
 }
 
 const kilogramProductCache = new Map<string, Promise<boolean>>()
-const productPacksCache = new Map<string, Promise<MoyskladProductPack[]>>()
-const PACK_ACCOUNTING_PILOT_PRODUCT_IDS = new Set([
+const bundleCache = new Map<string, Promise<MoyskladBundleForOrder>>()
+const BUNDLE_ACCOUNTING_PILOT_PRODUCT_IDS = new Set([
   "18f12f06-4d64-11f1-0a80-063400441812",
 ])
 
@@ -399,10 +418,6 @@ function normalizeUomName(value?: string | null) {
   return (value || "").trim().toLowerCase().replace(/ё/g, "е")
 }
 
-function getUomIdFromHref(href?: string | null) {
-  return href?.split("/").filter(Boolean).pop() || null
-}
-
 async function isKilogramProduct(moyskladProductId: string) {
   const cached = kilogramProductCache.get(moyskladProductId)
   if (cached) return cached
@@ -420,35 +435,135 @@ async function isKilogramProduct(moyskladProductId: string) {
   return promise
 }
 
-async function getProductPacks(moyskladProductId: string) {
-  const cached = productPacksCache.get(moyskladProductId)
-  if (cached) return cached
-
-  const promise = moyskladRequest<MoyskladProductUomResponse>(
-    `entity/product/${moyskladProductId}`
-  )
-    .then((product) => product.packs || [])
-    .catch(() => [])
-
-  productPacksCache.set(moyskladProductId, promise)
-  return promise
-}
-
-function isPackAccountingPilotItem(item: CartItem, productMoyskladId: string) {
+function isBundleAccountingPilotItem(item: CartItem, productMoyskladId: string) {
   return (
-    PACK_ACCOUNTING_PILOT_PRODUCT_IDS.has(productMoyskladId) &&
+    BUNDLE_ACCOUNTING_PILOT_PRODUCT_IDS.has(productMoyskladId) &&
     isCoffeeWeightAccountingItem(item)
   )
 }
 
-async function findPackForWeightGrams(productMoyskladId: string, weightGrams: number) {
-  if (weightGrams !== 250) return null
+function buildBundleExternalCode(variantMoyskladId: string) {
+  return `10coffee-bundle-${variantMoyskladId}`
+}
 
-  const packs = await getProductPacks(productMoyskladId)
-  return packs.find((pack) => {
-    const uomId = getUomIdFromHref(pack.uom?.meta?.href)
-    return uomId === "8e2eb543-99e9-4077-bc31-93b1359de9c4" && Number(pack.quantity) === 250
-  }) || null
+function buildBundleCode(variantMoyskladId: string, variantCode?: string | null) {
+  const normalizedCode = (variantCode || "").trim()
+  if (normalizedCode) return `KIT-${normalizedCode}`.slice(0, 255)
+  return `KIT-${variantMoyskladId.slice(0, 8)}`
+}
+
+function buildBundleName(item: CartItem, moyskladVariant?: MoyskladVariantForBundle | null) {
+  if (moyskladVariant?.name) return moyskladVariant.name
+
+  const productName = item.product?.name || item.product_id
+  const variantName = item.variant?.name || item.variant_id
+  return `${productName} (${variantName}${getCartItemGrindLabel(item)})`
+}
+
+function getFirstSalePriceForBundle(
+  item: CartItem,
+  moyskladVariant?: MoyskladVariantForBundle | null
+) {
+  const price = rubToKopecks(item.variant?.price ?? 0)
+  const firstPrice = moyskladVariant?.salePrices?.[0]
+
+  if (firstPrice?.priceType) {
+    return [{
+      ...firstPrice,
+      value: price,
+    }]
+  }
+
+  return [{ value: price }]
+}
+
+async function getMoyskladVariantForBundle(variantMoyskladId: string) {
+  return moyskladRequest<MoyskladVariantForBundle>(`entity/variant/${variantMoyskladId}`)
+    .catch(() => null)
+}
+
+async function getMoyskladProductForBundle(productMoyskladId: string) {
+  return moyskladRequest<MoyskladProductUomResponse>(`entity/product/${productMoyskladId}`)
+    .catch(() => null)
+}
+
+async function findBundleByExternalCode(externalCode: string) {
+  const result = await moyskladGetList<MoyskladBundleForOrder>("entity/bundle", {
+    filter: `externalCode=${externalCode}`,
+    limit: 1,
+  }).catch(() => null)
+
+  return result?.rows?.[0] || null
+}
+
+async function ensureBundleForWeightAccountingItem(
+  item: CartItem,
+  productMoyskladId: string,
+  weightGrams: number
+) {
+  const variantMoyskladId = item.variant?.moysklad_id || null
+  if (!variantMoyskladId) {
+    throw new Error(`У варианта ${item.variant?.name || item.variant_id} нет ID модификации МойСклад`)
+  }
+
+  const cacheKey = [
+    productMoyskladId,
+    variantMoyskladId,
+    weightGrams,
+    item.variant?.price ?? 0,
+    item.variant?.name || "",
+    item.grind_option || "",
+  ].join(":")
+  const cached = bundleCache.get(cacheKey)
+  if (cached) return cached
+
+  const promise = (async () => {
+    const [moyskladVariant, moyskladProduct] = await Promise.all([
+      getMoyskladVariantForBundle(variantMoyskladId),
+      getMoyskladProductForBundle(productMoyskladId),
+    ])
+    const quantityKg = Number((weightGrams / 1000).toFixed(6))
+    if (quantityKg <= 0) {
+      throw new Error(`Не удалось определить вес варианта ${item.variant?.name || item.variant_id}`)
+    }
+
+    const externalCode = buildBundleExternalCode(variantMoyskladId)
+    const existing = await findBundleByExternalCode(externalCode)
+    const body = {
+      name: buildBundleName(item, moyskladVariant),
+      code: buildBundleCode(variantMoyskladId, moyskladVariant?.code || item.variant?.sku),
+      article: moyskladVariant?.article || item.variant?.sku || undefined,
+      externalCode,
+      productFolder: moyskladProduct?.productFolder,
+      uom: {
+        meta: moyskladMeta("uom", "19f1edc0-fc42-4001-94cb-c9ec9c62ec10"),
+      },
+      salePrices: getFirstSalePriceForBundle(item, moyskladVariant),
+      components: [
+        {
+          assortment: {
+            meta: moyskladMeta("product", productMoyskladId),
+          },
+          quantity: quantityKg,
+        },
+      ],
+    }
+
+    if (existing?.id) {
+      return moyskladRequest<MoyskladBundleForOrder>(`entity/bundle/${existing.id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      })
+    }
+
+    return moyskladRequest<MoyskladBundleForOrder>("entity/bundle", {
+      method: "POST",
+      body: JSON.stringify(body),
+    })
+  })()
+
+  bundleCache.set(cacheKey, promise)
+  return promise
 }
 
 function getCartItemGrindLabel(item: CartItem) {
@@ -516,34 +631,31 @@ async function buildCustomerPositions(
 
     if (
       productMoyskladId &&
-      isPackAccountingPilotItem(item, productMoyskladId) &&
+      isBundleAccountingPilotItem(item, productMoyskladId) &&
       await isKilogramProduct(productMoyskladId)
     ) {
-      const pack = await findPackForWeightGrams(productMoyskladId, weightGrams)
-      const canUseDefaultKilogramLine = weightGrams === 1000
-      const canUsePackLine = Boolean(pack?.id)
-
-      if (canUseDefaultKilogramLine || canUsePackLine) {
-        const position: MoyskladOrderPositionPayload = {
-          quantity: item.quantity,
-          price: rubToKopecks(item.variant?.price ?? 0),
-          assortment: {
-            meta: moyskladMeta("product", productMoyskladId),
-          },
-        }
-
-        if (pack?.id) position.pack = { id: pack.id }
-
-        const discount = discountByItem.get(item.id) || 0
-        if (discount > 0) position.discount = discount
-        if (config.defaultVat > 0) position.vat = config.defaultVat
-
-        positions.push(position)
-        compositionLines.push(
-          `${item.product?.name || item.product_id}: ${item.variant?.name || item.variant_id}${getCartItemGrindLabel(item)} ×${item.quantity} (${formatWeightFromGrams(weightGrams * item.quantity)})`
-        )
-        continue
+      const bundle = await ensureBundleForWeightAccountingItem(item, productMoyskladId, weightGrams)
+      if (!bundle.id) {
+        throw new Error(`Не удалось создать комплект для ${item.variant?.name || item.variant_id}`)
       }
+
+      const position: MoyskladOrderPositionPayload = {
+        quantity: item.quantity,
+        price: rubToKopecks(item.variant?.price ?? 0),
+        assortment: {
+          meta: moyskladMeta("bundle", bundle.id),
+        },
+      }
+
+      const discount = discountByItem.get(item.id) || 0
+      if (discount > 0) position.discount = discount
+      if (config.defaultVat > 0) position.vat = config.defaultVat
+
+      positions.push(position)
+      compositionLines.push(
+        `${item.product?.name || item.product_id}: ${item.variant?.name || item.variant_id}${getCartItemGrindLabel(item)} ×${item.quantity} (${formatWeightFromGrams(weightGrams * item.quantity)})`
+      )
+      continue
     }
 
     const shouldUseWeightAccounting =
