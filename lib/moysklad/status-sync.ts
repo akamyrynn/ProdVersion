@@ -2,6 +2,7 @@ import type { Payload } from "payload"
 import { getMoyskladConfig } from "./config"
 import { moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
+import { ensureMoyskladStockLossForOrder } from "./sync"
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { MoyskladCustomerOrder } from "./types"
 import type { OrderStatus } from "@/types"
@@ -19,6 +20,16 @@ interface PayloadOrderForStatus {
   status?: OrderStatus
   paymentStatus?: PaymentStatus
   moyskladCustomerOrderId?: string | null
+  moyskladStockLossId?: string | null
+  items?: {
+    productName?: string
+    variantName?: string
+    grindOption?: string | null
+    quantity?: number | string
+    stockProductMoyskladId?: string | null
+    stockQuantityKg?: number | string | null
+    stockPricePerKg?: number | string | null
+  }[]
   client?: PayloadClientForStatus | string | number | null
 }
 
@@ -158,6 +169,38 @@ export async function syncMoyskladOrderStatuses(
           moyskladSyncedAt: new Date().toISOString(),
         },
       })
+
+      if ((nextStatus === "shipped" || nextStatus === "delivered") && !order.moyskladStockLossId) {
+        try {
+          await ensureMoyskladStockLossForOrder(payload, {
+            id: order.id,
+            orderId: order.orderId,
+            moyskladStockLossId: order.moyskladStockLossId,
+            items: order.items,
+          })
+        } catch (stockLossError) {
+          const message = stockLossError instanceof Error
+            ? stockLossError.message
+            : "Не удалось создать техническое списание"
+
+          await payload.update({
+            collection: "orders",
+            id: order.id,
+            data: {
+              moyskladStockLossError: message,
+            },
+          })
+
+          await writeMoyskladLog({
+            entityType: "stock_loss",
+            localId: order.id,
+            moyskladId: moyskladCustomerOrderId,
+            direction: "site_to_moysklad",
+            status: "error",
+            message,
+          })
+        }
+      }
 
       if (statusChanged) {
         try {

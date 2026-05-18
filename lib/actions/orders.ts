@@ -16,7 +16,7 @@ import { getRelationshipId } from "@/lib/product-types"
 import { revalidatePath } from "next/cache"
 import nodemailer from "nodemailer"
 import type { Order, OrderItem, OrderStatus, DeliveryMethod } from "@/types"
-import { syncOrderToMoysklad } from "@/lib/moysklad/sync"
+import { buildMoyskladStockLossLines, syncOrderToMoysklad } from "@/lib/moysklad/sync"
 
 interface OrderEmailItem {
   productName: string
@@ -55,6 +55,9 @@ interface PayloadOrderItem {
   quantity?: number | string
   unitPrice?: number | string
   totalPrice?: number | string
+  stockProductMoyskladId?: string | null
+  stockQuantityKg?: number | string | null
+  stockPricePerKg?: number | string | null
 }
 
 interface PayloadOrderDoc {
@@ -80,6 +83,9 @@ interface PayloadOrderDoc {
   moyskladCounterpartyId?: string | null
   moyskladCustomerOrderId?: string | null
   moyskladInvoiceOutId?: string | null
+  moyskladStockLossId?: string | null
+  moyskladStockLossSyncedAt?: string | null
+  moyskladStockLossError?: string | null
   moyskladSyncStatus?: string | null
   moyskladSyncError?: string | null
   moyskladSyncedAt?: string | null
@@ -255,11 +261,16 @@ async function ensureB2bMoyskladSchema() {
       on public.companies(moysklad_counterparty_id);
     alter table public.orders
       add column if not exists moysklad_counterparty_id varchar,
-      add column if not exists moysklad_invoice_out_id varchar;
+      add column if not exists moysklad_invoice_out_id varchar,
+      add column if not exists moysklad_stock_loss_id varchar,
+      add column if not exists moysklad_stock_loss_synced_at timestamptz,
+      add column if not exists moysklad_stock_loss_error text;
     create index if not exists orders_moysklad_counterparty_id_idx
       on public.orders(moysklad_counterparty_id);
     create index if not exists orders_moysklad_invoice_out_id_idx
       on public.orders(moysklad_invoice_out_id);
+    create index if not exists orders_moysklad_stock_loss_id_idx
+      on public.orders(moysklad_stock_loss_id);
   `)
 }
 
@@ -345,6 +356,9 @@ function transformOrderItem(item: PayloadOrderItem): OrderItem {
     unit_price: Number(item.unitPrice) || 0,
     total_price: Number(item.totalPrice) || 0,
     weight_grams: null,
+    stock_product_moysklad_id: item.stockProductMoyskladId || null,
+    stock_quantity_kg: Number(item.stockQuantityKg) || null,
+    stock_price_per_kg: Number(item.stockPricePerKg) || null,
   }
 }
 
@@ -375,6 +389,9 @@ function transformOrder(doc: PayloadOrderDoc): Order {
     moysklad_counterparty_id: doc.moyskladCounterpartyId || null,
     moysklad_customer_order_id: doc.moyskladCustomerOrderId || null,
     moysklad_invoice_out_id: doc.moyskladInvoiceOutId || null,
+    moysklad_stock_loss_id: doc.moyskladStockLossId || null,
+    moysklad_stock_loss_synced_at: doc.moyskladStockLossSyncedAt || null,
+    moysklad_stock_loss_error: doc.moyskladStockLossError || null,
     moysklad_sync_status: doc.moyskladSyncStatus || null,
     moysklad_sync_error: doc.moyskladSyncError || null,
     moysklad_synced_at: doc.moyskladSyncedAt || null,
@@ -570,14 +587,21 @@ export async function createOrder(params: {
   }
 
   // Build items array for Payload
-  const items = cartItems.map((item) => ({
-    productName: item.product?.name || "",
-    variantName: item.variant?.name || "",
-    grindOption: item.grind_option || "",
-    quantity: item.quantity,
-    unitPrice: item.variant?.price ?? 0,
-    totalPrice: (item.variant?.price ?? 0) * item.quantity,
-  }))
+  const items = cartItems.map((item) => {
+    const stockLossLine = buildMoyskladStockLossLines([item])[0]
+
+    return {
+      productName: item.product?.name || "",
+      variantName: item.variant?.name || "",
+      grindOption: item.grind_option || "",
+      quantity: item.quantity,
+      unitPrice: item.variant?.price ?? 0,
+      totalPrice: (item.variant?.price ?? 0) * item.quantity,
+      stockProductMoyskladId: stockLossLine?.productMoyskladId || "",
+      stockQuantityKg: stockLossLine?.quantityKg || 0,
+      stockPricePerKg: stockLossLine?.pricePerKg || 0,
+    }
+  })
 
   // Resolve promo code Payload ID
   let payloadPromoId: string | number | undefined

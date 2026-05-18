@@ -252,6 +252,33 @@ export const Orders: CollectionConfig = {
       },
     },
     {
+      name: "moyskladStockLossId",
+      type: "text",
+      label: "ID технического списания в МойСклад",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+      },
+    },
+    {
+      name: "moyskladStockLossSyncedAt",
+      type: "date",
+      label: "Списание создано",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+      },
+    },
+    {
+      name: "moyskladStockLossError",
+      type: "textarea",
+      label: "Ошибка списания МойСклад",
+      admin: {
+        position: "sidebar",
+        readOnly: true,
+      },
+    },
+    {
       name: "moyskladSyncedAt",
       type: "date",
       label: "Синхронизирован",
@@ -410,6 +437,29 @@ export const Orders: CollectionConfig = {
                     { name: "quantity", type: "number", label: "Кол-во", required: true, admin: { width: "33%" } },
                     { name: "unitPrice", type: "number", label: "Цена/шт", required: true, admin: { width: "33%" } },
                     { name: "totalPrice", type: "number", label: "Сумма", required: true, admin: { width: "34%" } },
+                  ],
+                },
+                {
+                  type: "row",
+                  fields: [
+                    {
+                      name: "stockProductMoyskladId",
+                      type: "text",
+                      label: "ID товара для списания",
+                      admin: { readOnly: true, hidden: true },
+                    },
+                    {
+                      name: "stockQuantityKg",
+                      type: "number",
+                      label: "Списание, кг",
+                      admin: { readOnly: true, hidden: true },
+                    },
+                    {
+                      name: "stockPricePerKg",
+                      type: "number",
+                      label: "Цена/кг для списания",
+                      admin: { readOnly: true, hidden: true },
+                    },
                   ],
                 },
               ],

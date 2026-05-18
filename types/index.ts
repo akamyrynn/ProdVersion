@@ -251,6 +251,9 @@ export interface Order {
   moysklad_counterparty_id?: string | null
   moysklad_customer_order_id?: string | null
   moysklad_invoice_out_id?: string | null
+  moysklad_stock_loss_id?: string | null
+  moysklad_stock_loss_synced_at?: string | null
+  moysklad_stock_loss_error?: string | null
   moysklad_sync_status?: string | null
   moysklad_sync_error?: string | null
   moysklad_synced_at?: string | null
@@ -275,6 +278,9 @@ export interface OrderItem {
   unit_price: number
   total_price: number
   weight_grams: number | null
+  stock_product_moysklad_id?: string | null
+  stock_quantity_kg?: number | null
+  stock_price_per_kg?: number | null
 }
 
 export interface OrderStatusHistory {

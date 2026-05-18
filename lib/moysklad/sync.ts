@@ -8,6 +8,7 @@ import type {
   MoyskladCounterparty,
   MoyskladCustomerOrder,
   MoyskladInvoiceOut,
+  MoyskladLoss,
   MoyskladOrderPositionPayload,
   MoyskladSalesChannel,
 } from "./types"
@@ -60,13 +61,30 @@ interface MoyskladDiscountLine {
   discountPercent: number
 }
 
-interface MoyskladProductUomResponse {
-  uom?: {
-    name?: string
-  }
+export interface MoyskladStockLossLine {
+  productMoyskladId: string
+  productName: string
+  quantityKg: number
+  pricePerKg: number
+  sourceLine: string
 }
 
-const kilogramProductCache = new Map<string, Promise<boolean>>()
+interface PayloadOrderStockLossItem {
+  productName?: string
+  variantName?: string
+  grindOption?: string | null
+  quantity?: number | string
+  stockProductMoyskladId?: string | null
+  stockQuantityKg?: number | string | null
+  stockPricePerKg?: number | string | null
+}
+
+interface PayloadOrderForStockLoss {
+  id: string | number
+  orderId?: string
+  moyskladStockLossId?: string | null
+  items?: PayloadOrderStockLossItem[]
+}
 
 function rubToKopecks(value: number) {
   return Math.round((Number(value) || 0) * 100)
@@ -98,11 +116,16 @@ async function ensureB2bMoyskladSchema() {
       on public.companies(moysklad_counterparty_id);
     alter table public.orders
       add column if not exists moysklad_counterparty_id varchar,
-      add column if not exists moysklad_invoice_out_id varchar;
+      add column if not exists moysklad_invoice_out_id varchar,
+      add column if not exists moysklad_stock_loss_id varchar,
+      add column if not exists moysklad_stock_loss_synced_at timestamptz,
+      add column if not exists moysklad_stock_loss_error text;
     create index if not exists orders_moysklad_counterparty_id_idx
       on public.orders(moysklad_counterparty_id);
     create index if not exists orders_moysklad_invoice_out_id_idx
       on public.orders(moysklad_invoice_out_id);
+    create index if not exists orders_moysklad_stock_loss_id_idx
+      on public.orders(moysklad_stock_loss_id);
   `)
 }
 
@@ -298,21 +321,6 @@ function buildOrderDescription(order: SyncOrder, company?: SyncCompany | null) {
   return rows.join("\n")
 }
 
-function buildOrderDescriptionWithComposition(
-  order: SyncOrder,
-  company?: SyncCompany | null,
-  compositionLines: string[] = []
-) {
-  const description = buildOrderDescription(order, company)
-  if (compositionLines.length === 0) return description
-
-  return [
-    description,
-    "Состав заказа:",
-    ...compositionLines.map((line) => `- ${line}`),
-  ].filter(Boolean).join("\n")
-}
-
 function resolveAssortment(item: CartItem) {
   const variant = item.variant as (CartItem["variant"] & {
     moysklad_id?: string | null
@@ -348,27 +356,6 @@ function isCoffeeWeightAccountingItem(item: CartItem) {
   )
 }
 
-function normalizeUomName(value?: string | null) {
-  return (value || "").trim().toLowerCase().replace(/ё/g, "е")
-}
-
-async function isKilogramProduct(moyskladProductId: string) {
-  const cached = kilogramProductCache.get(moyskladProductId)
-  if (cached) return cached
-
-  const promise = moyskladRequest<MoyskladProductUomResponse>(
-    `entity/product/${moyskladProductId}?expand=uom`
-  )
-    .then((product) => {
-      const uomName = normalizeUomName(product.uom?.name)
-      return uomName === "кг" || uomName.includes("килограмм")
-    })
-    .catch(() => false)
-
-  kilogramProductCache.set(moyskladProductId, promise)
-  return promise
-}
-
 function getCartItemGrindLabel(item: CartItem) {
   const grind = item.grind_option || item.variant?.grind_options?.[0] || ""
   return grind ? `, ${grind}` : ""
@@ -381,7 +368,36 @@ function formatWeightFromGrams(grams: number) {
   return `${grams} г`
 }
 
-async function buildPositions(
+export function buildMoyskladStockLossLines(cartItems: CartItem[]) {
+  const lines: MoyskladStockLossLine[] = []
+
+  for (const item of cartItems) {
+    const productMoyskladId = item.product?.moysklad_id || null
+    if (!isCoffeeWeightAccountingItem(item) || !productMoyskladId) continue
+
+    const weightGrams = Number(item.variant?.weight_grams) || 0
+    const weightKgPerPack = weightGrams / 1000
+    const quantityKg = weightKgPerPack * item.quantity
+    const variantPriceKopecks = rubToKopecks(item.variant?.price ?? 0)
+    const pricePerKg = weightKgPerPack > 0
+      ? Math.round(variantPriceKopecks / weightKgPerPack)
+      : 0
+
+    if (quantityKg <= 0 || pricePerKg <= 0) continue
+
+    lines.push({
+      productMoyskladId,
+      productName: item.product?.name || item.product_id,
+      quantityKg: Number(quantityKg.toFixed(6)),
+      pricePerKg,
+      sourceLine: `${item.product?.name || item.product_id}: ${item.variant?.name || item.variant_id}${getCartItemGrindLabel(item)} ×${item.quantity} (${formatWeightFromGrams(weightGrams * item.quantity)})`,
+    })
+  }
+
+  return lines
+}
+
+function buildCustomerPositions(
   cartItems: CartItem[],
   deliveryCost: number,
   discountLines: MoyskladDiscountLine[] = []
@@ -396,63 +412,8 @@ async function buildPositions(
 
   const skipped: CartItem[] = []
   const positions: MoyskladOrderPositionPayload[] = []
-  const compositionLines: string[] = []
-  const weightPositions = new Map<string, MoyskladOrderPositionPayload>()
 
   for (const item of cartItems) {
-    const productMoyskladId = item.product?.moysklad_id || null
-    const shouldUseWeightAccounting =
-      isCoffeeWeightAccountingItem(item) &&
-      productMoyskladId &&
-      await isKilogramProduct(productMoyskladId)
-
-    if (shouldUseWeightAccounting) {
-      const weightGrams = Number(item.variant?.weight_grams) || 0
-      const weightKgPerPack = weightGrams / 1000
-      const quantityKg = weightKgPerPack * item.quantity
-      const variantPriceKopecks = rubToKopecks(item.variant?.price ?? 0)
-      const pricePerKg = weightKgPerPack > 0
-        ? Math.round(variantPriceKopecks / weightKgPerPack)
-        : 0
-
-      if (quantityKg <= 0 || pricePerKg <= 0) {
-        skipped.push(item)
-        continue
-      }
-
-      const discount = discountByItem.get(item.id) || 0
-      const key = [
-        productMoyskladId,
-        pricePerKg,
-        discount,
-        config.defaultVat,
-      ].join(":")
-      const existing = weightPositions.get(key)
-
-      if (existing) {
-        existing.quantity = Number((existing.quantity + quantityKg).toFixed(6))
-      } else {
-        const position: MoyskladOrderPositionPayload = {
-          quantity: Number(quantityKg.toFixed(6)),
-          price: pricePerKg,
-          assortment: {
-            meta: moyskladMeta("product", productMoyskladId),
-          },
-        }
-
-        if (discount > 0) position.discount = discount
-        if (config.defaultVat > 0) position.vat = config.defaultVat
-
-        weightPositions.set(key, position)
-        positions.push(position)
-      }
-
-      compositionLines.push(
-        `${item.product?.name || item.product_id}: ${item.variant?.name || item.variant_id}${getCartItemGrindLabel(item)} ×${item.quantity} (${formatWeightFromGrams(weightGrams * item.quantity)})`
-      )
-      continue
-    }
-
     const assortment = resolveAssortment(item)
     if (!assortment) {
       skipped.push(item)
@@ -491,7 +452,7 @@ async function buildPositions(
     positions.push(deliveryPosition)
   }
 
-  return { positions, skipped, compositionLines }
+  return { positions, skipped }
 }
 
 function buildDocumentRefs(params: {
@@ -561,6 +522,152 @@ async function createInvoiceOut(params: {
   }
 }
 
+function buildStockLossExternalCode(order: PayloadOrderForStockLoss) {
+  return `10coffee-stock-loss-${order.id}`
+}
+
+function getStoredStockLossPositions(order: PayloadOrderForStockLoss) {
+  const positionsByKey = new Map<string, MoyskladOrderPositionPayload>()
+  const compositionLines: string[] = []
+
+  for (const item of order.items || []) {
+    const productMoyskladId = item.stockProductMoyskladId?.trim()
+    const quantityKg = Number(item.stockQuantityKg) || 0
+    const pricePerKg = Math.round(Number(item.stockPricePerKg) || 0)
+    if (!productMoyskladId || quantityKg <= 0 || pricePerKg <= 0) continue
+
+    const key = `${productMoyskladId}:${pricePerKg}`
+    const existing = positionsByKey.get(key)
+    if (existing) {
+      existing.quantity = Number((existing.quantity + quantityKg).toFixed(6))
+    } else {
+      positionsByKey.set(key, {
+        quantity: Number(quantityKg.toFixed(6)),
+        price: pricePerKg,
+        assortment: {
+          meta: moyskladMeta("product", productMoyskladId),
+        },
+      })
+    }
+
+    const parts = [
+      item.productName || "Товар",
+      item.variantName ? `(${item.variantName})` : "",
+      item.grindOption ? `, ${item.grindOption}` : "",
+      `×${Number(item.quantity) || 0}`,
+      `(${Number(quantityKg.toFixed(3))} кг)`,
+    ].filter(Boolean)
+    compositionLines.push(parts.join(" "))
+  }
+
+  return {
+    positions: [...positionsByKey.values()],
+    compositionLines,
+  }
+}
+
+async function findStockLossByExternalCode(externalCode: string) {
+  const result = await moyskladGetList<MoyskladLoss>("entity/loss", {
+    filter: `externalCode=${externalCode}`,
+    limit: 1,
+  })
+
+  return result.rows[0] || null
+}
+
+export async function ensureMoyskladStockLossForOrder(
+  payload: Payload,
+  order: PayloadOrderForStockLoss
+) {
+  const config = getMoyskladConfig()
+  if (!config.enabled) {
+    return { skipped: true as const, reason: "MOYSKLAD_ENABLED не включен" }
+  }
+  assertMoyskladReady(config)
+
+  await ensureB2bMoyskladSchema()
+
+  if (order.moyskladStockLossId) {
+    return { skipped: true as const, moyskladStockLossId: order.moyskladStockLossId }
+  }
+
+  if (!config.storeId) {
+    throw new Error("Для технического списания нужен MOYSKLAD_STORE_ID")
+  }
+
+  const { positions, compositionLines } = getStoredStockLossPositions(order)
+  if (positions.length === 0) {
+    return { skipped: true as const, reason: "Нет весовых позиций для списания" }
+  }
+
+  const externalCode = buildStockLossExternalCode(order)
+  const existing = await findStockLossByExternalCode(externalCode).catch(() => null)
+  const existingId = extractMoyskladId(existing)
+
+  if (existingId) {
+    await payload.update({
+      collection: "orders",
+      id: order.id,
+      data: {
+        moyskladStockLossId: existingId,
+        moyskladStockLossSyncedAt: new Date().toISOString(),
+        moyskladStockLossError: "",
+      },
+    })
+
+    return { success: true as const, moyskladStockLossId: existingId, reused: true as const }
+  }
+
+  const description = [
+    `Техническое списание по заказу ${order.orderId || order.id}`,
+    "Состав заказа:",
+    ...compositionLines.map((line) => `- ${line}`),
+  ].join("\n")
+
+  const body = {
+    moment: formatMoment(),
+    applicable: true,
+    externalCode,
+    organization: {
+      meta: moyskladMeta("organization", config.organizationId!),
+    },
+    store: {
+      meta: moyskladMeta("store", config.storeId),
+    },
+    description,
+    positions,
+  }
+
+  const created = await moyskladRequest<MoyskladLoss>("entity/loss", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+  const moyskladStockLossId = extractMoyskladId(created)
+  if (!moyskladStockLossId) throw new Error("МойСклад не вернул id технического списания")
+
+  await payload.update({
+    collection: "orders",
+    id: order.id,
+    data: {
+      moyskladStockLossId,
+      moyskladStockLossSyncedAt: new Date().toISOString(),
+      moyskladStockLossError: "",
+    },
+  })
+
+  await writeMoyskladLog({
+    entityType: "stock_loss",
+    localId: order.id,
+    moyskladId: moyskladStockLossId,
+    direction: "site_to_moysklad",
+    status: "success",
+    payload: body,
+    response: created,
+  })
+
+  return { success: true as const, moyskladStockLossId }
+}
+
 export async function syncOrderToMoysklad(params: SyncOrderParams) {
   const config = getMoyskladConfig()
   if (!config.enabled || !config.syncOrdersOnCreate) {
@@ -589,7 +696,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     const counterpartyId = await ensureCounterparty(params.payload, params.client, params.company)
     counterpartyIdForUpdate = counterpartyId
     const salesChannelId = await ensureSalesChannel()
-    const { positions, skipped, compositionLines } = await buildPositions(
+    const { positions, skipped } = buildCustomerPositions(
       params.cartItems,
       Number(params.order.deliveryCost) || 0,
       params.discountLines || []
@@ -604,11 +711,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       throw new Error("Нет позиций для отправки в МойСклад")
     }
 
-    const description = buildOrderDescriptionWithComposition(
-      params.order,
-      params.company,
-      compositionLines
-    )
+    const description = buildOrderDescription(params.order, params.company)
     const body: Record<string, unknown> = {
       ...buildDocumentRefs({
         counterpartyId,

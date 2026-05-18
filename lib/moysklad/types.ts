@@ -4,6 +4,7 @@ export type MoyskladEntityType =
   | "counterparty"
   | "customerorder"
   | "invoiceout"
+  | "loss"
   | "product"
   | "variant"
   | "service"
@@ -86,6 +87,12 @@ export interface MoyskladCustomerOrder extends MoyskladEntity {
 }
 
 export interface MoyskladInvoiceOut extends MoyskladEntity {
+  externalCode?: string
+  moment?: string
+  sum?: number
+}
+
+export interface MoyskladLoss extends MoyskladEntity {
   externalCode?: string
   moment?: string
   sum?: number
