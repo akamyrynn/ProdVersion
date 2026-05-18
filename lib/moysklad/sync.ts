@@ -65,6 +65,18 @@ interface MoyskladProductUomResponse {
   uom?: {
     name?: string
   }
+  packs?: MoyskladProductPack[]
+}
+
+interface MoyskladProductPack {
+  id?: string
+  quantity?: number
+  uom?: {
+    meta?: {
+      href?: string
+    }
+    name?: string
+  }
 }
 
 export interface MoyskladStockLossLine {
@@ -93,6 +105,10 @@ interface PayloadOrderForStockLoss {
 }
 
 const kilogramProductCache = new Map<string, Promise<boolean>>()
+const productPacksCache = new Map<string, Promise<MoyskladProductPack[]>>()
+const PACK_ACCOUNTING_PILOT_PRODUCT_IDS = new Set([
+  "18f12f06-4d64-11f1-0a80-063400441812",
+])
 
 function rubToKopecks(value: number) {
   return Math.round((Number(value) || 0) * 100)
@@ -383,6 +399,10 @@ function normalizeUomName(value?: string | null) {
   return (value || "").trim().toLowerCase().replace(/ё/g, "е")
 }
 
+function getUomIdFromHref(href?: string | null) {
+  return href?.split("/").filter(Boolean).pop() || null
+}
+
 async function isKilogramProduct(moyskladProductId: string) {
   const cached = kilogramProductCache.get(moyskladProductId)
   if (cached) return cached
@@ -398,6 +418,37 @@ async function isKilogramProduct(moyskladProductId: string) {
 
   kilogramProductCache.set(moyskladProductId, promise)
   return promise
+}
+
+async function getProductPacks(moyskladProductId: string) {
+  const cached = productPacksCache.get(moyskladProductId)
+  if (cached) return cached
+
+  const promise = moyskladRequest<MoyskladProductUomResponse>(
+    `entity/product/${moyskladProductId}`
+  )
+    .then((product) => product.packs || [])
+    .catch(() => [])
+
+  productPacksCache.set(moyskladProductId, promise)
+  return promise
+}
+
+function isPackAccountingPilotItem(item: CartItem, productMoyskladId: string) {
+  return (
+    PACK_ACCOUNTING_PILOT_PRODUCT_IDS.has(productMoyskladId) &&
+    isCoffeeWeightAccountingItem(item)
+  )
+}
+
+async function findPackForWeightGrams(productMoyskladId: string, weightGrams: number) {
+  if (weightGrams !== 250) return null
+
+  const packs = await getProductPacks(productMoyskladId)
+  return packs.find((pack) => {
+    const uomId = getUomIdFromHref(pack.uom?.meta?.href)
+    return uomId === "8e2eb543-99e9-4077-bc31-93b1359de9c4" && Number(pack.quantity) === 250
+  }) || null
 }
 
 function getCartItemGrindLabel(item: CartItem) {
@@ -461,13 +512,46 @@ async function buildCustomerPositions(
 
   for (const item of cartItems) {
     const productMoyskladId = item.product?.moysklad_id || null
+    const weightGrams = Number(item.variant?.weight_grams) || 0
+
+    if (
+      productMoyskladId &&
+      isPackAccountingPilotItem(item, productMoyskladId) &&
+      await isKilogramProduct(productMoyskladId)
+    ) {
+      const pack = await findPackForWeightGrams(productMoyskladId, weightGrams)
+      const canUseDefaultKilogramLine = weightGrams === 1000
+      const canUsePackLine = Boolean(pack?.id)
+
+      if (canUseDefaultKilogramLine || canUsePackLine) {
+        const position: MoyskladOrderPositionPayload = {
+          quantity: item.quantity,
+          price: rubToKopecks(item.variant?.price ?? 0),
+          assortment: {
+            meta: moyskladMeta("product", productMoyskladId),
+          },
+        }
+
+        if (pack?.id) position.pack = { id: pack.id }
+
+        const discount = discountByItem.get(item.id) || 0
+        if (discount > 0) position.discount = discount
+        if (config.defaultVat > 0) position.vat = config.defaultVat
+
+        positions.push(position)
+        compositionLines.push(
+          `${item.product?.name || item.product_id}: ${item.variant?.name || item.variant_id}${getCartItemGrindLabel(item)} ×${item.quantity} (${formatWeightFromGrams(weightGrams * item.quantity)})`
+        )
+        continue
+      }
+    }
+
     const shouldUseWeightAccounting =
       isCoffeeWeightAccountingItem(item) &&
       productMoyskladId &&
       await isKilogramProduct(productMoyskladId)
 
     if (shouldUseWeightAccounting) {
-      const weightGrams = Number(item.variant?.weight_grams) || 0
       const weightKgPerPack = weightGrams / 1000
       const quantityKg = weightKgPerPack * item.quantity
       const variantPriceKopecks = rubToKopecks(item.variant?.price ?? 0)

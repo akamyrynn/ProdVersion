@@ -107,6 +107,9 @@ export interface MoyskladOrderPositionPayload {
   price: number
   discount?: number
   vat?: number
+  pack?: {
+    id: string
+  }
   assortment: {
     meta: MoyskladMeta
   }
