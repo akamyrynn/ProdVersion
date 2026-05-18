@@ -183,7 +183,7 @@ function inferWeightGrams(name: string) {
   const kg = name.match(/(\d+(?:[.,]\d+)?)\s*кг/i)
   if (kg) return Math.round(Number(kg[1].replace(",", ".")) * 1000)
 
-  const grams = name.match(/(\d+(?:[.,]\d+)?)\s*(?:г|гр|g)\b/i)
+  const grams = name.match(/(\d+(?:[.,]\d+)?)\s*(?:гр\.?|г\.?|g|gr)(?=$|[\s,.;:)\]}-])/i)
   if (grams) return Math.round(Number(grams[1].replace(",", ".")))
 
   return null
