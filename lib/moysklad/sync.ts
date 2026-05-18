@@ -60,6 +60,14 @@ interface MoyskladDiscountLine {
   discountPercent: number
 }
 
+interface MoyskladProductUomResponse {
+  uom?: {
+    name?: string
+  }
+}
+
+const kilogramProductCache = new Map<string, Promise<boolean>>()
+
 function rubToKopecks(value: number) {
   return Math.round((Number(value) || 0) * 100)
 }
@@ -290,6 +298,21 @@ function buildOrderDescription(order: SyncOrder, company?: SyncCompany | null) {
   return rows.join("\n")
 }
 
+function buildOrderDescriptionWithComposition(
+  order: SyncOrder,
+  company?: SyncCompany | null,
+  compositionLines: string[] = []
+) {
+  const description = buildOrderDescription(order, company)
+  if (compositionLines.length === 0) return description
+
+  return [
+    description,
+    "Состав заказа:",
+    ...compositionLines.map((line) => `- ${line}`),
+  ].filter(Boolean).join("\n")
+}
+
 function resolveAssortment(item: CartItem) {
   const variant = item.variant as (CartItem["variant"] & {
     moysklad_id?: string | null
@@ -316,7 +339,49 @@ function resolveAssortment(item: CartItem) {
   return null
 }
 
-function buildPositions(
+function isCoffeeWeightAccountingItem(item: CartItem) {
+  return Boolean(
+    item.product?.product_type_schema === "coffee" &&
+    item.product?.moysklad_id &&
+    item.variant?.weight_grams &&
+    item.variant.weight_grams > 0
+  )
+}
+
+function normalizeUomName(value?: string | null) {
+  return (value || "").trim().toLowerCase().replace(/ё/g, "е")
+}
+
+async function isKilogramProduct(moyskladProductId: string) {
+  const cached = kilogramProductCache.get(moyskladProductId)
+  if (cached) return cached
+
+  const promise = moyskladRequest<MoyskladProductUomResponse>(
+    `entity/product/${moyskladProductId}?expand=uom`
+  )
+    .then((product) => {
+      const uomName = normalizeUomName(product.uom?.name)
+      return uomName === "кг" || uomName.includes("килограмм")
+    })
+    .catch(() => false)
+
+  kilogramProductCache.set(moyskladProductId, promise)
+  return promise
+}
+
+function getCartItemGrindLabel(item: CartItem) {
+  const grind = item.grind_option || item.variant?.grind_options?.[0] || ""
+  return grind ? `, ${grind}` : ""
+}
+
+function formatWeightFromGrams(grams: number) {
+  if (!Number.isFinite(grams) || grams <= 0) return ""
+  if (grams >= 1000 && grams % 1000 === 0) return `${grams / 1000} кг`
+  if (grams >= 1000) return `${Number((grams / 1000).toFixed(3))} кг`
+  return `${grams} г`
+}
+
+async function buildPositions(
   cartItems: CartItem[],
   deliveryCost: number,
   discountLines: MoyskladDiscountLine[] = []
@@ -331,8 +396,63 @@ function buildPositions(
 
   const skipped: CartItem[] = []
   const positions: MoyskladOrderPositionPayload[] = []
+  const compositionLines: string[] = []
+  const weightPositions = new Map<string, MoyskladOrderPositionPayload>()
 
   for (const item of cartItems) {
+    const productMoyskladId = item.product?.moysklad_id || null
+    const shouldUseWeightAccounting =
+      isCoffeeWeightAccountingItem(item) &&
+      productMoyskladId &&
+      await isKilogramProduct(productMoyskladId)
+
+    if (shouldUseWeightAccounting) {
+      const weightGrams = Number(item.variant?.weight_grams) || 0
+      const weightKgPerPack = weightGrams / 1000
+      const quantityKg = weightKgPerPack * item.quantity
+      const variantPriceKopecks = rubToKopecks(item.variant?.price ?? 0)
+      const pricePerKg = weightKgPerPack > 0
+        ? Math.round(variantPriceKopecks / weightKgPerPack)
+        : 0
+
+      if (quantityKg <= 0 || pricePerKg <= 0) {
+        skipped.push(item)
+        continue
+      }
+
+      const discount = discountByItem.get(item.id) || 0
+      const key = [
+        productMoyskladId,
+        pricePerKg,
+        discount,
+        config.defaultVat,
+      ].join(":")
+      const existing = weightPositions.get(key)
+
+      if (existing) {
+        existing.quantity = Number((existing.quantity + quantityKg).toFixed(6))
+      } else {
+        const position: MoyskladOrderPositionPayload = {
+          quantity: Number(quantityKg.toFixed(6)),
+          price: pricePerKg,
+          assortment: {
+            meta: moyskladMeta("product", productMoyskladId),
+          },
+        }
+
+        if (discount > 0) position.discount = discount
+        if (config.defaultVat > 0) position.vat = config.defaultVat
+
+        weightPositions.set(key, position)
+        positions.push(position)
+      }
+
+      compositionLines.push(
+        `${item.product?.name || item.product_id}: ${item.variant?.name || item.variant_id}${getCartItemGrindLabel(item)} ×${item.quantity} (${formatWeightFromGrams(weightGrams * item.quantity)})`
+      )
+      continue
+    }
+
     const assortment = resolveAssortment(item)
     if (!assortment) {
       skipped.push(item)
@@ -371,7 +491,7 @@ function buildPositions(
     positions.push(deliveryPosition)
   }
 
-  return { positions, skipped }
+  return { positions, skipped, compositionLines }
 }
 
 function buildDocumentRefs(params: {
@@ -469,7 +589,7 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
     const counterpartyId = await ensureCounterparty(params.payload, params.client, params.company)
     counterpartyIdForUpdate = counterpartyId
     const salesChannelId = await ensureSalesChannel()
-    const { positions, skipped } = buildPositions(
+    const { positions, skipped, compositionLines } = await buildPositions(
       params.cartItems,
       Number(params.order.deliveryCost) || 0,
       params.discountLines || []
@@ -484,7 +604,11 @@ export async function syncOrderToMoysklad(params: SyncOrderParams) {
       throw new Error("Нет позиций для отправки в МойСклад")
     }
 
-    const description = buildOrderDescription(params.order, params.company)
+    const description = buildOrderDescriptionWithComposition(
+      params.order,
+      params.company,
+      compositionLines
+    )
     const body: Record<string, unknown> = {
       ...buildDocumentRefs({
         counterpartyId,

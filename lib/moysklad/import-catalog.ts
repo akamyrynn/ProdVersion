@@ -470,7 +470,11 @@ async function deleteObsoleteProductTypes(
   }
 }
 
-function variantPayloadFromMoysklad(item: MoyskladVariant | MoyskladProduct, productName: string) {
+function variantPayloadFromMoysklad(
+  item: MoyskladVariant | MoyskladProduct,
+  productName: string,
+  options: { isAvailableOverride?: boolean } = {}
+) {
   const moyskladId = getEntityId(item)
   const name = item.meta?.type === "variant"
     ? cleanVariantName(productName, item.name || "Вариант")
@@ -483,7 +487,7 @@ function variantPayloadFromMoysklad(item: MoyskladVariant | MoyskladProduct, pro
     moyskladType: item.meta?.type === "variant" ? "variant" : "product",
     price: getPrimarySalePrice(item),
     weightGrams: inferWeightGrams(item.name || name),
-    isAvailable: getAssortmentStock(item) > 0,
+    isAvailable: options.isAvailableOverride ?? (getAssortmentStock(item) > 0),
     grindOptions: inferGrindOptions(item.name || ""),
   }
 }
@@ -530,12 +534,19 @@ async function upsertProduct(params: {
     ? params.variants.map((variant) => params.assortmentById.get(variant.id || "") || variant)
     : [assortmentProduct]
 
+  const detailsSchema = schemaForName(`${params.productType.name || ""} ${params.product.name || ""}`)
+  const useParentStockForVariants =
+    detailsSchema === "coffee" &&
+    params.variants.length > 0 &&
+    getAssortmentStock(assortmentProduct) > 0
+
   const variants = variantItems
-    .map((item) => variantPayloadFromMoysklad(item, params.product.name || "Товар"))
+    .map((item) => variantPayloadFromMoysklad(item, params.product.name || "Товар", {
+      isAvailableOverride: useParentStockForVariants ? true : undefined,
+    }))
     .sort(compareImportedVariants)
   const hasAvailableStock = variants.some((variant) => variant.isAvailable)
   const slug = slugify(params.product.name || "product", `product-${shortId(productId)}`)
-  const detailsSchema = schemaForName(`${params.productType.name || ""} ${params.product.name || ""}`)
   const accountingData = {
     name: params.product.name || "Товар",
     slug,
