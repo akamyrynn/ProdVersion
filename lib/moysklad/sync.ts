@@ -4,6 +4,7 @@ import { getMoyskladConfig, assertMoyskladReady } from "./config"
 import { extractMoyskladId, moyskladGetList, moyskladMeta, moyskladRequest } from "./client"
 import { writeMoyskladLog } from "./logs"
 import { DELIVERY_METHOD_LABELS } from "@/lib/utils/constants"
+import { ensureMoyskladBundleForVariant } from "./bundles"
 import type {
   MoyskladCounterparty,
   MoyskladCustomerOrder,
@@ -72,25 +73,23 @@ interface MoyskladProductUomResponse {
   }
 }
 
-interface MoyskladSalePrice {
-  value?: number
-  priceType?: {
-    id?: string
-    name?: string
-    meta?: {
-      href?: string
-      type?: string
-      mediaType?: string
-    }
-  }
-}
-
 interface MoyskladVariantForBundle {
   id?: string
   name?: string
   code?: string
   article?: string
-  salePrices?: MoyskladSalePrice[]
+  salePrices?: {
+    value?: number
+    priceType?: {
+      id?: string
+      name?: string
+      meta?: {
+        href?: string
+        type?: string
+        mediaType?: string
+      }
+    }
+  }[]
 }
 
 interface MoyskladBundleForOrder {
@@ -125,9 +124,6 @@ interface PayloadOrderForStockLoss {
 
 const kilogramProductCache = new Map<string, Promise<boolean>>()
 const bundleCache = new Map<string, Promise<MoyskladBundleForOrder>>()
-const BUNDLE_ACCOUNTING_PILOT_PRODUCT_IDS = new Set([
-  "18f12f06-4d64-11f1-0a80-063400441812",
-])
 
 function rubToKopecks(value: number) {
   return Math.round((Number(value) || 0) * 100)
@@ -435,46 +431,8 @@ async function isKilogramProduct(moyskladProductId: string) {
   return promise
 }
 
-function isBundleAccountingPilotItem(item: CartItem, productMoyskladId: string) {
-  return (
-    BUNDLE_ACCOUNTING_PILOT_PRODUCT_IDS.has(productMoyskladId) &&
-    isCoffeeWeightAccountingItem(item)
-  )
-}
-
-function buildBundleExternalCode(variantMoyskladId: string) {
-  return `10coffee-bundle-${variantMoyskladId}`
-}
-
-function buildBundleCode(variantMoyskladId: string, variantCode?: string | null) {
-  const normalizedCode = (variantCode || "").trim()
-  if (normalizedCode) return `KIT-${normalizedCode}`.slice(0, 255)
-  return `KIT-${variantMoyskladId.slice(0, 8)}`
-}
-
-function buildBundleName(item: CartItem, moyskladVariant?: MoyskladVariantForBundle | null) {
-  if (moyskladVariant?.name) return moyskladVariant.name
-
-  const productName = item.product?.name || item.product_id
-  const variantName = item.variant?.name || item.variant_id
-  return `${productName} (${variantName}${getCartItemGrindLabel(item)})`
-}
-
-function getFirstSalePriceForBundle(
-  item: CartItem,
-  moyskladVariant?: MoyskladVariantForBundle | null
-) {
-  const price = rubToKopecks(item.variant?.price ?? 0)
-  const firstPrice = moyskladVariant?.salePrices?.[0]
-
-  if (firstPrice?.priceType) {
-    return [{
-      ...firstPrice,
-      value: price,
-    }]
-  }
-
-  return [{ value: price }]
+function shouldUseBundleAccounting(item: CartItem, productMoyskladId: string) {
+  return Boolean(productMoyskladId && isCoffeeWeightAccountingItem(item))
 }
 
 async function getMoyskladVariantForBundle(variantMoyskladId: string) {
@@ -485,15 +443,6 @@ async function getMoyskladVariantForBundle(variantMoyskladId: string) {
 async function getMoyskladProductForBundle(productMoyskladId: string) {
   return moyskladRequest<MoyskladProductUomResponse>(`entity/product/${productMoyskladId}`)
     .catch(() => null)
-}
-
-async function findBundleByExternalCode(externalCode: string) {
-  const result = await moyskladGetList<MoyskladBundleForOrder>("entity/bundle", {
-    filter: `externalCode=${externalCode}`,
-    limit: 1,
-  }).catch(() => null)
-
-  return result?.rows?.[0] || null
 }
 
 async function ensureBundleForWeightAccountingItem(
@@ -522,43 +471,17 @@ async function ensureBundleForWeightAccountingItem(
       getMoyskladVariantForBundle(variantMoyskladId),
       getMoyskladProductForBundle(productMoyskladId),
     ])
-    const quantityKg = Number((weightGrams / 1000).toFixed(6))
-    if (quantityKg <= 0) {
-      throw new Error(`Не удалось определить вес варианта ${item.variant?.name || item.variant_id}`)
-    }
 
-    const externalCode = buildBundleExternalCode(variantMoyskladId)
-    const existing = await findBundleByExternalCode(externalCode)
-    const body = {
-      name: buildBundleName(item, moyskladVariant),
-      code: buildBundleCode(variantMoyskladId, moyskladVariant?.code || item.variant?.sku),
-      article: moyskladVariant?.article || item.variant?.sku || undefined,
-      externalCode,
+    return ensureMoyskladBundleForVariant({
+      productMoyskladId,
+      variantMoyskladId,
+      variantName: moyskladVariant?.name || `${item.product?.name || item.product_id} (${item.variant?.name || item.variant_id}${getCartItemGrindLabel(item)})`,
+      variantCode: moyskladVariant?.code || item.variant?.sku,
+      variantArticle: moyskladVariant?.article || item.variant?.sku,
+      salePrices: moyskladVariant?.salePrices,
       productFolder: moyskladProduct?.productFolder,
-      uom: {
-        meta: moyskladMeta("uom", "19f1edc0-fc42-4001-94cb-c9ec9c62ec10"),
-      },
-      salePrices: getFirstSalePriceForBundle(item, moyskladVariant),
-      components: [
-        {
-          assortment: {
-            meta: moyskladMeta("product", productMoyskladId),
-          },
-          quantity: quantityKg,
-        },
-      ],
-    }
-
-    if (existing?.id) {
-      return moyskladRequest<MoyskladBundleForOrder>(`entity/bundle/${existing.id}`, {
-        method: "PUT",
-        body: JSON.stringify(body),
-      })
-    }
-
-    return moyskladRequest<MoyskladBundleForOrder>("entity/bundle", {
-      method: "POST",
-      body: JSON.stringify(body),
+      weightGrams,
+      priceRub: item.variant?.price ?? 0,
     })
   })()
 
@@ -631,7 +554,7 @@ async function buildCustomerPositions(
 
     if (
       productMoyskladId &&
-      isBundleAccountingPilotItem(item, productMoyskladId) &&
+      shouldUseBundleAccounting(item, productMoyskladId) &&
       await isKilogramProduct(productMoyskladId)
     ) {
       const bundle = await ensureBundleForWeightAccountingItem(item, productMoyskladId, weightGrams)

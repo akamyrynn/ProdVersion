@@ -1,6 +1,7 @@
 import type { Payload } from "payload"
 import { extractMoyskladId } from "./client"
 import { getMoyskladConfig } from "./config"
+import { ensureMoyskladBundleForVariant } from "./bundles"
 import {
   fetchMoyskladAssortment,
   fetchMoyskladProductFolders,
@@ -538,14 +539,47 @@ async function upsertProduct(params: {
   const useParentStockForVariants =
     detailsSchema === "coffee" &&
     params.variants.length > 0 &&
-    getAssortmentStock(assortmentProduct) > 0
+    params.variants.some((variant) => inferWeightGrams(variant.name || "") !== null)
+  const parentHasAvailableStock = getAssortmentStock(assortmentProduct) > 0
 
-  const variants = variantItems
-    .map((item) => variantPayloadFromMoysklad(item, params.product.name || "Товар", {
-      isAvailableOverride: useParentStockForVariants ? true : undefined,
-    }))
+  const variantRows = variantItems.map((item) => ({
+    source: item,
+    payload: variantPayloadFromMoysklad(item, params.product.name || "Товар", {
+      isAvailableOverride: useParentStockForVariants ? parentHasAvailableStock : undefined,
+    }),
+  }))
+  const variants = variantRows
+    .map((row) => row.payload)
     .sort(compareImportedVariants)
-  const hasAvailableStock = variants.some((variant) => variant.isAvailable)
+  const hasAvailableStock = useParentStockForVariants
+    ? parentHasAvailableStock
+    : variants.some((variant) => variant.isAvailable)
+
+  if (useParentStockForVariants) {
+    for (const row of variantRows) {
+      const variantId = getEntityId(row.source)
+      const weightGrams = row.payload.weightGrams
+      if (!variantId || !weightGrams) continue
+
+      try {
+        await ensureMoyskladBundleForVariant({
+          productMoyskladId: productId,
+          variantMoyskladId: variantId,
+          variantName: row.source.name || `${params.product.name || "Товар"} (${row.payload.name})`,
+          variantCode: row.source.code || row.payload.sku,
+          variantArticle: row.source.article || row.payload.sku,
+          salePrices: row.source.salePrices,
+          productFolder: params.product.productFolder,
+          weightGrams,
+          priceRub: row.payload.price,
+        })
+      } catch (error) {
+        params.stats.skippedProducts.push(
+          `${row.source.name || row.payload.name}: не удалось создать комплект (${error instanceof Error ? error.message : "ошибка"})`
+        )
+      }
+    }
+  }
   const slug = slugify(params.product.name || "product", `product-${shortId(productId)}`)
   const accountingData = {
     name: params.product.name || "Товар",
