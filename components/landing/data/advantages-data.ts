@@ -26,7 +26,7 @@ export const ADVANTAGES: Advantage[] = [
   {
     title: "Быстрая доставка",
     description:
-      "Доставляем по всей России через СДЭК и собственную логистику. Заказы от 48 часов.",
+      "Доставляем по всей России через СДЭК и собственную логистику.",
     image: "/landing/advantages/delivery.svg",
   },
   {

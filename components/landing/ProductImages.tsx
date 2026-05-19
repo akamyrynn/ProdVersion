@@ -12,16 +12,13 @@ import styles from "./ProductImages.module.css";
 gsap.registerPlugin(ScrollTrigger);
 
 const PRODUCTS = [
-  { name: "Colombia Popayan", image: "/landing/assortment/webp/untitled-2.webp", thumb: "/landing/assortment/thumbs/untitled-2.png" },
-  { name: "Ассортимент 2", image: "/landing/assortment/webp/untitled-3.webp", thumb: "/landing/assortment/thumbs/untitled-3.png" },
-  { name: "Ассортимент 3", image: "/landing/assortment/webp/untitled-4.webp", thumb: "/landing/assortment/thumbs/untitled-4.png" },
-  { name: "Ассортимент 4", image: "/landing/assortment/webp/untitled-5.webp", thumb: "/landing/assortment/thumbs/untitled-5.png" },
-  { name: "Акация", image: "/landing/assortment/webp/acacia.webp", thumb: "/landing/assortment/thumbs/acacia.png" },
-  { name: "Гондурас", image: "/landing/assortment/webp/honduras.webp", thumb: "/landing/assortment/thumbs/honduras.png" },
-  { name: "Новый продукт ББ", image: "/landing/assortment/webp/np-bb.webp", thumb: "/landing/assortment/thumbs/np-bb.png" },
-  { name: "Новый продукт", image: "/landing/assortment/webp/np-back.webp", thumb: "/landing/assortment/thumbs/np-back.png" },
-  { name: "Иргачиф", image: "/landing/assortment/webp/np-irgacheffe.webp", thumb: "/landing/assortment/thumbs/np-irgacheffe.png" },
-  { name: "Чичу", image: "/landing/assortment/webp/np-chichu.webp", thumb: "/landing/assortment/thumbs/np-chichu.png" },
+  { name: "Ассортимент 1", image: "/Ассортимент/1.webp", thumb: "/Ассортимент/1.webp" },
+  { name: "Ассортимент 2", image: "/Ассортимент/2.webp", thumb: "/Ассортимент/2.webp" },
+  { name: "Ассортимент 3", image: "/Ассортимент/3.webp", thumb: "/Ассортимент/3.webp" },
+  { name: "Ассортимент 4", image: "/Ассортимент/4.webp", thumb: "/Ассортимент/4.webp" },
+  { name: "Ассортимент 5", image: "/Ассортимент/5.webp", thumb: "/Ассортимент/5.webp" },
+  { name: "Ассортимент 6", image: "/Ассортимент/6%20(1).webp", thumb: "/Ассортимент/6%20(1).webp" },
+  { name: "Ассортимент 7", image: "/Ассортимент/7.webp", thumb: "/Ассортимент/7.webp" },
 ];
 
 export default function ProductImages() {
