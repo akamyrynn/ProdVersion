@@ -120,6 +120,11 @@
   background: #ffffff;
 }
 
+.authorLogoImage {
+  padding: 0;
+  background: transparent;
+}
+
 .authorLogo img {
   width: 100%;
   height: 100%;

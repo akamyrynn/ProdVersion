@@ -198,7 +198,7 @@ export default function PartnerTestimonials() {
                 <p>{t.text}</p>
               </div>
               <div className={styles.author}>
-                <div className={styles.authorLogo}>
+                <div className={`${styles.authorLogo} ${t.logo ? styles.authorLogoImage : ""}`}>
                   {t.logo ? (
                     <img src={t.logo} alt={t.company} />
                   ) : (
